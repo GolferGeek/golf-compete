@@ -1,0 +1,14 @@
+{
+  "targets": {
+    "golf-compete": {
+      "hosting": {
+        "app": [
+          "golf-compete"
+        ]
+      }
+    }
+  },
+  "projects": {
+    "default": "golf-compete"
+  }
+}
