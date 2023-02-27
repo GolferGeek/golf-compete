@@ -1,3 +1,4 @@
 <p>
-  login-logout works!
+  <ion-button *ngIf="!authService.loggedIn" (click)="login()">Login</ion-button>
+  <ion-button *ngIf="authService.loggedIn" (click)="logout()">Logout</ion-button>
 </p>

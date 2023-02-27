@@ -18,6 +18,10 @@ const routes: Routes = [
   {
     path: 'improve',
     loadChildren: () => import('./pages/improve/improve.module').then( m => m.ImprovePageModule)
+  },
+  {
+    path: 'user-information',
+    loadChildren: () => import('./pages/user-information/user-information.module').then( m => m.UserInformationPageModule)
   }
 ];
 
