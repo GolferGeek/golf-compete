@@ -53,8 +53,8 @@ export class AuthService {
           isAdministrator: false,
           handicap: foundUser!['handicap'] || 0,
           favoriteCourses: foundUser!['favoriteCourses'] || [],
-          currentClubs: foundUser!['currentClubs'] || [],
-          currentClubCombinations: foundUser!['currentClubCombinations'] || [],
+          clubs: foundUser!['clubs'] || [],
+          clubCombinations: foundUser!['clubCombinations'] || [],
         });
       } else {
         const newUser = {
@@ -65,8 +65,8 @@ export class AuthService {
           isAdministrator: false,
           handicap: 0,
           favoriteCourses: [],
-          currentClubs: [],
-          currentClubCombinations: [],
+          clubs: [],
+          clubCombinations: [],
         };
         this.currentUserSubject.next(newUser);
         setDoc(doc(this.firestore, 'users', newUser.id), newUser);

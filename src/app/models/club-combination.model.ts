@@ -6,4 +6,5 @@ export interface ClubCombinationModel {
   description: string;
   picture: string;
   clubs: ClubModel[];
+  current: boolean;
 }

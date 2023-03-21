@@ -10,6 +10,6 @@ export interface UserModel {
   isAdministrator: boolean;
   handicap: number;
   favoriteCourses: CourseModel[];
-  currentClubs: ClubModel[];
-  currentClubCombinations: ClubModel[];
+  clubs: ClubModel[];
+  clubCombinations: ClubModel[];
 }

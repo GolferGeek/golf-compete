@@ -5,4 +5,5 @@ export interface ClubModel {
   picture: string;
   minDistance: number;
   maxDistance: number;
+  current: boolean
 }
