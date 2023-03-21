@@ -1,0 +1,84 @@
+<ion-content [fullscreen]="true">
+  <div class="page-container">
+    <!-- welcome text-->
+    <div class="welcome-container">
+      <ion-text>
+        <h1>
+          Login to your Account!
+        </h1>
+      </ion-text>
+      <ion-text>
+        <h2>
+          Enter your information to get started again
+        </h2>
+      </ion-text>
+    </div>
+
+    <!-- form -->
+    <div class="form-container">
+      <ion-item lines="none">
+        <div class="input-container">
+          <div class="icon-container">
+            <ion-icon name="person-outline"></ion-icon>
+          </div>
+          <div class="input">
+            <ion-label position="stacked">Username</ion-label>
+            <ion-input placeholder="John" required="true"></ion-input>
+          </div>
+        </div>
+      </ion-item>
+
+      <ion-item lines="none">
+        <div class="input-container">
+          <div class="icon-container">
+            <ion-icon name="briefcase-outline"></ion-icon>
+          </div>
+          <div class="input">
+            <ion-label position="stacked">Password</ion-label>
+            <ion-input type="password" placeholder="*****" required="true"></ion-input>
+          </div>
+
+        </div>
+      </ion-item>
+      <div class="forgot-password-container">
+        <ion-text>
+          <span>Forgot password</span>
+        </ion-text>
+      </div>
+
+      <ion-button type="submit" strong="true" expand="block" shape="round" mode="ios">Continue</ion-button>
+      <ion-text>
+        <p class="register-prompt">
+          Don't have an account yet? <ion-text class="link"><span>Register now</span></ion-text>
+        </p>
+      </ion-text>
+    </div>
+
+    <!-- alternate login options -->
+    <div class="alternate-container">
+      <div class="or-container">
+        <div class="horizontal-line"></div>
+        <ion-text color="dark" class="divider">
+          <p>Or</p>
+        </ion-text>
+        <div class="horizontal-line"></div>
+      </div>
+
+      <ion-button expand="block" shape="round" mode="ios">
+        <ion-icon slot="start" name="logo-apple"></ion-icon>
+        Login via Apple
+      </ion-button>
+      <ion-button expand="block" shape="round" mode="ios">
+        <ion-icon slot="start" name="logo-google"></ion-icon>
+        Login via Google
+      </ion-button>
+      <ion-button expand="block" shape="round" mode="ios">
+        <ion-icon slot="start" name="logo-facebook"></ion-icon>
+        Login via Facebook
+      </ion-button>
+
+    </div>
+
+  </div>
+</ion-content>
+
