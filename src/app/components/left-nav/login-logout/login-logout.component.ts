@@ -12,7 +12,7 @@ export class LoginLogoutComponent implements OnInit {
   constructor(public authService: AuthService, private router: Router) { }
 
   login() {
-    this.router.navigateByUrl('/login');
+    this.router.navigateByUrl('/auth/login');
   }
 
   logout() {

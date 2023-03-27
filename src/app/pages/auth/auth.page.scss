@@ -18,8 +18,6 @@ ion-content {
       }
     }
 
-    .form-container {
-      padding-top: 20px;
       ion-item {
         margin: 10px 0;
         border-radius: 30px;
@@ -30,6 +28,7 @@ ion-content {
           align-items: center;
           height: 100%;
           width: 100%;
+
           .icon-container {
             flex-grow: 0;
             flex-shrink: 0;
@@ -40,20 +39,22 @@ ion-content {
             display: grid;
             justify-items: center;
             align-items: center;
+
             ion-icon {
               color: #5fa9ef;
               font-size: 20px;
             }
           }
+
           .input {
             margin-left: 15px;
             width: 100%;
+
             ion-label {
               margin-bottom: 0;
             }
           }
         }
-      }
       ion-button {
         margin: 20px 0;
         --background: #5fa9ef;
@@ -61,15 +62,6 @@ ion-content {
         --background-focussed: #79afe2;
         --padding-top: 25px;
         --padding-bottom: 25px;
-      }
-      .forgot-password-container {
-        display: flex;
-        flex-direction: row;
-        justify-content: flex-end;
-        ion-text {
-          color: #666;
-          font-size: 0.8rem;
-        }
       }
       .register-prompt {
         color: #666;

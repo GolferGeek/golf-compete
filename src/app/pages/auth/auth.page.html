@@ -1,0 +1,50 @@
+<ion-content class="ion-padding" [fullscreen]="true">
+  <div class="page-container">
+    <!-- welcome text-->
+    <div class="welcome-container">
+      <ion-text>
+        <h1>
+          {{ pageTitle }}
+        </h1>
+      </ion-text>
+    </div>
+
+    <ion-item lines="none">
+      <div class="input-container">
+        <div class="icon-container">
+          <ion-icon name="person-outline"></ion-icon>
+      </div>
+      <div class="input">
+        <ion-label position="stacked">UserName</ion-label>
+        <ion-input type="text" [(ngModel)]="credentials.email"></ion-input>
+      </div>
+    </div>
+    </ion-item>
+    <ion-item lines="none">
+      <div class="input-container">
+        <div class="icon-container">
+          <ion-icon name="briefcase-outline"></ion-icon>
+        </div>
+        <div class="input">
+          <ion-label position="stacked">Password</ion-label>
+          <ion-input type="password" placeholder="*****" required="true" [(ngModel)]="credentials.password"></ion-input>
+        </div>
+      </div>
+    </ion-item>
+    <ion-button (click)="handleAuthForm(credentials)" strong="true" expand="block" shape="round" mode="ios">Continue</ion-button>
+
+    <div *ngIf="authMode === 'login'">
+      <ion-button expand="block" fill="clear" (click)="loginWithGoogle()">
+        Login with Google
+      </ion-button>
+
+      <ion-button expand="block" fill="clear" routerLink="/auth/reset">
+        Forgot Password
+      </ion-button>
+
+      <ion-button expand="block" fill="clear" routerLink="/auth/signup">
+        Create a new account
+      </ion-button>
+    </div>
+  </div>
+</ion-content>
