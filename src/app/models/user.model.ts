@@ -1,15 +1,12 @@
-import { ClubModel } from "./club.model";
 import { CourseModel } from "./course/course.model";
 
 
 export interface UserModel {
+  id: string;
   email: string;
   userName: string;
-  id: string;
   picture: string;
-  isAdministrator: boolean;
   handicap: number;
   favoriteCourses: CourseModel[];
-  clubs: ClubModel[];
-  clubCombinations: ClubModel[];
+  isAdministrator: boolean;
 }
