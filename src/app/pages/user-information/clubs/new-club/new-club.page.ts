@@ -34,8 +34,8 @@ export class NewClubPage implements OnInit {
   ngOnInit() {
   }
 
-  saveClub() {
-    this.userClubService.addUserClub(this.userService.userSubject.value?.id as string, this.club);
+  async saveClub() {
+    await this.userClubService.addUserClub(this.userService.userSubject.value?.id as string, this.club);
     this.router.navigate(['/user-information/clubs']);
   }
 }

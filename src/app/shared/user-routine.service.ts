@@ -44,7 +44,7 @@ export class UserRoutineService {
       current: routine.current
     };
     const docRef = await addDoc(collection(this.firestore, `users/${userId}/routines`), routineInfo);
-    setDoc(docRef, {id: docRef.id, ...routineInfo}, {merge: true});
+    setDoc(docRef, {id: docRef.id}, {merge: true});
   }
 
 

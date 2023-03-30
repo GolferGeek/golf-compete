@@ -1,4 +1,4 @@
-import {RoutineModel, RoutineType} from '../models/routine.model'
+import {RoutineModel} from '../models/routine.model'
 import {ClubModel} from '../models/club.model'
 import {ClubCombinationModel} from '../models/club-combination.model'
 
@@ -95,7 +95,7 @@ export const initialRoutines: Partial<RoutineModel>[] = [
       - Remember the swing shape and effort and waggle accordingly
 
       - Relax and start the swing`,
-    type: RoutineType.PreShot,
+    type: 'PreShot',
     current: true,
   },
   {
@@ -110,7 +110,7 @@ export const initialRoutines: Partial<RoutineModel>[] = [
 
       - Document
     `,
-    type: RoutineType.PostShot,
+    type: 'PostShot',
     current: true,
   },
   {
@@ -135,7 +135,7 @@ export const initialRoutines: Partial<RoutineModel>[] = [
 
       - Plan your first shot…
     `,
-    type: RoutineType.PreHole,
+    type: 'PreHole',
     current: true,
   },
   {
@@ -157,7 +157,7 @@ export const initialRoutines: Partial<RoutineModel>[] = [
 
     - Did you appreciate and be grateful?
     `,
-    type: RoutineType.PostHole,
+    type: 'PostHole',
     current: true,
   },
 ]
