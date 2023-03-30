@@ -1,4 +1,2 @@
-<p>
-  <ion-button *ngIf="!authService.loggedIn" (click)="login()">Login</ion-button>
-  <ion-button *ngIf="authService.loggedIn" (click)="logout()">Logout</ion-button>
-</p>
+<button *ngIf="!authService.loggedIn" (click)="login()">Login</button>
+<button *ngIf="authService.loggedIn" (click)="logout()">Logout</button>

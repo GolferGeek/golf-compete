@@ -1,38 +1,29 @@
 <script src="../../models/user.model.ts"></script>
 <ion-header>
-  <ion-toolbar>
-    <ion-title>user-information</ion-title>
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+      <ion-back-button></ion-back-button>
+    </ion-buttons>
+    <ion-title>User Information</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content *ngIf="userService.user$ | async as currentUser">
-  <ion-item lines="none">
-    <div class="input-container">
-      <div class="icon-container">
-        <ion-icon name="briefcase-outline"></ion-icon>
+  <main>
+    <div id="user-info">
+      <div id="name-and-photo">
+        <img [src]="currentUser.picture">
+        <h1>{{ currentUser.userName }}</h1>
       </div>
-      <div class="input">
-        <ion-label position="stacked">UserName</ion-label>
-        <ion-input placeholder="User" required="true" [(ngModel)]="currentUser.userName"></ion-input>
-      </div>
-    </div>
-  </ion-item>
-  <ion-item lines="none">
-    <div class="input-container">
-      <div class="icon-container">
-        <ion-icon name="briefcase-outline"></ion-icon>
-      </div>
-      <div class="input">
-        <ion-label position="stacked">Handicap</ion-label>
-        <ion-input type="number" placeholder="15" required="true" [(ngModel)]="currentUser.handicap"></ion-input>
+      <div>
+        <span>Hadicap:</span>
+        <input type="number" placeholder="15" required="true" [(ngModel)]="currentUser.handicap" />
       </div>
     </div>
-  </ion-item>
-  <ion-item>
-    <img [src]="currentUser.picture">
-  </ion-item>
+    <ion-button expand="full" routerLink="clubs">Maintain Clubs</ion-button>
+  </main>
 
-  <ion-button routerLink="clubs">Maintain Clubs</ion-button>
 
   <div class="club-combination-list">
     <ion-item *ngFor="let clubCombination of userService.clubCombinations$ | async" class="club-combination">

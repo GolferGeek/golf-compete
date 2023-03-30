@@ -1,17 +1,21 @@
 <ion-header>
-  <ion-toolbar>
-    <ion-title>clubs</ion-title>
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+      <ion-back-button></ion-back-button>
+    </ion-buttons>
+    <ion-title>Clubs</ion-title>
   </ion-toolbar>
 </ion-header>
 
-<ion-content>
-  <div class="club-list" *ngIf="userService.user$ | async as user">
-    <ion-item *ngFor="let club of userService.clubs$ | async" class="club">
-      <ion-label>{{club.name}}</ion-label>
-      <ion-label>{{club.description}}</ion-label>
-      <ion-button [routerLink]="['edit-club', club.id]">Edit</ion-button>
-      <ion-button (click)="userService.deleteUserClub(user.id, club.id)">Delete</ion-button>
-    </ion-item>
+<ion-content id="club-list" *ngIf="userService.user$ | async as user">
+  <ion-item *ngFor="let club of userService.clubs$ | async" class="club">
+    <ion-label>{{club.name}}</ion-label>
+    <ion-label>{{club.description}}</ion-label>
+    <ion-button expand="full" [routerLink]="['edit-club', club.id]">Edit</ion-button>
+  <ion-button expand="full" (click)="userService.deleteUserClub(user.id, club.id)">Delete</ion-button>
+  </ion-item>
+  <div class="ion-margin">
+    <ion-button expand="full" routerLink="new-club">Add Club</ion-button>
   </div>
-  <ion-button routerLink="new-club">Add Club</ion-button>
 </ion-content>

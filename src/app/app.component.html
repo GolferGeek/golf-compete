@@ -1,9 +1,18 @@
 <ion-app>
   <ion-split-pane contentId="main-content">
     <ion-menu contentId="main-content" type="overlay">
-      <ion-content>
-        <app-left-nav></app-left-nav>
-      </ion-content>
+      <ion-header>
+        <ion-toolbar color="primary">
+          <ion-title><ion-icon name="golf-outline"></ion-icon> Golf Compete</ion-title>
+        </ion-toolbar>
+      </ion-header>
+      <div id="left-nav">
+        <h1 *ngIf="userService.user$ | async as user">Hello, {{ user.userName }}</h1>
+        <ion-list>
+          <ion-item></ion-item>
+        </ion-list>
+        <app-login-logout></app-login-logout>
+      </div>
     </ion-menu>
     <ion-router-outlet id="main-content"></ion-router-outlet>
   </ion-split-pane>

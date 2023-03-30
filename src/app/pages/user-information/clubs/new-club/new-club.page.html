@@ -1,38 +1,23 @@
 <ion-header>
-  <ion-toolbar>
-    <ion-title>new-club</ion-title>
+  <ion-toolbar color="primary">
+    <ion-buttons slot="start">
+      <ion-menu-button></ion-menu-button>
+      <ion-back-button></ion-back-button>
+    </ion-buttons>
+    <ion-title>New Club</ion-title>
   </ion-toolbar>
 </ion-header>
 
 <ion-content *ngIf="club">
-  <ion-item lines="none">
-    <div class="input-container">
-      <div class="icon-container">
-        <ion-icon name="briefcase-outline"></ion-icon>
-      </div>
-      <div class="input">
+  <ion-item>
         <ion-label position="stacked">Name</ion-label>
         <ion-input placeholder="Name" required="true" [(ngModel)]="club.name"></ion-input>
-      </div>
-    </div>
   </ion-item>
-  <ion-item lines="none">
-    <div class="input-container">
-      <div class="icon-container">
-        <ion-icon name="briefcase-outline"></ion-icon>
-      </div>
-      <div class="input">
+  <ion-item>
         <ion-label position="stacked">Description</ion-label>
         <ion-input placeholder="" required="true" [(ngModel)]="club.description"></ion-input>
-      </div>
-    </div>
   </ion-item>
-  <ion-item lines="none">
-    <div class="input-container">
-      <div class="icon-container">
-        <ion-icon name="briefcase-outline"></ion-icon>
-      </div>
-      <div class="input">
+  <ion-item>
         <ion-label position="stacked">Type</ion-label>
         <ion-select required="true" [(ngModel)]="club.type">
           <ion-select-option value="Driver">Driver</ion-select-option>
@@ -42,102 +27,44 @@
           <ion-select-option value="Wedge">Wedge</ion-select-option>
           <ion-select-option value="Putter">Putter</ion-select-option>
         </ion-select>
-      </div>
-    </div>
   </ion-item>
-  <ion-item lines="none">
-    <div class="input-container">
-      <div class="icon-container">
-        <ion-icon name="briefcase-outline"></ion-icon>
-      </div>
-      <div class="input">
+  <ion-item>
         <ion-label position="stacked">Shaft</ion-label>
         <ion-select required="true" [(ngModel)]="club.shaft">
           <ion-select-option value="Graphite">Graphite</ion-select-option>
           <ion-select-option value="Steel">Steel</ion-select-option>
         </ion-select>
-      </div>
-    </div>
   </ion-item>
 
-  <ion-item lines="none">
-    <div class="input-container">
-      <div class="icon-container">
-        <ion-icon name="briefcase-outline"></ion-icon>
-      </div>
-      <div class="input">
+  <ion-item>
         <ion-label position="stacked">Loft</ion-label>
         <ion-input type="number" placeholder="" required="true" [(ngModel)]="club.loft"></ion-input>
-      </div>
-    </div>
   </ion-item>
-  <ion-item lines="none">
-    <div class="input-container">
-      <div class="icon-container">
-        <ion-icon name="briefcase-outline"></ion-icon>
-      </div>
-      <div class="input">
+  <ion-item>
         <ion-label position="stacked">Brand</ion-label>
         <ion-input placeholder="" required="true" [(ngModel)]="club.brand"></ion-input>
-      </div>
-    </div>
   </ion-item>
-  <ion-item lines="none">
-    <div class="input-container">
-      <div class="icon-container">
-        <ion-icon name="briefcase-outline"></ion-icon>
-      </div>
-      <div class="input">
+  <ion-item>
         <ion-label position="stacked">Model</ion-label>
         <ion-input placeholder="" required="true" [(ngModel)]="club.model"></ion-input>
-      </div>
-    </div>
   </ion-item>
-  <ion-item lines="none">
-    <div class="input-container">
-      <div class="icon-container">
-        <ion-icon name="briefcase-outline"></ion-icon>
-      </div>
-      <div class="input">
+  <ion-item>
         <ion-label position="stacked">Image URL</ion-label>
         <ion-input placeholder="" required="true" [(ngModel)]="club.image"></ion-input>
-      </div>
-    </div>
   </ion-item>
-  <ion-item lines="none">
-    <div class="input-container">
-      <div class="icon-container">
-        <ion-icon name="briefcase-outline"></ion-icon>
-      </div>
-      <div class="input">
+  <ion-item>
         <ion-label type="number" position="stacked">Min Distance</ion-label>
         <ion-input placeholder="" required="true" [(ngModel)]="club.minDistance"></ion-input>
-      </div>
-    </div>
   </ion-item>
-  <ion-item lines="none">
-    <div class="input-container">
-      <div class="icon-container">
-        <ion-icon name="briefcase-outline"></ion-icon>
-      </div>
-      <div class="input">
+  <ion-item>
         <ion-label position="stacked">Max Distance</ion-label>
         <ion-input type="number" placeholder="" required="true" [(ngModel)]="club.maxDistance"></ion-input>
-      </div>
-    </div>
   </ion-item>
-  <ion-item lines="none">
-    <div class="input-container">
-      <div class="icon-container">
-        <ion-icon name="briefcase-outline"></ion-icon>
-      </div>
-      <div class="input">
-        <ion-label position="stacked">Currently Using</ion-label>
+  <ion-item>
+        <ion-label>Currently Using</ion-label>
         <ion-checkbox type="checkbox"  required="true" [(ngModel)]="club.current"></ion-checkbox>
-      </div>
-    </div>
   </ion-item>
-  <ion-button (click)="saveClub()">
-    Save
-  </ion-button>
+  <div class="ion-margin">
+    <ion-button expand="full" (click)="saveClub()">Save</ion-button>
+  </div>
 </ion-content>
