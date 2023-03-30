@@ -1,7 +1,7 @@
 import {Injectable} from '@angular/core';
 import {
   getAuth,
-  GoogleAuthProvider, sendPasswordResetEmail, signInWithEmailAndPassword,
+  GoogleAuthProvider, sendPasswordResetEmail, signInWithEmailAndPassword, createUserWithEmailAndPassword,
   signInWithPopup,
   signOut,
   User,
@@ -19,7 +19,7 @@ export class AuthService {
   firestore = getFirestore();
 
   constructor(private router: Router, private alertController: AlertController) {
-    this.fbAuth.onAuthStateChanged( async (fbUser) => {
+    this.fbAuth.onAuthStateChanged(async (fbUser) => {
       if (fbUser) {
         this.loggedIn = true;
 
@@ -33,12 +33,68 @@ export class AuthService {
   login(email: string, password: string) {
     signInWithEmailAndPassword(this.fbAuth, email, password).then(() => {
       this.router.navigateByUrl('/home');
+    }).catch(async (error) => {
+      let message = '';
+      switch (error.code) {
+        case 'auth/invalid-email':
+          message = 'Invalid email';
+          break;
+        case 'auth/user-disabled':
+          message = 'User disabled';
+          break;
+        case 'auth/user-not-found':
+          message = 'User not found';
+          break;
+        case 'auth/wrong-password':
+          message = 'Wrong password';
+          break;
+        default:
+          message = 'Unknown error';
+      }
+      const alert = await this.alertController.create({
+        message: message,
+        buttons: [
+          {
+            text: 'Ok',
+            role: 'cancel',
+          }
+        ],
+      });
+      await alert.present();
     });
   }
 
-  register(email: string, password: string) {
-    signInWithEmailAndPassword(this.fbAuth, email, password).then(() => {
+  async register(email: string, password: string) {
+    createUserWithEmailAndPassword(this.fbAuth, email, password).then(() => {
       this.router.navigateByUrl('/home');
+    }).catch(async (error) => {
+      let message = '';
+      switch (error.code) {
+        case 'auth/email-already-in-use':
+          message = 'Email already in use';
+          break;
+        case 'auth/invalid-email':
+          message = 'Invalid email';
+          break;
+        case 'auth/operation-not-allowed':
+          message = 'Operation not allowed';
+          break;
+        case 'auth/weak-password':
+          message = 'Password too weak';
+          break;
+        default:
+          message = 'Unknown error';
+      }
+      const alert = await this.alertController.create({
+        message: message,
+        buttons: [
+          {
+            text: 'Ok',
+            role: 'cancel',
+          }
+        ],
+      });
+      await alert.present();
     });
   }
 

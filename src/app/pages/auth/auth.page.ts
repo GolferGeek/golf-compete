@@ -1,14 +1,15 @@
-import { Component } from '@angular/core';
+import {Component} from '@angular/core';
 import {
   Auth,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
 } from '@angular/fire/auth';
-import { doc, Firestore, setDoc } from '@angular/fire/firestore';
-import { ActivatedRoute, Router } from '@angular/router';
-import { AlertController } from '@ionic/angular';
+import {doc, Firestore, setDoc} from '@angular/fire/firestore';
+import {ActivatedRoute, Router} from '@angular/router';
+import {AlertController} from '@ionic/angular';
 import {AuthService} from '../../shared/auth.service'
+
 @Component({
   selector: 'app-auth',
   templateUrl: './auth.page.html',
@@ -21,6 +22,7 @@ export class AuthPage {
     email: '',
     password: '',
   };
+
   constructor(
     private readonly route: ActivatedRoute,
     private readonly router: Router,
@@ -50,16 +52,17 @@ export class AuthPage {
   }
 
 
-  handleAuthForm({ email, password }: { email: string; password: string }) {
+  handleAuthForm({email, password}: { email: string; password: string }) {
     switch (this.authMode) {
       case 'login':
         this.authService.login(email, password);
         break;
       case 'signup':
-        this.authService.register(email, password);
+          this.authService.register(email, password);
         break;
       case 'reset':
         this.authService.resetPassword(email);
+        this.displayResetAlert();
         break;
       default:
         break;
