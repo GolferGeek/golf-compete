@@ -6,4 +6,9 @@
 
 <ion-content>
 
+  <div class="routine-list">
+    <ion-item *ngFor="let routine of userRoutineService.routines$ | async" class="routine">
+      <ion-label>{{routine.name}}</ion-label>
+    </ion-item>
+  </div>
 </ion-content>

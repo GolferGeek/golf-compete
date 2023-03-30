@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import {ActivatedRoute, Router} from '@angular/router'
 import {ClubModel} from '../../../../models/club.model'
 import {UserService} from '../../../../shared/user.service'
+import {UserClubService} from '../../../../shared/user-club.service'
 
 @Component({
   selector: 'app-new-club',
@@ -24,7 +25,9 @@ export class NewClubPage implements OnInit {
     current: true
   }
 
-  constructor(private userService: UserService, private router: Router) {
+  constructor(
+    private userService: UserService,
+    private userClubService: UserClubService, private router: Router) {
 
   }
 
@@ -32,7 +35,7 @@ export class NewClubPage implements OnInit {
   }
 
   saveClub() {
-    this.userService.addUserClub(this.userService.userSubject.value?.id as string, this.club);
+    this.userClubService.addUserClub(this.userService.userSubject.value?.id as string, this.club);
     this.router.navigate(['/user-information/clubs']);
   }
 }

@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
+import {UserClubService} from '../../../shared/user-club.service'
 import {UserService} from '../../../shared/user.service'
-import {AuthService} from '../../../shared/auth.service'
 
 @Component({
   selector: 'app-clubs',
@@ -9,7 +9,7 @@ import {AuthService} from '../../../shared/auth.service'
 })
 export class ClubsPage implements OnInit {
 
-  constructor(public userService: UserService) { }
+  constructor(public userService: UserService, public userClubService: UserClubService) { }
 
   ngOnInit() {
   }

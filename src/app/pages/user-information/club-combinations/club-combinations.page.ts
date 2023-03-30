@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import {UserClubCombinationService} from '../../../shared/user-club-combination.service'
 
 @Component({
   selector: 'app-club-combinations',
@@ -7,7 +8,7 @@ import { Component, OnInit } from '@angular/core';
 })
 export class ClubCombinationsPage implements OnInit {
 
-  constructor() { }
+  constructor(public userClubCombinationService: UserClubCombinationService) { }
 
   ngOnInit() {
   }

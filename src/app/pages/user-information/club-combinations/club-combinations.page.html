@@ -6,4 +6,10 @@
 
 <ion-content>
 
+  <div class="club-combination-list">
+    <ion-item *ngFor="let clubCombination of userClubCombinationService.clubCombinations$ | async" class="club-combination">
+      <ion-label>{{clubCombination.name}}</ion-label>
+      <ion-label>{{clubCombination.description}}</ion-label>
+    </ion-item>
+  </div>
 </ion-content>
