@@ -5,11 +5,15 @@
 </ion-header>
 
 <ion-content>
+    <div class="club-combination-list" *ngIf="userService.user$ | async as user">
+      <ion-item *ngFor="let clubCombination of userClubCombinationService.clubCombinations$ | async"
+                class="club-combination">
+        <ion-label>{{clubCombination.name}}</ion-label>
+        <ion-label>{{clubCombination.description}}</ion-label>
+        <ion-button [routerLink]="['edit-club-combination', clubCombination.id]">Edit</ion-button>
+        <ion-button (click)="userClubCombinationService.deleteUserClubCombination(user.id, clubCombination.id)">Delete</ion-button>
 
-  <div class="club-combination-list">
-    <ion-item *ngFor="let clubCombination of userClubCombinationService.clubCombinations$ | async" class="club-combination">
-      <ion-label>{{clubCombination.name}}</ion-label>
-      <ion-label>{{clubCombination.description}}</ion-label>
-    </ion-item>
-  </div>
+      </ion-item>
+    </div>
+    <ion-button [routerLink]="['new-club-combination']">Add</ion-button>
 </ion-content>

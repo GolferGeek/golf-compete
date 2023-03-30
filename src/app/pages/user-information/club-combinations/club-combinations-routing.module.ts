@@ -13,7 +13,7 @@ const routes: Routes = [
     loadChildren: () => import('./new-club-combination/new-club-combination.module').then( m => m.NewClubCombinationPageModule)
   },
   {
-    path: 'edit-club-combination',
+    path: 'edit-club-combination/:id',
     loadChildren: () => import('./edit-club-combination/edit-club-combination.module').then( m => m.EditClubCombinationPageModule)
   },
 ];

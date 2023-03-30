@@ -5,5 +5,29 @@
 </ion-header>
 
 <ion-content>
-
+  <ion-item>
+    <ion-label position="stacked">Name</ion-label>
+    <ion-input placeholder="Name" required="true" [(ngModel)]="clubCombination.name"></ion-input>
+  </ion-item>
+  <ion-item>
+    <ion-label position="stacked">Description</ion-label>
+    <ion-input placeholder="" required="true" [(ngModel)]="clubCombination.description"></ion-input>
+  </ion-item>
+  <ion-item>
+    <ion-label position="stacked">Type</ion-label>
+    <ion-select required="true" [(ngModel)]="clubCombination.clubs" [multiple]="true">
+      <ion-select-option [value]="club.id" *ngFor="let club of userClubService.clubs$ | async">{{club.name}}</ion-select-option>
+    </ion-select>
+  </ion-item>
+  <ion-item>
+    <ion-label position="stacked">Image URL</ion-label>
+    <ion-input placeholder="" required="true" [(ngModel)]="clubCombination.picture"></ion-input>
+  </ion-item>
+  <ion-item>
+    <ion-label>Currently Using</ion-label>
+    <ion-checkbox type="checkbox"  required="true" [(ngModel)]="clubCombination.current"></ion-checkbox>
+  </ion-item>
+  <div class="ion-margin">
+    <ion-button expand="full" (click)="saveClubCombination()">Save</ion-button>
+  </div>
 </ion-content>

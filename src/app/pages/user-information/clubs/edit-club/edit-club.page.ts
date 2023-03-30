@@ -26,8 +26,8 @@ export class EditClubPage implements OnInit {
   ngOnInit() {
   }
 
-  saveClub() {
-    this.userClubService.updateUserClub(this.userService.userSubject.value?.id as string, this.club);
+  async saveClub() {
+    await this.userClubService.updateUserClub(this.userService.userSubject.value?.id as string, this.club);
     this.router.navigate(['/user-information/clubs']);
   }
 

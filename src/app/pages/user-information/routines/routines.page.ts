@@ -1,5 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import {UserRoutineService} from '../../../shared/user-routine.service'
+import {UserService} from '../../../shared/user.service'
 
 @Component({
   selector: 'app-routines',
@@ -8,7 +9,7 @@ import {UserRoutineService} from '../../../shared/user-routine.service'
 })
 export class RoutinesPage implements OnInit {
 
-  constructor(public userRoutineService: UserRoutineService) { }
+  constructor(public userService: UserService, public userRoutineService: UserRoutineService) { }
 
   ngOnInit() {
   }
