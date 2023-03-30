@@ -33,16 +33,7 @@
   </ion-item>
 
   <ion-button routerLink="clubs">Maintain Clubs</ion-button>
+  <ion-button routerLink="routines">Maintain Routines</ion-button>
+  <ion-button routerLink="club-combinations">Maintain Club Combinations</ion-button>
 
-  <div class="club-combination-list">
-    <ion-item *ngFor="let clubCombination of userService.clubCombinations$ | async" class="club-combination">
-      <ion-label>{{clubCombination.name}}</ion-label>
-      <ion-label>{{clubCombination.description}}</ion-label>
-    </ion-item>
-  </div>
-  <div class="routine-list">
-    <ion-item *ngFor="let routine of userService.routines$ | async" class="routine">
-      <ion-label>{{routine.name}}</ion-label>
-    </ion-item>
-  </div>
 </ion-content>
