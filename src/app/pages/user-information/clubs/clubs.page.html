@@ -9,12 +9,15 @@
 </ion-header>
 
 <ion-content>
-  <div class="club-list" *ngIf="userService.user$ | async as user">
+  <div id="club-list" *ngIf="userService.user$ | async as user">
     <ion-item *ngFor="let club of userClubService.clubs$ | async" class="club">
       <ion-label>{{club.name}}</ion-label>
       <ion-label>{{club.description}}</ion-label>
       <ion-button [routerLink]="['edit-club', club.id]">Edit</ion-button>
       <ion-button (click)="userClubService.deleteUserClub(user.id, club.id)">Delete</ion-button>
     </ion-item>
+  </div>
+  <div class="ion-margin">
+    <ion-button expand="full" routerLink="new-club">Add Club</ion-button>
   </div>
 </ion-content>
