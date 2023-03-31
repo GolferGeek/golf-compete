@@ -1,7 +1,3 @@
-export interface TeeboxDistanceModel {
-  teeboxId: string;
-  distance: number;
-}
 
 export interface HoleModel {
   id: string;
@@ -9,5 +5,5 @@ export interface HoleModel {
   name: string;
   par: number;
   handicap: number;
-  teeboxDistances: TeeboxDistanceModel[];
+
 }

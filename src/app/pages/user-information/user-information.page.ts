@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { AuthService } from 'src/app/shared/auth.service';
+import { states} from '../../shared/data/state.data'
 import {UserService} from '../../shared/user.service'
 
 @Component({
@@ -8,6 +8,8 @@ import {UserService} from '../../shared/user.service'
   styleUrls: ['./user-information.page.scss'],
 })
 export class UserInformationPage implements OnInit {
+
+  states = states;
 
   constructor(public userService: UserService) { }
 

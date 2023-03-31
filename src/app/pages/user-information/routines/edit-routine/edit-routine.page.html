@@ -5,5 +5,31 @@
 </ion-header>
 
 <ion-content>
+  <ion-item>
+    <ion-label position="stacked">Name</ion-label>
+    <ion-input placeholder="Name" required="true" [(ngModel)]="routine.name"></ion-input>
+  </ion-item>
+  <ion-item>
+    <ion-label position="stacked">Description</ion-label>
+    <ion-textarea placeholder="" required="true" [(ngModel)]="routine.description"></ion-textarea>
+  </ion-item>
+  <ion-item>
+    <ion-label position="stacked">Type</ion-label>
+    <ion-select required="true" [(ngModel)]="routine.type">
+      <ion-select-option value="Pre-Shot">Pre-Shot</ion-select-option>
+      <ion-select-option value="Post-Shot">Post-Shot</ion-select-option>
+      <ion-select-option value="Pre-Hole">Pre-Hole</ion-select-option>
+      <ion-select-option value="Post-Hole">Post-Hole</ion-select-option>
+      <ion-select-option value="Pre-Round">Pre-Round</ion-select-option>
+      <ion-select-option value="Post-Round">Post-Round</ion-select-option>
+    </ion-select>
+  </ion-item>
+  <ion-item>
+    <ion-label>Currently Using</ion-label>
+    <ion-checkbox type="checkbox"  required="true" [(ngModel)]="routine.current"></ion-checkbox>
+  </ion-item>
+  <div class="ion-margin">
+    <ion-button expand="full" (click)="saveRoutine()">Save</ion-button>
+  </div>
 
 </ion-content>

@@ -12,8 +12,7 @@ import {
 } from '@angular/fire/firestore'
 import {BehaviorSubject} from 'rxjs'
 import {ClubCombinationModel} from '../models/club-combination.model'
-import {User} from '@angular/fire/auth'
-import {initialClubCombinations} from './initial-user.data'
+import {initialClubCombinations} from './data/initial-user.data'
 
 @Injectable({providedIn: 'root'})
 export class UserClubCombinationService {
@@ -36,6 +35,12 @@ export class UserClubCombinationService {
     this.clubCombinationsSubject.next([]);
   }
 
+  getClub(clubCombinationId: string): ClubCombinationModel {
+    const clubCombination = this.clubCombinationsSubject.value.find((clubCombination) => clubCombination.id === clubCombinationId);
+    return clubCombination as ClubCombinationModel;
+  }
+
+
   async getClubCombinations(userId: string) {
     // club subscription
     const userClubCombinationsQuery = query(collection(this.firestore, `users/${userId}/clubCombinations`), where('current', '==', true));
@@ -50,11 +55,16 @@ export class UserClubCombinationService {
 
   async addUserClubCombination(userId: string, clubCombination: Partial<ClubCombinationModel>) {
     const docRef = await addDoc(collection(this.firestore, `users/${userId}/clubCombinations`), clubCombination);
-    setDoc(docRef, {id: docRef.id, ...clubCombination}, {merge: true});
+    setDoc(docRef, {id: docRef.id}, {merge: true});
   }
 
   async deleteUserClubCombination(userId: string, clubCombinationId: string) {
     await deleteDoc(doc(this.firestore, `users/${userId}/clubCombinations/${clubCombinationId}`));
+  }
+
+
+  async updateUserClubCombination(userId: string, clubCombination: ClubCombinationModel) {
+    await setDoc(doc(this.firestore, `users/${userId}/clubCombinations/${clubCombination.id}`), clubCombination);
   }
 
 }

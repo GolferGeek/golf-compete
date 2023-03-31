@@ -6,9 +6,13 @@
 
 <ion-content>
 
-  <div class="routine-list">
+  <div class="routine-list" *ngIf="userService.user$ | async as user">
     <ion-item *ngFor="let routine of userRoutineService.routines$ | async" class="routine">
       <ion-label>{{routine.name}}</ion-label>
+      <ion-button [routerLink]="['edit-routine', routine.id]">Edit</ion-button>
+      <ion-button (click)="userRoutineService.deleteUserRoutine(user.id, routine.id)">Delete</ion-button>
+
     </ion-item>
   </div>
+  <ion-button [routerLink]="['new-routine']">Add Routine</ion-button>
 </ion-content>

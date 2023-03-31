@@ -13,7 +13,7 @@ import {
 import {BehaviorSubject} from 'rxjs'
 import {RoutineModel} from '../models/routine.model'
 import {User} from '@angular/fire/auth'
-import {initialRoutines} from './initial-user.data'
+import {initialRoutines} from './data/initial-user.data'
 
 @Injectable({providedIn: 'root'})
 export class UserRoutineService {
@@ -43,7 +43,13 @@ export class UserRoutineService {
       current: routine.current
     };
     const docRef = await addDoc(collection(this.firestore, `users/${userId}/routines`), routineInfo);
-    setDoc(docRef, {id: docRef.id, ...routineInfo}, {merge: true});
+    setDoc(docRef, {id: docRef.id}, {merge: true});
+  }
+
+
+  getRoutine(routineId: string): RoutineModel {
+    const routine = this.routinesSubject.value.find((routine) => routine.id === routineId);
+    return routine as RoutineModel;
   }
 
   async deleteUserRoutine(userId: string, routineId: string) {
@@ -61,6 +67,10 @@ export class UserRoutineService {
       this.routinesSubject.next(routines);
     })
 
+  }
+
+  async updateUserRoutine(userId: string, routine: RoutineModel) {
+    await setDoc(doc(this.firestore, `users/${userId}/routines/${routine.id}`), routine);
   }
 
 }
