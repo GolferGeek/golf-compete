@@ -1,3 +1,7 @@
+export interface HoleDistanceModel {
+  holeId: string;
+  distance: number;
+}
 export interface TeeboxModel {
   id: string;
   name: string;
@@ -6,4 +10,5 @@ export interface TeeboxModel {
   womansRating: number;
   mensSlope: number;
   mensRating: number;
+  holeDistances: HoleDistanceModel[];
 }

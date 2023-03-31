@@ -1,6 +1,6 @@
-import {RoutineModel} from '../models/routine.model'
-import {ClubModel} from '../models/club.model'
-import {ClubCombinationModel} from '../models/club-combination.model'
+import {RoutineModel} from '../../models/routine.model'
+import {ClubModel} from '../../models/club.model'
+import {ClubCombinationModel} from '../../models/club-combination.model'
 
 export const initialClubs: Partial<ClubModel>[] = [
 

@@ -12,7 +12,7 @@ import {
   setDoc,
   where
 } from '@angular/fire/firestore'
-import {initialClubs} from './initial-user.data'
+import {initialClubs} from './data/initial-user.data'
 import {BehaviorSubject} from 'rxjs'
 
 @Injectable({providedIn: 'root'})

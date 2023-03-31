@@ -13,15 +13,22 @@
   <main>
     <div id="user-info">
       <div id="name-and-photo">
-        <img [src]="currentUser.picture">
+        <img [src]="currentUser.picture" alt="current user image">
         <h1>{{ currentUser.userName }}</h1>
       </div>
       <div>
         <span>Hadicap:</span>
         <input type="number" placeholder="15" required="true" [(ngModel)]="currentUser.handicap" />
       </div>
+      <div>
+        <span>Home State:</span>
+        <ion-select [(ngModel)]="currentUser.state">
+          <ion-select-option *ngFor="let state of states" [value]="state.abbreviation">
+            {{ state.name }}
+          </ion-select-option>
+        </ion-select>
+      </div>
     </div>
-    <ion-button expand="full" routerLink="clubs">Maintain Clubs</ion-button>
   </main>
 
   <ion-button routerLink="clubs">Maintain Clubs</ion-button>

@@ -13,8 +13,7 @@ import {
 import {BehaviorSubject} from 'rxjs'
 import {RoutineModel} from '../models/routine.model'
 import {User} from '@angular/fire/auth'
-import {initialRoutines} from './initial-user.data'
-import {ClubModel} from '../models/club.model'
+import {initialRoutines} from './data/initial-user.data'
 
 @Injectable({providedIn: 'root'})
 export class UserRoutineService {

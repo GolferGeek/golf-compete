@@ -12,9 +12,7 @@ import {
 } from '@angular/fire/firestore'
 import {BehaviorSubject} from 'rxjs'
 import {ClubCombinationModel} from '../models/club-combination.model'
-import {User} from '@angular/fire/auth'
-import {initialClubCombinations} from './initial-user.data'
-import {ClubModel} from '../models/club.model'
+import {initialClubCombinations} from './data/initial-user.data'
 
 @Injectable({providedIn: 'root'})
 export class UserClubCombinationService {

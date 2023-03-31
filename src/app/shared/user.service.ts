@@ -1,6 +1,6 @@
 import {Injectable} from '@angular/core';
 import {UserModel} from '../models/user.model'
-import {BehaviorSubject, firstValueFrom} from 'rxjs'
+import {BehaviorSubject} from 'rxjs'
 import {getAuth, User} from '@angular/fire/auth'
 import {
   doc,
@@ -8,7 +8,6 @@ import {
   onSnapshot,
   setDoc,
 } from '@angular/fire/firestore'
-import firebase from 'firebase/compat'
 import {UserClubService} from './user-club.service'
 import {UserClubCombinationService} from './user-club-combination.service'
 import {UserRoutineService} from './user-routine.service'
@@ -51,6 +50,7 @@ export class UserService {
         this.userSubject.next({
           email: foundUser!['email'] || '',
           userName: foundUser!['userName'] || foundUser!['email'] || '',
+          state: foundUser!['state'] || 'MN',
           picture: foundUser!['picture'] || '',
           handicap: foundUser!['handicap'] || 0,
           favoriteCourses: foundUser!['favoriteCourses'] || [],
@@ -68,6 +68,7 @@ export class UserService {
       id: fbUser.uid,
       email: fbUser.email || '',
       userName: fbUser.displayName || fbUser.email || '',
+      state: 'MN',
       picture: fbUser.photoURL || '',
       handicap: 0,
       favoriteCourses: [],
