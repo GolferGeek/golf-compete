@@ -11,28 +11,30 @@
 
 <ion-content *ngIf="userService.user$ | async as currentUser">
   <main>
-    <div id="user-info">
-      <div id="name-and-photo">
-        <img [src]="currentUser.picture" alt="current user image">
-        <h1>{{ currentUser.userName }}</h1>
-      </div>
-      <div>
-        <span>Hadicap:</span>
-        <input type="number" placeholder="15" required="true" [(ngModel)]="currentUser.handicap" />
-      </div>
-      <div>
-        <span>Home State:</span>
+    <div id="name-and-photo">
+      <img [src]="currentUser.picture" alt="current user image">
+      <h1>{{ currentUser.userName }}</h1>
+    </div>
+    <ion-list>
+      <ion-item>
+        <ion-label position="floating">Handicap:</ion-label>
+        <ion-input type="number" placeholder="15" required="true" [(ngModel)]="currentUser.handicap"></ion-input>
+      </ion-item>
+      <ion-item>
+        <ion-label position="floating">Home State:</ion-label>
         <ion-select [(ngModel)]="currentUser.state">
           <ion-select-option *ngFor="let state of states" [value]="state.abbreviation">
             {{ state.name }}
           </ion-select-option>
         </ion-select>
-      </div>
+      </ion-item>
+    </ion-list>
+    <div id="maintain-buttons">
+      <ion-button expand="full" routerLink="clubs">Maintain Clubs</ion-button>
+      <ion-button expand="full" routerLink="routines">Maintain Routines</ion-button>
+      <ion-button expand="full" routerLink="club-combinations">Maintain Club Combinations</ion-button>
     </div>
   </main>
 
-  <ion-button routerLink="clubs">Maintain Clubs</ion-button>
-  <ion-button routerLink="routines">Maintain Routines</ion-button>
-  <ion-button routerLink="club-combinations">Maintain Club Combinations</ion-button>
 
 </ion-content>

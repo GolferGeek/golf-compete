@@ -9,7 +9,7 @@
 </ion-header>
 
 <ion-content>
-  <div id="club-list" *ngIf="userService.user$ | async as user">
+  <div class="right-buttons" *ngIf="userService.user$ | async as user">
     <ion-item *ngFor="let club of userClubService.clubs$ | async" class="club">
       <ion-label>{{club.name}}</ion-label>
       <ion-label>{{club.description}}</ion-label>
