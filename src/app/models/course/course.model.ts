@@ -10,6 +10,6 @@ export interface CourseModel {
   zip: string;
   phone: string;
   website: string;
-  teeboxes: TeeboxModel[];
+  teeBoxes: TeeboxModel[];
   sides: SideModel[];
 }

@@ -1,24 +1,20 @@
 import { NgModule } from '@angular/core';
 import { Routes, RouterModule } from '@angular/router';
+import {CourseListPage} from './course-list.page'
 
 
 
 const routes: Routes = [
   {
     path: '',
-    redirectTo: 'course-list',
-    pathMatch: 'full'
+    component: CourseListPage
   },
   {
-    path: 'course-list',
-    loadChildren: () => import('./course-list/course-list.module').then(m => m.CourseListPageModule)
+    path: 'new-course',
+    loadChildren: () => import('./course-new/course-new.module').then(m => m.CourseNewPageModule)
   },
   {
-    path: 'course-add',
-    loadChildren: () => import('./course-add/course-add.module').then(m => m.CourseAddPageModule)
-  },
-  {
-    path: 'course-edit',
+    path: 'edit-course/:id',
     loadChildren: () => import('./course-edit/course-edit.module').then( m => m.CourseEditPageModule)
   },
   {
@@ -31,4 +27,4 @@ const routes: Routes = [
   imports: [RouterModule.forChild(routes)],
   exports: [RouterModule],
 })
-export class CourseListPageRoutingModule {}
+export class CoursesRoutingModule {}

@@ -14,7 +14,7 @@
     <ion-input placeholder="" required="true" [(ngModel)]="clubCombination.description"></ion-input>
   </ion-item>
   <ion-item>
-    <ion-label position="stacked">Type</ion-label>
+    <ion-label position="stacked">Clubs</ion-label>
     <ion-select required="true" [(ngModel)]="clubCombination.clubs" [multiple]="true">
       <ion-select-option [value]="club.id" *ngFor="let club of userClubService.clubs$ | async">{{club.name}}</ion-select-option>
     </ion-select>
