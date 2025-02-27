@@ -1,0 +1,9 @@
+[build]
+  command = "npm install && npm run netlify-build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+  NPM_VERSION = "10"
+  NODE_ENV = "production"
+  NEXT_TELEMETRY_DISABLED = "1" 
