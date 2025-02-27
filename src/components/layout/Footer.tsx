@@ -1,94 +1,95 @@
 import Link from "next/link";
-import React from "react";
 
-const Footer = () => {
+export default function Footer() {
   return (
-    <footer className="bg-background border-t">
-      <div className="container mx-auto px-4 py-10">
+    <footer className="border-t py-8 bg-muted/50">
+      <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
-            <h3 className="text-lg font-semibold mb-4">GolfCompete</h3>
-            <p className="text-muted-foreground text-sm">
-              Elevate your golf game with competitions, tracking, and professional coaching.
+            <h3 className="font-bold text-lg mb-4">GolfCompete</h3>
+            <p className="text-muted-foreground">
+              A comprehensive golf competition and improvement platform designed to transform how golfers compete, track progress, and enhance their skills.
             </p>
           </div>
+          
           <div>
-            <h4 className="text-md font-medium mb-4">Features</h4>
-            <ul className="space-y-2 text-sm">
+            <h4 className="font-medium mb-4">Quick Links</h4>
+            <ul className="space-y-2">
               <li>
-                <Link href="/competitions" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Competitions
+                <Link href="/" className="text-muted-foreground hover:text-primary transition-colors">
+                  Home
                 </Link>
               </li>
               <li>
-                <Link href="/improvement" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Improvement
-                </Link>
-              </li>
-              <li>
-                <Link href="/courses" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Courses
-                </Link>
-              </li>
-              <li>
-                <Link href="/coaching" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Coaching
-                </Link>
-              </li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-md font-medium mb-4">Resources</h4>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <Link href="/about" className="text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="/about" className="text-muted-foreground hover:text-primary transition-colors">
                   About
                 </Link>
               </li>
               <li>
-                <Link href="/faq" className="text-muted-foreground hover:text-foreground transition-colors">
-                  FAQ
+                <Link href="/competitions" className="text-muted-foreground hover:text-primary transition-colors">
+                  Competitions
                 </Link>
               </li>
               <li>
-                <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="/courses" className="text-muted-foreground hover:text-primary transition-colors">
+                  Courses
+                </Link>
+              </li>
+            </ul>
+          </div>
+          
+          <div>
+            <h4 className="font-medium mb-4">Features</h4>
+            <ul className="space-y-2">
+              <li>
+                <Link href="/competitions" className="text-muted-foreground hover:text-primary transition-colors">
+                  Competition Management
+                </Link>
+              </li>
+              <li>
+                <Link href="/tracking" className="text-muted-foreground hover:text-primary transition-colors">
+                  Performance Tracking
+                </Link>
+              </li>
+              <li>
+                <Link href="/improvement" className="text-muted-foreground hover:text-primary transition-colors">
+                  Improvement Framework
+                </Link>
+              </li>
+              <li>
+                <Link href="/coaching" className="text-muted-foreground hover:text-primary transition-colors">
+                  Professional Coaching
+                </Link>
+              </li>
+            </ul>
+          </div>
+          
+          <div>
+            <h4 className="font-medium mb-4">Legal</h4>
+            <ul className="space-y-2">
+              <li>
+                <Link href="/privacy" className="text-muted-foreground hover:text-primary transition-colors">
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors">
+                <Link href="/terms" className="text-muted-foreground hover:text-primary transition-colors">
                   Terms of Service
+                </Link>
+              </li>
+              <li>
+                <Link href="/contact" className="text-muted-foreground hover:text-primary transition-colors">
+                  Contact Us
                 </Link>
               </li>
             </ul>
           </div>
-          <div>
-            <h4 className="text-md font-medium mb-4">Contact</h4>
-            <ul className="space-y-2 text-sm">
-              <li>
-                <a href="mailto:info@golfcompete.com" className="text-muted-foreground hover:text-foreground transition-colors">
-                  info@golfcompete.com
-                </a>
-              </li>
-              <li>
-                <a href="https://twitter.com/golfcompete" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Twitter
-                </a>
-              </li>
-              <li>
-                <a href="https://instagram.com/golfcompete" target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Instagram
-                </a>
-              </li>
-            </ul>
-          </div>
         </div>
-        <div className="border-t mt-10 pt-6 text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} GolfCompete. All rights reserved.</p>
+        
+        <div className="mt-8 pt-8 border-t text-center text-muted-foreground">
+          <p>&copy; {new Date().getFullYear()} GolfCompete. All rights reserved.</p>
         </div>
       </div>
     </footer>
   );
-};
-
-export default Footer; 
+} 

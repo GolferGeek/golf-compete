@@ -12,16 +12,15 @@ import {
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 
-export function Navbar() {
+export default function Navbar() {
   return (
-    <div className="border-b">
-      <div className="flex h-16 items-center px-4 container mx-auto">
-        <div className="flex items-center space-x-4">
-          <Link href="/" className="font-bold text-xl">
-            GolfCompete
-          </Link>
-        </div>
-        <NavigationMenu className="mx-6">
+    <header className="border-b">
+      <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+        <Link href="/" className="text-2xl font-bold">
+          GolfCompete
+        </Link>
+        
+        <NavigationMenu className="hidden md:flex">
           <NavigationMenuList>
             <NavigationMenuItem>
               <Link href="/" legacyBehavior passHref>
@@ -30,6 +29,15 @@ export function Navbar() {
                 </NavigationMenuLink>
               </Link>
             </NavigationMenuItem>
+            
+            <NavigationMenuItem>
+              <Link href="/about" legacyBehavior passHref>
+                <NavigationMenuLink className={navigationMenuTriggerStyle()}>
+                  About
+                </NavigationMenuLink>
+              </Link>
+            </NavigationMenuItem>
+            
             <NavigationMenuItem>
               <NavigationMenuTrigger>Competitions</NavigationMenuTrigger>
               <NavigationMenuContent>
@@ -69,66 +77,10 @@ export function Navbar() {
                       </NavigationMenuLink>
                     </Link>
                   </li>
-                  <li>
-                    <Link href="/competitions/leaderboard" legacyBehavior passHref>
-                      <NavigationMenuLink className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
-                        <div className="text-sm font-medium leading-none">Leaderboard</div>
-                        <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                          View current standings and results
-                        </p>
-                      </NavigationMenuLink>
-                    </Link>
-                  </li>
                 </ul>
               </NavigationMenuContent>
             </NavigationMenuItem>
-            <NavigationMenuItem>
-              <NavigationMenuTrigger>Improvement</NavigationMenuTrigger>
-              <NavigationMenuContent>
-                <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
-                  <li>
-                    <Link href="/improvement/practice" legacyBehavior passHref>
-                      <NavigationMenuLink className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
-                        <div className="text-sm font-medium leading-none">Practice Plans</div>
-                        <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                          Structured practice planning based on your needs
-                        </p>
-                      </NavigationMenuLink>
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/improvement/coaching" legacyBehavior passHref>
-                      <NavigationMenuLink className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
-                        <div className="text-sm font-medium leading-none">Coaching</div>
-                        <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                          Connect with professionals for targeted advice
-                        </p>
-                      </NavigationMenuLink>
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/improvement/drills" legacyBehavior passHref>
-                      <NavigationMenuLink className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
-                        <div className="text-sm font-medium leading-none">Drills</div>
-                        <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                          Curated drill database for targeted improvement
-                        </p>
-                      </NavigationMenuLink>
-                    </Link>
-                  </li>
-                  <li>
-                    <Link href="/improvement/notes" legacyBehavior passHref>
-                      <NavigationMenuLink className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground">
-                        <div className="text-sm font-medium leading-none">Notes</div>
-                        <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                          Track issues and victories from your rounds
-                        </p>
-                      </NavigationMenuLink>
-                    </Link>
-                  </li>
-                </ul>
-              </NavigationMenuContent>
-            </NavigationMenuItem>
+            
             <NavigationMenuItem>
               <Link href="/courses" legacyBehavior passHref>
                 <NavigationMenuLink className={navigationMenuTriggerStyle()}>
@@ -136,28 +88,18 @@ export function Navbar() {
                 </NavigationMenuLink>
               </Link>
             </NavigationMenuItem>
-            <NavigationMenuItem>
-              <Link href="/about" legacyBehavior passHref>
-                <NavigationMenuLink className={navigationMenuTriggerStyle()}>
-                  About
-                </NavigationMenuLink>
-              </Link>
-            </NavigationMenuItem>
           </NavigationMenuList>
         </NavigationMenu>
-        <div className="ml-auto flex items-center space-x-4">
-          <Link href="/login" className="text-sm font-medium transition-colors hover:text-primary">
-            Login
+        
+        <div className="flex items-center gap-4">
+          <Link href="/login" className="hover:text-primary transition-colors">
+            Log in
           </Link>
-          <Link href="/signup">
-            <button className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-4 py-2 text-sm font-medium">
-              Sign Up
-            </button>
+          <Link href="/signup" className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors">
+            Sign up
           </Link>
         </div>
       </div>
-    </div>
+    </header>
   );
-}
-
-export default Navbar; 
+} 
