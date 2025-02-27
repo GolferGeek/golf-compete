@@ -9,6 +9,8 @@ config({ path: '.env' });
 config({ path: '.env.local', override: true });
 // Check for migration-specific environment file
 config({ path: '.env.migration', override: true });
+// Check for Supabase-specific environment file
+config({ path: '.env.supabase', override: process.env.USE_SUPABASE === 'true' });
 
 // Get environment variables from process.env
 const {
@@ -38,13 +40,39 @@ if (!envDatabaseUrl) {
   console.log(`Using ${isDevelopment ? 'development' : 'production'} database:`, connectionString);
 }
 
+// Determine if we're using Supabase
+const isSupabase = connectionString.includes('supabase.co');
+
 // Create a PostgreSQL client with appropriate options
 const clientOptions = {
-  prepare: false,
+  prepare: isSupabase ? false : true, // Disable prepared statements for Supabase pooler compatibility
+  ssl: isSupabase ? { rejectUnauthorized: false } : false, // Enable SSL for Supabase with self-signed cert support
+  connection: {
+    // Set a longer timeout for Supabase connections
+    connectTimeout: isSupabase ? 60000 : 30000,
+    application_name: 'golf-compete',
+  },
+  debug: process.env.DEBUG_DB === 'true',
+  max: 10, // Maximum number of connections
+  idle_timeout: 30, // Close idle connections after 30 seconds
+  connect_timeout: 60, // Connection timeout in seconds
 };
 
-// Create a PostgreSQL client
-const client = postgres(connectionString, clientOptions);
+let client;
+let db;
 
-// Create a Drizzle ORM instance
-export const db = drizzle(client, { schema }); 
+try {
+  // Create a PostgreSQL client
+  client = postgres(connectionString, clientOptions);
+
+  // Create a Drizzle ORM instance
+  db = drizzle(client, { schema });
+  
+  console.log('Database connection established successfully');
+} catch (error) {
+  console.error('Failed to connect to the database:', error);
+  throw error;
+}
+
+// Export the database instance
+export { db }; 
