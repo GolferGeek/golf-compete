@@ -57,9 +57,13 @@ runCommand('npm install --save-dev tailwindcss@3.3.0 postcss@8.4.31 autoprefixer
 console.log('Removing incompatible packages...');
 runCommand('npm uninstall @tailwindcss/postcss', true);
 
+// Install additional required packages for Radix UI and other components
+console.log('Installing additional required packages...');
+runCommand('npm install @radix-ui/react-navigation-menu@1.1.4 class-variance-authority@0.7.0 clsx@2.0.0 lucide-react@0.294.0 tailwind-merge@1.14.0 --no-fund --no-audit', true);
+
 // Verify installed packages
 console.log('Verifying installed packages...');
-runCommand('npm list --depth=0 tailwindcss postcss autoprefixer tailwindcss-animate', true);
+runCommand('npm list --depth=0 tailwindcss postcss autoprefixer tailwindcss-animate @radix-ui/react-navigation-menu class-variance-authority clsx lucide-react tailwind-merge', true);
 
 // Create necessary directories if they don't exist
 const directories = [
@@ -104,9 +108,158 @@ module.exports = {
     './src/**/*.{ts,tsx}',
   ],
   theme: {
-    extend: {},
+    container: {
+      center: true,
+      padding: "2rem",
+      screens: {
+        "2xl": "1400px",
+      },
+    },
+    extend: {
+      colors: {
+        border: "hsl(var(--border))",
+        input: "hsl(var(--input))",
+        ring: "hsl(var(--ring))",
+        background: "hsl(var(--background))",
+        foreground: "hsl(var(--foreground))",
+        primary: {
+          DEFAULT: "hsl(var(--primary))",
+          foreground: "hsl(var(--primary-foreground))",
+        },
+        secondary: {
+          DEFAULT: "hsl(var(--secondary))",
+          foreground: "hsl(var(--secondary-foreground))",
+        },
+        destructive: {
+          DEFAULT: "hsl(var(--destructive))",
+          foreground: "hsl(var(--destructive-foreground))",
+        },
+        muted: {
+          DEFAULT: "hsl(var(--muted))",
+          foreground: "hsl(var(--muted-foreground))",
+        },
+        accent: {
+          DEFAULT: "hsl(var(--accent))",
+          foreground: "hsl(var(--accent-foreground))",
+        },
+        popover: {
+          DEFAULT: "hsl(var(--popover))",
+          foreground: "hsl(var(--popover-foreground))",
+        },
+        card: {
+          DEFAULT: "hsl(var(--card))",
+          foreground: "hsl(var(--card-foreground))",
+        },
+      },
+      borderRadius: {
+        lg: "var(--radius)",
+        md: "calc(var(--radius) - 2px)",
+        sm: "calc(var(--radius) - 4px)",
+      },
+      keyframes: {
+        "accordion-down": {
+          from: { height: 0 },
+          to: { height: "var(--radix-accordion-content-height)" },
+        },
+        "accordion-up": {
+          from: { height: "var(--radix-accordion-content-height)" },
+          to: { height: 0 },
+        },
+      },
+      animation: {
+        "accordion-down": "accordion-down 0.2s ease-out",
+        "accordion-up": "accordion-up 0.2s ease-out",
+      },
+    },
   },
   plugins: [require("tailwindcss-animate")],
+}
+  `.trim());
+}
+
+// Create or update globals.css to include ShadCN UI variables
+if (!fs.existsSync('src/app/globals.css') || !fs.readFileSync('src/app/globals.css', 'utf8').includes('--primary')) {
+  console.log('Creating or updating globals.css with ShadCN UI variables...');
+  const globalsCssDir = path.dirname('src/app/globals.css');
+  if (!fs.existsSync(globalsCssDir)) {
+    fs.mkdirSync(globalsCssDir, { recursive: true });
+  }
+  fs.writeFileSync('src/app/globals.css', `
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+ 
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+ 
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+ 
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+ 
+    --primary: 222.2 47.4% 11.2%;
+    --primary-foreground: 210 40% 98%;
+ 
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+ 
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+ 
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+ 
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+ 
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+ 
+    --radius: 0.5rem;
+  }
+ 
+  .dark {
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+ 
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+ 
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+ 
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 11.2%;
+ 
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+ 
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+ 
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+ 
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+ 
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 212.7 26.8% 83.9%;
+  }
+}
+ 
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
 }
   `.trim());
 }
@@ -682,7 +835,7 @@ if (nextConfigPath) {
   try {
     const nextConfigContent = fs.readFileSync(nextConfigPath, 'utf8');
     
-    // Only modify if it doesn't already have experimental.transpilePackages
+    // Only modify if it doesn't already have transpilePackages
     if (!nextConfigContent.includes('transpilePackages')) {
       console.log(`Updating ${nextConfigPath} with transpilePackages...`);
       
@@ -693,9 +846,7 @@ if (nextConfigPath) {
 import { type NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  experimental: {
-    transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
-  },
+  transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
 };
 
 export default nextConfig;
@@ -705,9 +856,7 @@ export default nextConfig;
         fs.writeFileSync(nextConfigPath, `
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
-  },
+  transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
 };
 
 module.exports = nextConfig;
@@ -730,9 +879,7 @@ module.exports = nextConfig;
 import { type NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  experimental: {
-    transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
-  },
+  transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
 };
 
 export default nextConfig;
@@ -741,9 +888,7 @@ export default nextConfig;
       fs.writeFileSync(newConfigPath, `
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
-  },
+  transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
 };
 
 module.exports = nextConfig;
@@ -757,12 +902,113 @@ module.exports = nextConfig;
   fs.writeFileSync('next.config.js', `
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
-  },
+  transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
 };
 
 module.exports = nextConfig;
+  `.trim());
+}
+
+// Ensure Tailwind CSS is properly installed
+console.log('Ensuring Tailwind CSS is properly installed...');
+runCommand('npm list tailwindcss || npm install --save-dev tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.16 tailwindcss-animate@1.0.7 --no-fund --no-audit', true);
+
+// Create layout.tsx if it doesn't exist
+if (!fs.existsSync('src/app/layout.tsx')) {
+  console.log('Creating layout.tsx...');
+  fs.writeFileSync('src/app/layout.tsx', `
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import Navbar from "@/components/layout/Navbar";
+import Footer from "@/components/layout/Footer";
+
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "GolfCompete - Elevate Your Golf Game",
+  description: "A comprehensive golf competition and improvement platform designed to transform how golfers compete, track progress, and enhance their skills.",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      <body className={inter.className}>
+        <Navbar />
+        <main className="flex-1">{children}</main>
+        <Footer />
+      </body>
+    </html>
+  );
+}
+  `.trim());
+}
+
+// Create page.tsx if it doesn't exist
+if (!fs.existsSync('src/app/page.tsx')) {
+  console.log('Creating page.tsx...');
+  fs.writeFileSync('src/app/page.tsx', `
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+
+export default function Home() {
+  return (
+    <div className="container mx-auto px-4 py-12">
+      <h1 className="text-4xl font-bold mb-8 text-center">Welcome to GolfCompete</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <Card>
+          <CardHeader>
+            <CardTitle>Competitions</CardTitle>
+            <CardDescription>Join season-long series or standalone events</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>Compete against friends or join public tournaments with various formats including stroke play, match play, and more.</p>
+          </CardContent>
+          <CardFooter>
+            <Button className="w-full">Browse Competitions</Button>
+          </CardFooter>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Live Scoring</CardTitle>
+            <CardDescription>Real-time leaderboards and scoring</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>Track scores hole-by-hole with our easy-to-use mobile interface. View live leaderboards during your round.</p>
+          </CardContent>
+          <CardFooter>
+            <Button className="w-full">Try Live Scoring</Button>
+          </CardFooter>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Statistics</CardTitle>
+            <CardDescription>Track your performance over time</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>Analyze your game with detailed statistics. Identify strengths and weaknesses to improve your handicap.</p>
+          </CardContent>
+          <CardFooter>
+            <Button className="w-full">View Statistics</Button>
+          </CardFooter>
+        </Card>
+      </div>
+      
+      <div className="text-center">
+        <h2 className="text-2xl font-semibold mb-4">Ready to elevate your golf game?</h2>
+        <Button size="lg" className="mr-4">Sign Up</Button>
+        <Button size="lg" variant="outline">Learn More</Button>
+      </div>
+    </div>
+  );
+}
   `.trim());
 }
 
