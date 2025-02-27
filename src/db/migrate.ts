@@ -1,5 +1,7 @@
 import { migrate } from 'drizzle-orm/postgres-js/migrator';
 import { config } from 'dotenv';
+import { PostgresJsDatabase } from 'drizzle-orm/postgres-js';
+import * as schema from './schema';
 
 // Load environment variables from all relevant files
 // Order matters: .env.local overrides .env
@@ -30,7 +32,7 @@ console.log('Running migrations...');
 
 async function runMigrations() {
   try {
-    await migrate(db, { migrationsFolder: './drizzle' });
+    await migrate(db as PostgresJsDatabase<typeof schema>, { migrationsFolder: './drizzle' });
     console.log('Migrations completed successfully');
     process.exit(0);
   } catch (err: unknown) {
