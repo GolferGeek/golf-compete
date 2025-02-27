@@ -2,6 +2,21 @@ import { db } from '@/db';
 import { users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { User } from '@/types/golf';
+import { createClient } from '@supabase/supabase-js';
+
+// Server-side Supabase client with full admin privileges
+// Use this for operations that need elevated permissions
+export const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_API_KEY! // Service role key with admin privileges
+);
+
+// Client-side Supabase client with restricted permissions
+// Safe to use in browser code, uses the anon/public key
+export const supabaseClient = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! // Anon key with limited permissions
+);
 
 /**
  * Authenticate a user by email and password
