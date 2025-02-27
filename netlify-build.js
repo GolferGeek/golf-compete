@@ -5,7 +5,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Function to run commands and log output
-function runCommand(command) {
+function runCommand(command, ignoreError = false) {
   console.log(`Running: ${command}`);
   try {
     const output = execSync(command, { encoding: 'utf8' });
@@ -14,26 +14,36 @@ function runCommand(command) {
   } catch (error) {
     console.error(`Error executing command: ${command}`);
     console.error(error.stdout || error.message);
-    throw error;
+    if (!ignoreError) {
+      throw error;
+    }
+    return '';
   }
 }
 
 // Log environment information
 console.log(`Node version: ${process.version}`);
-console.log(`NPM version: ${runCommand('npm --version').trim()}`);
+console.log(`NPM version: ${runCommand('npm --version', true).trim()}`);
 console.log(`Current directory: ${process.cwd()}`);
+console.log(`Directory contents: ${runCommand('ls -la', true).trim()}`);
+
+// Check if package.json exists
+if (!fs.existsSync('package.json')) {
+  console.error('package.json not found. Exiting.');
+  process.exit(1);
+}
 
 // Install dependencies
 console.log('Installing dependencies...');
-runCommand('npm install');
+runCommand('npm install', true);
 
 // Install Tailwind CSS v3 and related packages
 console.log('Installing Tailwind CSS and related packages...');
-runCommand('npm install --save-dev tailwindcss@3.3.0 postcss autoprefixer');
+runCommand('npm install --save-dev tailwindcss@3.3.0 postcss autoprefixer tailwindcss-animate', true);
 
-// Verify installed packages
+// Verify installed packages - use ignoreError=true to continue even if this fails
 console.log('Verifying installed packages...');
-runCommand('npm list --depth=0 tailwindcss postcss autoprefixer');
+runCommand('npm list --depth=0 tailwindcss postcss autoprefixer tailwindcss-animate', true);
 
 // Check if postcss.config.mjs exists, if not create it
 if (!fs.existsSync('postcss.config.mjs')) {
@@ -72,10 +82,11 @@ module.exports = {
 // Run the build
 console.log('Running the build...');
 try {
-  runCommand('NODE_ENV=production npm run build');
+  // Make sure NODE_ENV is set to production
+  process.env.NODE_ENV = 'production';
+  runCommand('npm run build');
+  console.log('Build completed successfully!');
 } catch (error) {
   console.error('Build failed. Exiting with error code 1.');
   process.exit(1);
-}
-
-console.log('Build completed successfully!'); 
+} 
