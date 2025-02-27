@@ -8,6 +8,20 @@
       "when": 1740673873955,
       "tag": "0000_bitter_bloodstrike",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1740675172549,
+      "tag": "0001_optimal_nebula",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1740675297925,
+      "tag": "0002_naive_angel",
+      "breakpoints": true
     }
   ]
 }

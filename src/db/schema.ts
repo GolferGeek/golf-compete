@@ -136,12 +136,46 @@ export const lessons = pgTable('lessons', {
   followUpActions: text('follow_up_actions'), // JSON string
 });
 
+// Bags table
+export const bags = pgTable('bags', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  name: text('name').notNull(),
+  description: text('description'),
+  isDefault: boolean('is_default').default(false),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+  updatedAt: timestamp('updated_at').notNull().defaultNow(),
+});
+
+// Clubs table
+export const clubs = pgTable('clubs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  userId: uuid('user_id').notNull().references(() => users.id),
+  brand: text('brand').notNull(),
+  model: text('model').notNull(),
+  type: text('type').notNull(), // driver, wood, hybrid, iron, wedge, putter
+  loft: real('loft'),
+  shaft: text('shaft'),
+  flex: text('flex'),
+  notes: text('notes'),
+});
+
+// BagClubs junction table
+export const bagClubs = pgTable('bag_clubs', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  bagId: uuid('bag_id').notNull().references(() => bags.id),
+  clubId: uuid('club_id').notNull().references(() => clubs.id),
+  inBagPosition: integer('in_bag_position'), // Optional position in the bag (1-14)
+});
+
 // Define relations
 export const usersRelations = relations(users, ({ many }) => ({
   rounds: many(rounds),
   practicePlans: many(practicePlans),
   competitionsAsParticipant: many(competitionParticipants),
   lessonsAsStudent: many(lessons),
+  bags: many(bags),
+  clubs: many(clubs),
 }));
 
 export const competitionsRelations = relations(competitions, ({ many }) => ({
@@ -238,5 +272,35 @@ export const holeScoresRelations = relations(holeScores, ({ one }) => ({
   round: one(rounds, {
     fields: [holeScores.roundId],
     references: [rounds.id],
+  }),
+}));
+
+// Add bag relations
+export const bagsRelations = relations(bags, ({ one, many }) => ({
+  user: one(users, {
+    fields: [bags.userId],
+    references: [users.id],
+  }),
+  clubs: many(bagClubs),
+}));
+
+// Add club relations
+export const clubsRelations = relations(clubs, ({ one, many }) => ({
+  user: one(users, {
+    fields: [clubs.userId],
+    references: [users.id],
+  }),
+  bags: many(bagClubs),
+}));
+
+// Add bagClubs relations
+export const bagClubsRelations = relations(bagClubs, ({ one }) => ({
+  bag: one(bags, {
+    fields: [bagClubs.bagId],
+    references: [bags.id],
+  }),
+  club: one(clubs, {
+    fields: [bagClubs.clubId],
+    references: [clubs.id],
   }),
 })); 
