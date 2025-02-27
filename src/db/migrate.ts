@@ -5,12 +5,21 @@ import { config } from 'dotenv';
 // Order matters: .env.local overrides .env
 config({ path: '.env' });
 config({ path: '.env.local', override: true });
+// Check for migration-specific environment file
+config({ path: '.env.migration', override: true });
+
+// Get environment variables directly from process.env
+const {
+  DATABASE_URL: envDatabaseUrl,
+  SUPABASE_URL: envSupabaseUrl,
+  NODE_ENV: envNodeEnv,
+} = process.env;
 
 // Print environment variables for debugging
 console.log('Environment variables loaded for migration:');
-console.log('DATABASE_URL:', process.env.DATABASE_URL);
-console.log('SUPABASE_URL:', process.env.SUPABASE_URL);
-console.log('NODE_ENV:', process.env.NODE_ENV);
+console.log('DATABASE_URL:', envDatabaseUrl);
+console.log('SUPABASE_URL:', envSupabaseUrl);
+console.log('NODE_ENV:', envNodeEnv);
 
 // Import db after environment variables are loaded
 import { db } from './index';
