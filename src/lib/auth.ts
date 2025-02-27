@@ -44,7 +44,7 @@ export async function createUser(
 ): Promise<User> {
   // In a real application, you would hash the password before storing
   const userId = crypto.randomUUID();
-  const now = new Date().toISOString();
+  const now = new Date();
   
   await db.insert(users).values({
     id: userId,
@@ -58,7 +58,7 @@ export async function createUser(
     id: userId,
     name,
     email,
-    memberSince: new Date(now),
+    memberSince: now,
   };
 }
 
