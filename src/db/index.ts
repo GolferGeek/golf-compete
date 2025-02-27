@@ -19,17 +19,14 @@ const isDevelopment = process.env.NODE_ENV === 'development';
 
 let connectionString: string;
 
-if (isDevelopment) {
-  // Local development database
-  connectionString = process.env.DATABASE_URL || `postgres://${process.env.USER || 'golfergeek'}@localhost:5432/golfcompete`;
-  console.log('Using local development database:', connectionString);
+if (!process.env.DATABASE_URL) {
+  // Fallback for local development if DATABASE_URL is not set
+  connectionString = `postgres://${process.env.USER || 'golfergeek'}@localhost:5432/golfcompete`;
+  console.log('Using fallback local database:', connectionString);
 } else {
-  // Production database (Supabase)
-  if (!process.env.SUPABASE_URL) {
-    throw new Error('SUPABASE_URL environment variable is not set');
-  }
-  connectionString = process.env.SUPABASE_URL;
-  console.log('Using production database');
+  // Use the provided DATABASE_URL for both development and production
+  connectionString = process.env.DATABASE_URL;
+  console.log(`Using ${isDevelopment ? 'development' : 'production'} database:`, connectionString);
 }
 
 // Create a PostgreSQL client with appropriate options

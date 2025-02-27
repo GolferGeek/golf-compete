@@ -6,16 +6,12 @@ import { config } from 'dotenv';
 config({ path: '.env' });
 config({ path: '.env.local', override: true });
 
-// Determine if we're in development or production
-const isDevelopment = process.env.NODE_ENV !== 'production';
+// Get the database URL from environment variables
+let dbUrl = process.env.DATABASE_URL;
 
-// Set the database URL based on environment
-const dbUrl = isDevelopment
-  ? process.env.DATABASE_URL || `postgres://${process.env.USER || 'golfergeek'}@localhost:5432/golfcompete`
-  : process.env.SUPABASE_URL;
-
+// Fallback for local development if DATABASE_URL is not set
 if (!dbUrl) {
-  throw new Error('Database URL is not set');
+  dbUrl = `postgres://${process.env.USER || 'golfergeek'}@localhost:5432/golfcompete`;
 }
 
 console.log('Drizzle config using database URL:', dbUrl);
