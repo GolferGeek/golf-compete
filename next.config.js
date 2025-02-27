@@ -4,7 +4,8 @@ const nextConfig = {
   reactStrictMode: true,
   
   // For Netlify deployment
-  output: 'export',
+  // When using the Netlify plugin, we don't need to set output to 'export'
+  // output: 'export',
   
   // Images configuration for static export
   images: {

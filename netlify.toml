@@ -1,10 +1,13 @@
 [build]
-  command = "yarn build"
-  publish = "out"
+  command = "yarn netlify-build"
+  publish = ".next"
 
 [build.environment]
   NODE_VERSION = "20"
   YARN_VERSION = "1.22.22"
   NODE_ENV = "production"
   NEXT_TELEMETRY_DISABLED = "1"
-  YARN_FLAGS = "--frozen-lockfile" 
+  YARN_FLAGS = "--frozen-lockfile"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs" 
