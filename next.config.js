@@ -10,6 +10,12 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  
+  // Ensure path aliases work correctly
+  webpack: (config, { isServer }) => {
+    // Add any webpack customizations here if needed
+    return config;
+  },
 };
 
 module.exports = nextConfig; 

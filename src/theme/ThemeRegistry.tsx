@@ -6,8 +6,8 @@ import CssBaseline from '@mui/material/CssBaseline';
 import { Roboto } from 'next/font/google';
 import { PaletteMode } from '@mui/material';
 import Box from '@mui/material/Box';
-import Navbar from '@/components/layout/Navbar';
-import Footer from '@/components/layout/Footer';
+import Navbar from '../components/layout/Navbar';
+import Footer from '../components/layout/Footer';
 
 // Define the Roboto font with specific subsets
 const roboto = Roboto({

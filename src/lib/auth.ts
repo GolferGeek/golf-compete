@@ -1,7 +1,7 @@
-import { db } from '@/db';
-import { users } from '@/db/schema';
+import { db } from '../db';
+import { users } from '../db/schema';
 import { eq } from 'drizzle-orm';
-import { User } from '@/types/golf';
+import { User } from '../types/golf';
 import { createClient } from '@supabase/supabase-js';
 
 // Server-side Supabase client with full admin privileges
