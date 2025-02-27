@@ -14,8 +14,8 @@ A comprehensive golf competition and improvement platform designed to transform 
 
 - **Frontend**: Next.js 15, React 19, Tailwind CSS, Shadcn UI
 - **Database**: PostgreSQL with Drizzle ORM
-- **Authentication**: (Coming soon)
-- **Deployment**: (Coming soon)
+- **Authentication**: Supabase Auth
+- **Deployment**: Netlify
 
 ## Getting Started
 
@@ -46,8 +46,15 @@ Create a `.env.local` file in the root directory with the following variables:
 ```
 # Database URLs
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/golfcompete
+
+# Supabase Configuration
+# Server-side variables (not exposed to the browser)
 SUPABASE_URL=your_supabase_url_here
-SUPABASE_API_KEY=your_supabase_api_key_here
+SUPABASE_API_KEY=your_supabase_service_role_key_here
+
+# Client-side variables (exposed to the browser)
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
 # Next.js environment
 NODE_ENV=development
@@ -79,6 +86,18 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 - **Generate migrations**: `npm run db:generate`
 - **Apply migrations**: `npm run db:migrate`
 - **View database with Drizzle Studio**: `npm run db:studio`
+
+## Supabase Integration
+
+This project uses Supabase for authentication and data storage. We use two different Supabase clients:
+
+1. **Server-side client** (`supabaseAdmin`): Uses the service role key with full database access. Only used in server-side code.
+2. **Client-side client** (`supabaseClient`): Uses the anon/public key with restricted permissions. Safe to use in browser code.
+
+### Environment Variables
+
+- `SUPABASE_URL` and `SUPABASE_API_KEY`: Server-side variables, not exposed to the browser
+- `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`: Client-side variables, safe to expose to the browser
 
 ## Project Structure
 
