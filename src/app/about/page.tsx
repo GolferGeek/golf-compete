@@ -18,7 +18,7 @@ export default function AboutPage() {
             creating a community where competition drives improvement and improvement fuels competitive success.
           </p>
           <p className="text-lg text-muted-foreground">
-            By connecting players, coaches, and courses, we're building an ecosystem that elevates 
+            By connecting players, coaches, and courses, we&apos;re building an ecosystem that elevates 
             the entire golfing experience.
           </p>
         </section>
@@ -51,7 +51,7 @@ export default function AboutPage() {
         <section>
           <h2 className="text-2xl font-semibold mb-4">Join Us</h2>
           <p className="text-lg text-muted-foreground">
-            Whether you're a dedicated amateur looking to improve, a golf professional expanding your 
+            Whether you&apos;re a dedicated amateur looking to improve, a golf professional expanding your 
             coaching services, or a course wanting to increase engagement, GolfCompete has something 
             for you. Join us today and elevate your golf experience.
           </p>

@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { competitions, competitionParticipants, users, rounds } from '@/db/schema';
+import { competitions, competitionParticipants, users } from '@/db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 import { Competition, User } from '@/types/golf';
 
