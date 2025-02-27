@@ -626,6 +626,136 @@ export {
   `.trim());
 }
 
+// Check if tsconfig.json exists, if not create it or ensure it has proper path aliases
+if (fs.existsSync('tsconfig.json')) {
+  console.log('Checking tsconfig.json for path aliases...');
+  try {
+    const tsconfig = JSON.parse(fs.readFileSync('tsconfig.json', 'utf8'));
+    
+    // Ensure paths are configured correctly
+    if (!tsconfig.compilerOptions || !tsconfig.compilerOptions.paths || !tsconfig.compilerOptions.paths['@/*']) {
+      console.log('Adding path aliases to tsconfig.json...');
+      if (!tsconfig.compilerOptions) {
+        tsconfig.compilerOptions = {};
+      }
+      if (!tsconfig.compilerOptions.paths) {
+        tsconfig.compilerOptions.paths = {};
+      }
+      
+      tsconfig.compilerOptions.paths = {
+        ...tsconfig.compilerOptions.paths,
+        '@/*': ['./src/*']
+      };
+      
+      fs.writeFileSync('tsconfig.json', JSON.stringify(tsconfig, null, 2));
+    }
+  } catch (error) {
+    console.error('Error updating tsconfig.json:', error);
+  }
+}
+
+// Check if jsconfig.json exists, if not create it for path aliases
+if (!fs.existsSync('jsconfig.json')) {
+  console.log('Creating jsconfig.json for path aliases...');
+  fs.writeFileSync('jsconfig.json', JSON.stringify({
+    "compilerOptions": {
+      "baseUrl": ".",
+      "paths": {
+        "@/*": ["./src/*"]
+      }
+    }
+  }, null, 2));
+}
+
+// Create a .env file with NODE_PATH if it doesn't exist
+if (!fs.existsSync('.env.production.local')) {
+  console.log('Creating .env.production.local with NODE_PATH...');
+  fs.writeFileSync('.env.production.local', 'NODE_PATH=./src\n');
+}
+
+// Check if next.config.js exists, if not create it or ensure it has proper configuration
+const nextConfigPath = fs.existsSync('next.config.js') ? 'next.config.js' : 
+                      (fs.existsSync('next.config.ts') ? 'next.config.ts' : null);
+
+if (nextConfigPath) {
+  console.log(`Checking ${nextConfigPath} for proper configuration...`);
+  try {
+    const nextConfigContent = fs.readFileSync(nextConfigPath, 'utf8');
+    
+    // Only modify if it doesn't already have experimental.transpilePackages
+    if (!nextConfigContent.includes('transpilePackages')) {
+      console.log(`Updating ${nextConfigPath} with transpilePackages...`);
+      
+      // Simple approach to add the configuration
+      let updatedConfig;
+      if (nextConfigPath.endsWith('.ts')) {
+        // For TypeScript config
+        if (nextConfigContent.includes('export default')) {
+          updatedConfig = nextConfigContent.replace(
+            'export default',
+            `export default {
+  experimental: {
+    transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
+  },
+  ...`
+          );
+        } else {
+          updatedConfig = `
+import { type NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
+  experimental: {
+    transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
+  },
+};
+
+export default nextConfig;
+          `.trim();
+        }
+      } else {
+        // For JavaScript config
+        if (nextConfigContent.includes('module.exports')) {
+          updatedConfig = nextConfigContent.replace(
+            'module.exports',
+            `module.exports = {
+  experimental: {
+    transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
+  },
+  ...`
+          );
+        } else {
+          updatedConfig = `
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
+  },
+};
+
+module.exports = nextConfig;
+          `.trim();
+        }
+      }
+      
+      fs.writeFileSync(nextConfigPath, updatedConfig);
+    }
+  } catch (error) {
+    console.error(`Error updating ${nextConfigPath}:`, error);
+  }
+} else {
+  console.log('Creating next.config.js with proper configuration...');
+  fs.writeFileSync('next.config.js', `
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
+  },
+};
+
+module.exports = nextConfig;
+  `.trim());
+}
+
 // Run the build
 console.log('Running the build...');
 try {
