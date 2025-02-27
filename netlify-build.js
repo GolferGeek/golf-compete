@@ -39,7 +39,11 @@ runCommand('npm install', true);
 
 // Install Tailwind CSS v3 and related packages
 console.log('Installing Tailwind CSS and related packages...');
-runCommand('npm install --save-dev tailwindcss@3.3.0 postcss autoprefixer tailwindcss-animate', true);
+runCommand('npm install --save-dev tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.16 tailwindcss-animate@1.0.7', true);
+
+// Remove @tailwindcss/postcss if it exists
+console.log('Removing incompatible packages...');
+runCommand('npm uninstall @tailwindcss/postcss', true);
 
 // Verify installed packages - use ignoreError=true to continue even if this fails
 console.log('Verifying installed packages...');
