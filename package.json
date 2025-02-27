@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "prebuild": "echo 'Running prebuild checks...'",
     "build": "next build",
-    "netlify-build": "NODE_ENV=production npm run build",
+    "netlify-build": "NODE_ENV=production yarn build",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "drizzle-kit generate",
@@ -55,5 +55,10 @@
     "tailwindcss-animate": "^1.0.7",
     "tsx": "^4.19.3",
     "typescript": "^5"
+  },
+  "resolutions": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "@radix-ui/react-navigation-menu": "^1.2.5"
   }
 }

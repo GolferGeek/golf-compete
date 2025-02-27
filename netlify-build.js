@@ -23,7 +23,7 @@ function runCommand(command, ignoreError = false) {
 
 // Log environment information
 console.log(`Node version: ${process.version}`);
-console.log(`NPM version: ${runCommand('npm --version', true).trim()}`);
+console.log(`Yarn version: ${runCommand('yarn --version', true).trim()}`);
 console.log(`Current directory: ${process.cwd()}`);
 console.log(`Directory contents: ${runCommand('ls -la', true).trim()}`);
 
@@ -33,9 +33,8 @@ if (!fs.existsSync('package.json')) {
   process.exit(1);
 }
 
-// Clean npm cache and node_modules to ensure a fresh install
-console.log('Cleaning npm cache and node_modules...');
-runCommand('npm cache clean --force', true);
+// Clean node_modules to ensure a fresh install
+console.log('Cleaning node_modules...');
 if (fs.existsSync('node_modules')) {
   console.log('Removing node_modules directory...');
   if (process.platform === 'win32') {
@@ -45,25 +44,31 @@ if (fs.existsSync('node_modules')) {
   }
 }
 
+// Remove yarn.lock if it exists to ensure a clean install
+if (fs.existsSync('yarn.lock')) {
+  console.log('Removing yarn.lock file...');
+  fs.unlinkSync('yarn.lock');
+}
+
 // Install dependencies with a clean slate
 console.log('Installing dependencies...');
-runCommand('npm install --no-fund --no-audit', true);
+runCommand('yarn install --frozen-lockfile', true);
 
 // Install Tailwind CSS v3 and related packages explicitly
 console.log('Installing Tailwind CSS and related packages...');
-runCommand('npm install --save-dev tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.16 tailwindcss-animate@1.0.7 --no-fund --no-audit', true);
+runCommand('yarn add --dev tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.16 tailwindcss-animate@1.0.7', true);
 
 // Remove incompatible packages
 console.log('Removing incompatible packages...');
-runCommand('npm uninstall @tailwindcss/postcss', true);
+runCommand('yarn remove @tailwindcss/postcss', true);
 
 // Install additional required packages for Radix UI and other components
 console.log('Installing additional required packages...');
-runCommand('npm install @radix-ui/react-navigation-menu@1.1.4 class-variance-authority@0.7.0 clsx@2.0.0 lucide-react@0.294.0 tailwind-merge@1.14.0 --no-fund --no-audit', true);
+runCommand('yarn add @radix-ui/react-navigation-menu@1.1.4 class-variance-authority@0.7.0 clsx@2.0.0 lucide-react@0.294.0 tailwind-merge@1.14.0', true);
 
 // Verify installed packages
 console.log('Verifying installed packages...');
-runCommand('npm list --depth=0 tailwindcss postcss autoprefixer tailwindcss-animate @radix-ui/react-navigation-menu class-variance-authority clsx lucide-react tailwind-merge', true);
+runCommand('yarn list --depth=0 tailwindcss postcss autoprefixer tailwindcss-animate @radix-ui/react-navigation-menu class-variance-authority clsx lucide-react tailwind-merge', true);
 
 // Create necessary directories if they don't exist
 const directories = [
@@ -1014,12 +1019,237 @@ export default function Home() {
 
 // Run the build
 console.log('Running the build...');
-try {
-  // Make sure NODE_ENV is set to production
-  process.env.NODE_ENV = 'production';
-  runCommand('npm run build');
-  console.log('Build completed successfully!');
-} catch (error) {
-  console.error('Build failed. Exiting with error code 1.');
-  process.exit(1);
+runCommand('yarn build');
+
+// Check if tsconfig.json exists, if not create it or ensure it has proper path aliases
+if (fs.existsSync('tsconfig.json')) {
+  console.log('Checking tsconfig.json for path aliases...');
+  try {
+    const tsconfig = JSON.parse(fs.readFileSync('tsconfig.json', 'utf8'));
+    
+    // Ensure paths are configured correctly
+    if (!tsconfig.compilerOptions || !tsconfig.compilerOptions.paths || !tsconfig.compilerOptions.paths['@/*']) {
+      console.log('Adding path aliases to tsconfig.json...');
+      if (!tsconfig.compilerOptions) {
+        tsconfig.compilerOptions = {};
+      }
+      if (!tsconfig.compilerOptions.paths) {
+        tsconfig.compilerOptions.paths = {};
+      }
+      
+      tsconfig.compilerOptions.paths = {
+        ...tsconfig.compilerOptions.paths,
+        '@/*': ['./src/*']
+      };
+      
+      fs.writeFileSync('tsconfig.json', JSON.stringify(tsconfig, null, 2));
+    }
+  } catch (error) {
+    console.error('Error updating tsconfig.json:', error);
+  }
+}
+
+// Check if jsconfig.json exists, if not create it for path aliases
+if (!fs.existsSync('jsconfig.json')) {
+  console.log('Creating jsconfig.json for path aliases...');
+  fs.writeFileSync('jsconfig.json', JSON.stringify({
+    "compilerOptions": {
+      "baseUrl": ".",
+      "paths": {
+        "@/*": ["./src/*"]
+      }
+    }
+  }, null, 2));
+}
+
+// Create a .env file with NODE_PATH if it doesn't exist
+if (!fs.existsSync('.env.production.local')) {
+  console.log('Creating .env.production.local with NODE_PATH...');
+  fs.writeFileSync('.env.production.local', 'NODE_PATH=./src\n');
+}
+
+// Check if next.config.js exists, if not create it or ensure it has proper configuration
+const nextConfigPath = fs.existsSync('next.config.js') ? 'next.config.js' : 
+                      (fs.existsSync('next.config.ts') ? 'next.config.ts' : null);
+
+if (nextConfigPath) {
+  console.log(`Checking ${nextConfigPath} for proper configuration...`);
+  try {
+    const nextConfigContent = fs.readFileSync(nextConfigPath, 'utf8');
+    
+    // Only modify if it doesn't already have transpilePackages
+    if (!nextConfigContent.includes('transpilePackages')) {
+      console.log(`Updating ${nextConfigPath} with transpilePackages...`);
+      
+      // Create a completely new config file instead of trying to modify the existing one
+      if (nextConfigPath.endsWith('.ts')) {
+        // For TypeScript config
+        fs.writeFileSync(nextConfigPath, `
+import { type NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
+  transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
+};
+
+export default nextConfig;
+        `.trim());
+      } else {
+        // For JavaScript config
+        fs.writeFileSync(nextConfigPath, `
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
+};
+
+module.exports = nextConfig;
+        `.trim());
+      }
+      
+      console.log(`${nextConfigPath} has been updated with proper configuration.`);
+    } else {
+      console.log(`${nextConfigPath} already has transpilePackages configuration.`);
+    }
+  } catch (error) {
+    console.error(`Error updating ${nextConfigPath}:`, error);
+    
+    // If there's an error, create a new config file with a different name
+    const newConfigPath = nextConfigPath.endsWith('.ts') ? 'next.config.new.ts' : 'next.config.new.js';
+    console.log(`Creating ${newConfigPath} as a fallback...`);
+    
+    if (newConfigPath.endsWith('.ts')) {
+      fs.writeFileSync(newConfigPath, `
+import { type NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
+  transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
+};
+
+export default nextConfig;
+      `.trim());
+    } else {
+      fs.writeFileSync(newConfigPath, `
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
+};
+
+module.exports = nextConfig;
+      `.trim());
+    }
+    
+    console.log(`Created ${newConfigPath}. Please rename it to ${nextConfigPath} after the build.`);
+  }
+} else {
+  console.log('Creating next.config.js with proper configuration...');
+  fs.writeFileSync('next.config.js', `
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
+};
+
+module.exports = nextConfig;
+  `.trim());
+}
+
+// Ensure Tailwind CSS is properly installed
+console.log('Ensuring Tailwind CSS is properly installed...');
+runCommand('npm list tailwindcss || npm install --save-dev tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.16 tailwindcss-animate@1.0.7 --no-fund --no-audit', true);
+
+// Create layout.tsx if it doesn't exist
+if (!fs.existsSync('src/app/layout.tsx')) {
+  console.log('Creating layout.tsx...');
+  fs.writeFileSync('src/app/layout.tsx', `
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import Navbar from "@/components/layout/Navbar";
+import Footer from "@/components/layout/Footer";
+
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "GolfCompete - Elevate Your Golf Game",
+  description: "A comprehensive golf competition and improvement platform designed to transform how golfers compete, track progress, and enhance their skills.",
+};
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="en">
+      <body className={inter.className}>
+        <Navbar />
+        <main className="flex-1">{children}</main>
+        <Footer />
+      </body>
+    </html>
+  );
+}
+  `.trim());
+}
+
+// Create page.tsx if it doesn't exist
+if (!fs.existsSync('src/app/page.tsx')) {
+  console.log('Creating page.tsx...');
+  fs.writeFileSync('src/app/page.tsx', `
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+
+export default function Home() {
+  return (
+    <div className="container mx-auto px-4 py-12">
+      <h1 className="text-4xl font-bold mb-8 text-center">Welcome to GolfCompete</h1>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <Card>
+          <CardHeader>
+            <CardTitle>Competitions</CardTitle>
+            <CardDescription>Join season-long series or standalone events</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>Compete against friends or join public tournaments with various formats including stroke play, match play, and more.</p>
+          </CardContent>
+          <CardFooter>
+            <Button className="w-full">Browse Competitions</Button>
+          </CardFooter>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Live Scoring</CardTitle>
+            <CardDescription>Real-time leaderboards and scoring</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>Track scores hole-by-hole with our easy-to-use mobile interface. View live leaderboards during your round.</p>
+          </CardContent>
+          <CardFooter>
+            <Button className="w-full">Try Live Scoring</Button>
+          </CardFooter>
+        </Card>
+        
+        <Card>
+          <CardHeader>
+            <CardTitle>Statistics</CardTitle>
+            <CardDescription>Track your performance over time</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p>Analyze your game with detailed statistics. Identify strengths and weaknesses to improve your handicap.</p>
+          </CardContent>
+          <CardFooter>
+            <Button className="w-full">View Statistics</Button>
+          </CardFooter>
+        </Card>
+      </div>
+      
+      <div className="text-center">
+        <h2 className="text-2xl font-semibold mb-4">Ready to elevate your golf game?</h2>
+        <Button size="lg" className="mr-4">Sign Up</Button>
+        <Button size="lg" variant="outline">Learn More</Button>
+      </div>
+    </div>
+  );
+}
+  `.trim());
 } 

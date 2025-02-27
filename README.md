@@ -21,7 +21,7 @@ A comprehensive golf competition and improvement platform designed to transform 
 
 ### Prerequisites
 
-- Node.js 18+ and npm
+- Node.js 18+ and Yarn
 - PostgreSQL installed locally
 
 ### Local Development Setup
@@ -36,7 +36,7 @@ cd golf-compete
 2. **Install dependencies**
 
 ```bash
-npm install
+yarn install
 ```
 
 3. **Set up environment variables**
@@ -70,22 +70,22 @@ brew install postgresql
 brew services start postgresql
 
 # Set up the database and run migrations
-npm run db:setup
+yarn db:setup
 ```
 
 5. **Start the development server**
 
 ```bash
-npm run dev
+yarn dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
 ## Database Management
 
-- **Generate migrations**: `npm run db:generate`
-- **Apply migrations**: `npm run db:migrate`
-- **View database with Drizzle Studio**: `npm run db:studio`
+- **Generate migrations**: `yarn db:generate`
+- **Apply migrations**: `yarn db:migrate`
+- **View database with Drizzle Studio**: `yarn db:studio`
 
 ## Supabase Integration
 

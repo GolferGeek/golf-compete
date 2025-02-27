@@ -49,7 +49,7 @@ fi
 
 # Run the migrations
 echo "Running migrations on Supabase database..."
-npx tsx src/db/migrate.ts
+yarn tsx src/db/migrate.ts
 
 # If migrations fail, suggest using the SQL file directly
 if [ $? -ne 0 ]; then

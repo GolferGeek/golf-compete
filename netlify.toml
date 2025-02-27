@@ -4,6 +4,7 @@
 
 [build.environment]
   NODE_VERSION = "20"
-  NPM_VERSION = "10"
+  YARN_VERSION = "1.22.22"
   NODE_ENV = "production"
-  NEXT_TELEMETRY_DISABLED = "1" 
+  NEXT_TELEMETRY_DISABLED = "1"
+  YARN_FLAGS = "--frozen-lockfile" 

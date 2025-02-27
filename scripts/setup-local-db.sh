@@ -33,11 +33,11 @@ fi
 
 # Generate migrations
 echo "Generating migrations..."
-npm run db:generate
+yarn db:generate
 
 # Apply migrations
 echo "Applying migrations..."
-npm run db:migrate
+yarn db:migrate
 
 echo "Local database setup complete!"
-echo "You can now run your application with: npm run dev" 
+echo "You can now run your application with: yarn dev" 

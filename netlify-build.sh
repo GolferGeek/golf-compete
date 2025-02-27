@@ -5,28 +5,24 @@ set -e
 
 echo "Starting Netlify build process..."
 
-# Clean npm cache
-echo "Cleaning npm cache..."
-npm cache clean --force
-
 # Remove node_modules and package-lock.json for a fresh install
-echo "Removing node_modules and package-lock.json..."
-rm -rf node_modules package-lock.json
+echo "Removing node_modules, package-lock.json, and yarn.lock..."
+rm -rf node_modules package-lock.json yarn.lock
 
-# Install dependencies with verbose logging
-echo "Installing dependencies..."
-npm install --verbose
+# Install dependencies with Yarn
+echo "Installing dependencies with Yarn..."
+yarn install --frozen-lockfile
 
-# Explicitly install tailwindcss v4 and related packages
-echo "Explicitly installing tailwindcss v4 and related packages..."
-npm install --save-dev tailwindcss@4.0.0-alpha.6 @tailwindcss/postcss autoprefixer
+# Explicitly install tailwindcss and related packages
+echo "Explicitly installing tailwindcss and related packages..."
+yarn add --dev tailwindcss@3.3.0 postcss@8.4.31 autoprefixer@10.4.16 tailwindcss-animate@1.0.7
 
 # List installed packages for debugging
 echo "Listing installed packages..."
-npm list --depth=0 tailwindcss @tailwindcss/postcss autoprefixer
+yarn list --depth=0 tailwindcss postcss autoprefixer tailwindcss-animate
 
 # Run the build
 echo "Building the application..."
-NODE_ENV=production npm run build
+NODE_ENV=production yarn build
 
 echo "Build completed successfully!" 
