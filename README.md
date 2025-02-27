@@ -12,7 +12,7 @@ A comprehensive golf competition and improvement platform designed to transform 
 
 ## Tech Stack
 
-- **Frontend**: Next.js 15, React 19, Tailwind CSS, Shadcn UI
+- **Frontend**: Next.js 15, React 19, Material UI
 - **Database**: PostgreSQL with Drizzle ORM
 - **Authentication**: Supabase Auth
 - **Deployment**: Netlify
@@ -103,7 +103,7 @@ This project uses Supabase for authentication and data storage. We use two diffe
 
 - `/src/app`: Next.js app router pages and layouts
 - `/src/components`: React components
-  - `/ui`: Shadcn UI components
+  - `/ui`: Material UI components
   - `/layout`: Layout components like Navbar and Footer
 - `/src/db`: Database configuration and schema
 - `/src/lib`: Utility functions and business logic

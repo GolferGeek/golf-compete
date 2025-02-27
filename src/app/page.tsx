@@ -1,99 +1,138 @@
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+'use client';
+
 import Link from "next/link";
+import Box from '@mui/material/Box';
+import Container from '@mui/material/Container';
+import Typography from '@mui/material/Typography';
+import Button from '@mui/material/Button';
+import Grid from '@mui/material/Grid';
+import Card from '@mui/material/Card';
+import CardContent from '@mui/material/CardContent';
+import CardHeader from '@mui/material/CardHeader';
+import CardActions from '@mui/material/CardActions';
+import { styled } from '@mui/material/styles';
+
+const HeroSection = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(10, 0),
+  background: `linear-gradient(180deg, ${theme.palette.background.default} 0%, ${theme.palette.background.paper} 100%)`,
+  [theme.breakpoints.up('md')]: {
+    padding: theme.spacing(14, 0),
+  },
+}));
+
+const FeatureIcon = styled('div')(({ theme }) => ({
+  fontSize: '2.5rem',
+  marginBottom: theme.spacing(2),
+}));
+
+const StyledLink = styled(Link)({
+  textDecoration: 'none',
+});
 
 export default function Home() {
   return (
-    <div className="flex flex-col min-h-screen">
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       {/* Hero Section */}
-      <section className="py-20 md:py-28 bg-gradient-to-b from-background to-muted">
-        <div className="container mx-auto px-4 text-center">
-          <h1 className="text-4xl md:text-6xl font-bold mb-6">
+      <HeroSection>
+        <Container maxWidth="lg" sx={{ textAlign: 'center' }}>
+          <Typography variant="h2" component="h1" gutterBottom sx={{ fontWeight: 700 }}>
             Elevate Your Golf Game
-          </h1>
-          <p className="text-xl md:text-2xl text-muted-foreground max-w-3xl mx-auto mb-10">
+          </Typography>
+          <Typography variant="h5" color="text.secondary" sx={{ maxWidth: 800, mx: 'auto', mb: 5 }}>
             GolfCompete is a comprehensive platform designed to transform how golfers compete, 
             track progress, and enhance their skills.
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link href="/signup">
-              <Button size="lg" className="w-full sm:w-auto">
+          </Typography>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, justifyContent: 'center' }}>
+            <StyledLink href="/signup">
+              <Button variant="contained" size="large">
                 Get Started
               </Button>
-            </Link>
-            <Link href="/about">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto">
+            </StyledLink>
+            <StyledLink href="/about">
+              <Button variant="outlined" size="large">
                 Learn More
               </Button>
-            </Link>
-          </div>
-        </div>
-      </section>
+            </StyledLink>
+          </Box>
+        </Container>
+      </HeroSection>
 
       {/* Features Section */}
-      <section className="py-16 md:py-24">
-        <div className="container mx-auto px-4">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-12">
+      <Box sx={{ py: { xs: 8, md: 12 } }}>
+        <Container maxWidth="lg">
+          <Typography variant="h3" component="h2" align="center" gutterBottom sx={{ mb: 6 }}>
             Key Features
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-            <FeatureCard 
-              title="Competition Management"
-              description="FedEx Cup-style season-long competitions with points tracking, standalone events, and real-time scorecards."
-              icon="🏆"
-              link="/competitions"
-            />
-            <FeatureCard 
-              title="Performance Tracking"
-              description="Multiple bag configurations with separate handicap tracking, course-specific analytics, and comprehensive scoring history."
-              icon="🎯"
-              link="/tracking"
-            />
-            <FeatureCard 
-              title="Improvement Framework"
-              description="Structured practice planning based on identified weaknesses, pre/post routines, and issue logging."
-              icon="📈"
-              link="/improvement"
-            />
-            <FeatureCard 
-              title="Professional Coaching"
-              description="Direct connection to golf professionals with micro-consultation system and personalized feedback."
-              icon="👨‍🏫"
-              link="/coaching"
-            />
-            <FeatureCard 
-              title="Course Integration"
-              description="Detailed course database with comprehensive information and course-hosted daily competitions."
-              icon="🏌️"
-              link="/courses"
-            />
-            <FeatureCard 
-              title="Course-Initiated Games"
-              description="Daily putting and chipping contests set up by course administrators with leaderboards for friendly competition."
-              icon="🎮"
-              link="/games"
-            />
-          </div>
-        </div>
-      </section>
+          </Typography>
+          <Grid container spacing={4}>
+            <Grid item xs={12} md={6} lg={4}>
+              <FeatureCard 
+                title="Competition Management"
+                description="FedEx Cup-style season-long competitions with points tracking, standalone events, and real-time scorecards."
+                icon="🏆"
+                link="/competitions"
+              />
+            </Grid>
+            <Grid item xs={12} md={6} lg={4}>
+              <FeatureCard 
+                title="Performance Tracking"
+                description="Multiple bag configurations with separate handicap tracking, course-specific analytics, and comprehensive scoring history."
+                icon="🎯"
+                link="/tracking"
+              />
+            </Grid>
+            <Grid item xs={12} md={6} lg={4}>
+              <FeatureCard 
+                title="Improvement Framework"
+                description="Structured practice planning based on identified weaknesses, pre/post routines, and issue logging."
+                icon="📈"
+                link="/improvement"
+              />
+            </Grid>
+            <Grid item xs={12} md={6} lg={4}>
+              <FeatureCard 
+                title="Professional Coaching"
+                description="Direct connection to golf professionals with micro-consultation system and personalized feedback."
+                icon="👨‍🏫"
+                link="/coaching"
+              />
+            </Grid>
+            <Grid item xs={12} md={6} lg={4}>
+              <FeatureCard 
+                title="Course Integration"
+                description="Detailed course database with comprehensive information and course-hosted daily competitions."
+                icon="🏌️"
+                link="/courses"
+              />
+            </Grid>
+            <Grid item xs={12} md={6} lg={4}>
+              <FeatureCard 
+                title="Course-Initiated Games"
+                description="Daily putting and chipping contests set up by course administrators with leaderboards for friendly competition."
+                icon="🎮"
+                link="/games"
+              />
+            </Grid>
+          </Grid>
+        </Container>
+      </Box>
 
       {/* CTA Section */}
-      <section className="py-16 md:py-24 bg-muted">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold mb-6">
+      <Box sx={{ py: { xs: 8, md: 12 }, bgcolor: 'background.paper' }}>
+        <Container maxWidth="lg" sx={{ textAlign: 'center' }}>
+          <Typography variant="h3" component="h2" gutterBottom>
             Ready to Transform Your Golf Experience?
-          </h2>
-          <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-10">
+          </Typography>
+          <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 800, mx: 'auto', mb: 5 }}>
             Join GolfCompete today and take your game to the next level with our comprehensive platform.
-          </p>
-          <Link href="/signup">
-            <Button size="lg">
+          </Typography>
+          <StyledLink href="/signup">
+            <Button variant="contained" size="large">
               Sign Up Now
             </Button>
-          </Link>
-        </div>
-      </section>
-    </div>
+          </StyledLink>
+        </Container>
+      </Box>
+    </Box>
   );
 }
 
@@ -106,19 +145,27 @@ interface FeatureCardProps {
 
 function FeatureCard({ title, description, icon, link }: FeatureCardProps) {
   return (
-    <Card className="h-full">
-      <CardHeader>
-        <div className="text-4xl mb-4">{icon}</div>
-        <CardTitle>{title}</CardTitle>
-      </CardHeader>
-      <CardContent>
-        <CardDescription className="text-base">{description}</CardDescription>
+    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <CardHeader
+        title={
+          <>
+            <FeatureIcon>{icon}</FeatureIcon>
+            <Typography variant="h6" component="div">
+              {title}
+            </Typography>
+          </>
+        }
+      />
+      <CardContent sx={{ flexGrow: 1 }}>
+        <Typography variant="body2" color="text.secondary">
+          {description}
+        </Typography>
       </CardContent>
-      <CardFooter>
-        <Link href={link} className="text-sm text-primary hover:underline">
+      <CardActions>
+        <Button component={Link} href={link} size="small" color="primary">
           Learn more →
-        </Link>
-      </CardFooter>
+        </Button>
+      </CardActions>
     </Card>
   );
 }

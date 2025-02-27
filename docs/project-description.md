@@ -65,7 +65,7 @@ GolfCompete stands at the intersection of competition and improvement, offering 
 
 GolfCompete leverages modern web technologies to deliver a responsive, reliable, and feature-rich experience:
 
-- **Frontend**: Next.js 14, React, TypeScript, Tailwind CSS, Shadcn UI
+- **Frontend**: Next.js 14, React, TypeScript, Material UI
 - **Backend**: Supabase (PostgreSQL, Auth, Storage), Drizzle ORM
 - **Deployment**: Netlify
 - **Testing**: Playwright

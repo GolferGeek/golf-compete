@@ -24,21 +24,22 @@ This document outlines the detailed implementation plan for Phase 1 of the GolfC
   - (Optional) Require pull request reviews for collaborators
 - [ ] Set up issue templates for bug reports and feature requests
 
-### 2. Next.js + Shadcn + Tailwind Setup (2 days)
+### 2. Next.js + Material UI Setup (2 days)
 - [ ] Initialize Next.js project with App Router:
   ```bash
-  npx create-next-app@latest golf-compete --typescript --tailwind --eslint --app
+  npx create-next-app@latest golf-compete --typescript --eslint --app
   ```
-- [ ] Configure Tailwind CSS:
-  - Customize `tailwind.config.js` with project-specific colors and theme
+- [ ] Configure Material UI:
+  - Install Material UI packages
+  - Set up theme provider with project-specific colors and theme
   - Set up dark mode support
-- [ ] Install and configure Shadcn UI:
+- [ ] Install and configure Material UI components:
   ```bash
-  npx shadcn-ui@latest init
+  npm install @mui/material @mui/icons-material @emotion/react @emotion/styled
   ```
-  - Configure component installation directory
+  - Configure component theming
   - Set up global CSS variables
-- [ ] Install essential Shadcn UI components:
+- [ ] Install essential Material UI components:
   - Button
   - Card
   - Dialog
@@ -157,7 +158,7 @@ This document outlines the detailed implementation plan for Phase 1 of the GolfC
 
 ### Code Deliverables
 - [ ] GitHub repository with proper structure and branching strategy
-- [ ] Next.js application with Tailwind CSS and Shadcn UI configured
+- [ ] Next.js application with Material UI configured
 - [ ] Supabase integration with Drizzle ORM and initial database schema
 - [ ] CI/CD pipeline with GitHub Actions
 - [ ] E2E testing framework with basic tests
@@ -171,7 +172,7 @@ This document outlines the detailed implementation plan for Phase 1 of the GolfC
 - [ ] Deployment process documentation
 
 ## Tech Stack
-- **Frontend**: Next.js 14, React, TypeScript, Tailwind CSS, Shadcn UI
+- **Frontend**: Next.js 14, React, TypeScript, Material UI
 - **Backend**: Supabase (PostgreSQL, Auth, Storage), Drizzle ORM
 - **Deployment**: Netlify
 - **Testing**: Playwright

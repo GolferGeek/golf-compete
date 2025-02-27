@@ -6,10 +6,10 @@ Goal: Establish the foundational structure and tools for the entire project.
 	1.	Create GitHub repository
 	•	Initialize repo with proper .gitignore and license/readme.
 	•	Set up branching strategy (e.g., main/dev).
-	2.	Configure Next.js + Shadcn + Tailwind
+	2.	Configure Next.js + Material UI
 	•	Base Next.js project creation.
-	•	Integrate Shadcn UI components (or your chosen method).
-	•	Set up TailwindCSS with a proper config (tailwind.config.js).
+	•	Integrate Material UI components.
+	•	Set up Material UI theme configuration.
 	3.	Integrate Supabase
 	•	Configure Supabase project (auth, database).
 	•	Set up environment variables for local and production.
@@ -23,7 +23,7 @@ Goal: Establish the foundational structure and tools for the entire project.
 	•	Initial "Hello World" or landing page for confirmation the setup is correct.
 
 Deliverables:
-	•	GitHub repo with Next.js + Tailwind + Shadcn configured
+	•	GitHub repo with Next.js + Material UI configured
 	•	Supabase initial setup with basic schema migrations (if any)
 	•	CI/CD pipeline for building/testing
 	•	Deployment (test or staging environment)
@@ -242,7 +242,7 @@ Phase 10: Final Refinements & Advanced Features
 
 Goal: Polish, optimize, and set up advanced features (plus any backlog items). Prepare for production launch.
 	1.	UX/UI Polish
-	•	Enhance design with Shadcn/Tailwind theming.
+	•	Enhance design with Material UI theming.
 	•	Improve dashboards, transitions, error states, etc.
 	2.	Performance & Security
 	•	Audit database queries, indexes, and Supabase usage.

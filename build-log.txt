@@ -1,0 +1,93 @@
+Node version: v22.13.1
+Running: yarn --version
+1.22.22
+
+Yarn version: 1.22.22
+Current directory: /Users/golfergeek/projects/golfergeek/golf-compete
+Running: ls -la
+total 376
+drwxr-xr-x@ 40 golfergeek  staff   1280 Feb 27 16:52 .
+drwxr-xr-x   8 golfergeek  staff    256 Feb 27 10:01 ..
+-rw-r--r--@  1 golfergeek  staff   1207 Feb 27 11:10 .env
+-rw-r--r--@  1 golfergeek  staff    662 Feb 27 11:08 .env.example
+-rw-r--r--@  1 golfergeek  staff    971 Feb 27 11:09 .env.local
+-rw-r--r--@  1 golfergeek  staff    209 Feb 27 15:15 .env.migration
+-rw-r--r--@  1 golfergeek  staff   1408 Feb 27 13:47 .env.production
+-rw-r--r--@  1 golfergeek  staff   1575 Feb 27 15:17 .env.supabase
+drwxr-xr-x@ 14 golfergeek  staff    448 Feb 27 16:46 .git
+drwxr-xr-x@  3 golfergeek  staff     96 Feb 27 09:57 .github
+-rw-r--r--@  1 golfergeek  staff    584 Feb 27 11:09 .gitignore
+drwxr-xr-x@ 25 golfergeek  staff    800 Feb 27 16:38 .next
+-rw-r--r--@  1 golfergeek  staff   1068 Feb 27 09:57 LICENSE
+-rw-r--r--@  1 golfergeek  staff   3725 Feb 27 16:41 README.md
+-rw-r--r--@  1 golfergeek  staff    164 Feb 27 16:52 build-log.txt
+-rw-r--r--@  1 golfergeek  staff   5590 Feb 27 15:16 check-supabase.js
+-rw-r--r--@  1 golfergeek  staff   4307 Feb 27 15:20 check-tables.js
+-rw-r--r--@  1 golfergeek  staff    430 Feb 27 10:50 components.json
+drwxr-xr-x@  5 golfergeek  staff    160 Feb 27 09:42 docs
+drwxr-xr-x@  6 golfergeek  staff    192 Feb 27 10:54 drizzle
+-rw-r--r--@  1 golfergeek  staff    718 Feb 27 13:29 drizzle.config.ts
+-rw-r--r--@  1 golfergeek  staff    393 Feb 27 10:49 eslint.config.mjs
+-rw-r--r--@  1 golfergeek  staff   4955 Feb 27 15:19 migrate-supabase-js.js
+-rwxr-xr-x@  1 golfergeek  staff   2145 Feb 27 16:37 migrate-to-supabase.sh
+-rwxr-xr-x@  1 golfergeek  staff  12426 Feb 27 16:51 netlify-build.js
+-rwxr-xr-x@  1 golfergeek  staff  35761 Feb 27 16:50 netlify-build.js.bak
+-rwxr-xr-x@  1 golfergeek  staff    853 Feb 27 16:40 netlify-build.sh
+-rw-r--r--@  1 golfergeek  staff    253 Feb 27 16:40 netlify.toml
+-rw-r--r--@  1 golfergeek  staff    211 Feb 27 10:03 next-env.d.ts
+-rw-r--r--@  1 golfergeek  staff    133 Feb 27 10:49 next.config.ts
+-rw-r--r--@  1 golfergeek  staff   1843 Feb 27 16:36 package.json
+-rw-r--r--@  1 golfergeek  staff     81 Feb 27 16:08 postcss.config.mjs
+-rw-r--r--@  1 golfergeek  staff   1519 Feb 27 15:19 prepare-supabase-sql.js
+drwxr-xr-x@  7 golfergeek  staff    224 Feb 27 10:49 public
+drwxr-xr-x@  3 golfergeek  staff     96 Feb 27 10:50 scripts
+drwxr-xr-x@  7 golfergeek  staff    224 Feb 27 10:50 src
+-rw-r--r--@  1 golfergeek  staff   8352 Feb 27 15:13 supabase-migration.sql
+-rw-r--r--@  1 golfergeek  staff   2126 Feb 27 15:29 tailwind.config.js
+-rw-r--r--@  1 golfergeek  staff   5545 Feb 27 15:22 test-supabase-data.js
+-rw-r--r--@  1 golfergeek  staff    630 Feb 27 15:37 tsconfig.json
+
+Directory contents: total 376
+drwxr-xr-x@ 40 golfergeek  staff   1280 Feb 27 16:52 .
+drwxr-xr-x   8 golfergeek  staff    256 Feb 27 10:01 ..
+-rw-r--r--@  1 golfergeek  staff   1207 Feb 27 11:10 .env
+-rw-r--r--@  1 golfergeek  staff    662 Feb 27 11:08 .env.example
+-rw-r--r--@  1 golfergeek  staff    971 Feb 27 11:09 .env.local
+-rw-r--r--@  1 golfergeek  staff    209 Feb 27 15:15 .env.migration
+-rw-r--r--@  1 golfergeek  staff   1408 Feb 27 13:47 .env.production
+-rw-r--r--@  1 golfergeek  staff   1575 Feb 27 15:17 .env.supabase
+drwxr-xr-x@ 14 golfergeek  staff    448 Feb 27 16:46 .git
+drwxr-xr-x@  3 golfergeek  staff     96 Feb 27 09:57 .github
+-rw-r--r--@  1 golfergeek  staff    584 Feb 27 11:09 .gitignore
+drwxr-xr-x@ 25 golfergeek  staff    800 Feb 27 16:38 .next
+-rw-r--r--@  1 golfergeek  staff   1068 Feb 27 09:57 LICENSE
+-rw-r--r--@  1 golfergeek  staff   3725 Feb 27 16:41 README.md
+-rw-r--r--@  1 golfergeek  staff    164 Feb 27 16:52 build-log.txt
+-rw-r--r--@  1 golfergeek  staff   5590 Feb 27 15:16 check-supabase.js
+-rw-r--r--@  1 golfergeek  staff   4307 Feb 27 15:20 check-tables.js
+-rw-r--r--@  1 golfergeek  staff    430 Feb 27 10:50 components.json
+drwxr-xr-x@  5 golfergeek  staff    160 Feb 27 09:42 docs
+drwxr-xr-x@  6 golfergeek  staff    192 Feb 27 10:54 drizzle
+-rw-r--r--@  1 golfergeek  staff    718 Feb 27 13:29 drizzle.config.ts
+-rw-r--r--@  1 golfergeek  staff    393 Feb 27 10:49 eslint.config.mjs
+-rw-r--r--@  1 golfergeek  staff   4955 Feb 27 15:19 migrate-supabase-js.js
+-rwxr-xr-x@  1 golfergeek  staff   2145 Feb 27 16:37 migrate-to-supabase.sh
+-rwxr-xr-x@  1 golfergeek  staff  12426 Feb 27 16:51 netlify-build.js
+-rwxr-xr-x@  1 golfergeek  staff  35761 Feb 27 16:50 netlify-build.js.bak
+-rwxr-xr-x@  1 golfergeek  staff    853 Feb 27 16:40 netlify-build.sh
+-rw-r--r--@  1 golfergeek  staff    253 Feb 27 16:40 netlify.toml
+-rw-r--r--@  1 golfergeek  staff    211 Feb 27 10:03 next-env.d.ts
+-rw-r--r--@  1 golfergeek  staff    133 Feb 27 10:49 next.config.ts
+-rw-r--r--@  1 golfergeek  staff   1843 Feb 27 16:36 package.json
+-rw-r--r--@  1 golfergeek  staff     81 Feb 27 16:08 postcss.config.mjs
+-rw-r--r--@  1 golfergeek  staff   1519 Feb 27 15:19 prepare-supabase-sql.js
+drwxr-xr-x@  7 golfergeek  staff    224 Feb 27 10:49 public
+drwxr-xr-x@  3 golfergeek  staff     96 Feb 27 10:50 scripts
+drwxr-xr-x@  7 golfergeek  staff    224 Feb 27 10:50 src
+-rw-r--r--@  1 golfergeek  staff   8352 Feb 27 15:13 supabase-migration.sql
+-rw-r--r--@  1 golfergeek  staff   2126 Feb 27 15:29 tailwind.config.js
+-rw-r--r--@  1 golfergeek  staff   5545 Feb 27 15:22 test-supabase-data.js
+-rw-r--r--@  1 golfergeek  staff    630 Feb 27 15:37 tsconfig.json
+Cleaning node_modules...
+Installing dependencies...
+Running: yarn install --frozen-lockfile

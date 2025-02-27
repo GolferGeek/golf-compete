@@ -1,6 +1,6 @@
 [build]
-  command = "chmod +x netlify-build.js && ./netlify-build.js"
-  publish = ".next"
+  command = "yarn build"
+  publish = "out"
 
 [build.environment]
   NODE_VERSION = "20"

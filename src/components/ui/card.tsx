@@ -1,79 +1,75 @@
-import * as React from "react"
+'use client';
 
-import { cn } from "@/lib/utils"
+import * as React from 'react';
+import { 
+  Card as MuiCard, 
+  CardProps as MuiCardProps,
+  CardContent as MuiCardContent,
+  CardContentProps as MuiCardContentProps,
+  CardHeader as MuiCardHeader,
+  CardHeaderProps as MuiCardHeaderProps,
+  CardActions as MuiCardActions,
+  CardActionsProps as MuiCardActionsProps,
+  Typography
+} from '@mui/material';
+import { styled } from '@mui/material/styles';
 
-const Card = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn(
-      "rounded-lg border bg-card text-card-foreground shadow-sm",
-      className
-    )}
-    {...props}
-  />
-));
-Card.displayName = "Card";
+// Styled components
+const StyledCard = styled(MuiCard)(({ theme }) => ({
+  borderRadius: theme.shape.borderRadius,
+  boxShadow: '0px 2px 8px rgba(0, 0, 0, 0.05)',
+  overflow: 'hidden',
+}));
 
-const CardHeader = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn("flex flex-col space-y-1.5 p-6", className)}
-    {...props}
-  />
-));
-CardHeader.displayName = "CardHeader";
+// Export components
+export const Card = React.forwardRef<HTMLDivElement, MuiCardProps>(
+  (props, ref) => <StyledCard ref={ref} {...props} />
+);
+Card.displayName = 'Card';
 
-const CardTitle = React.forwardRef<
-  HTMLParagraphElement,
-  React.HTMLAttributes<HTMLHeadingElement>
->(({ className, ...props }, ref) => (
-  <h3
-    ref={ref}
-    className={cn(
-      "text-2xl font-semibold leading-none tracking-tight",
-      className
-    )}
-    {...props}
-  />
-));
-CardTitle.displayName = "CardTitle";
+export const CardHeader = React.forwardRef<HTMLDivElement, MuiCardHeaderProps>(
+  (props, ref) => <MuiCardHeader ref={ref} {...props} />
+);
+CardHeader.displayName = 'CardHeader';
 
-const CardDescription = React.forwardRef<
-  HTMLParagraphElement,
-  React.HTMLAttributes<HTMLParagraphElement>
->(({ className, ...props }, ref) => (
-  <p
-    ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
-    {...props}
-  />
-));
-CardDescription.displayName = "CardDescription";
+export const CardContent = React.forwardRef<HTMLDivElement, MuiCardContentProps>(
+  (props, ref) => <MuiCardContent ref={ref} {...props} />
+);
+CardContent.displayName = 'CardContent';
 
-const CardContent = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />
-));
-CardContent.displayName = "CardContent";
+export const CardFooter = React.forwardRef<HTMLDivElement, MuiCardActionsProps>(
+  (props, ref) => <MuiCardActions ref={ref} {...props} />
+);
+CardFooter.displayName = 'CardFooter';
 
-const CardFooter = React.forwardRef<
-  HTMLDivElement,
-  React.HTMLAttributes<HTMLDivElement>
->(({ className, ...props }, ref) => (
-  <div
-    ref={ref}
-    className={cn("flex items-center p-6 pt-0", className)}
-    {...props}
-  />
-));
-CardFooter.displayName = "CardFooter";
+// Additional components
+export interface CardTitleProps {
+  children?: React.ReactNode;
+}
 
-export { Card, CardHeader, CardFooter, CardTitle, CardDescription, CardContent }
+export const CardTitle = React.forwardRef<HTMLHeadingElement, CardTitleProps>(
+  ({ children, ...props }, ref) => (
+    <Typography variant="h6" component="h3" ref={ref} {...props}>
+      {children}
+    </Typography>
+  )
+);
+CardTitle.displayName = 'CardTitle';
+
+export interface CardDescriptionProps {
+  children?: React.ReactNode;
+}
+
+export const CardDescription = React.forwardRef<HTMLParagraphElement, CardDescriptionProps>(
+  ({ children, ...props }, ref) => (
+    <Typography 
+      variant="body2" 
+      color="text.secondary" 
+      ref={ref} 
+      {...props}
+    >
+      {children}
+    </Typography>
+  )
+);
+CardDescription.displayName = 'CardDescription';
