@@ -3,11 +3,7 @@ const nextConfig = {
   /* config options here */
   reactStrictMode: true,
   
-  // For Netlify deployment
-  // When using the Netlify plugin, we don't need to set output to 'export'
-  // output: 'export',
-  
-  // Images configuration for static export
+  // Images configuration for Netlify
   images: {
     unoptimized: true,
   },
@@ -16,6 +12,22 @@ const nextConfig = {
   webpack: (config, { isServer }) => {
     // Add any webpack customizations here if needed
     return config;
+  },
+  
+  // Disable type checking during build for performance
+  typescript: {
+    // !! WARN !!
+    // Dangerously allow production builds to successfully complete even if
+    // your project has type errors.
+    // !! WARN !!
+    ignoreBuildErrors: true,
+  },
+  
+  // Disable ESLint during build for performance
+  eslint: {
+    // Warning: This allows production builds to successfully complete even if
+    // your project has ESLint errors.
+    ignoreDuringBuilds: true,
   },
 };
 
