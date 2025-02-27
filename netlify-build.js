@@ -686,21 +686,10 @@ if (nextConfigPath) {
     if (!nextConfigContent.includes('transpilePackages')) {
       console.log(`Updating ${nextConfigPath} with transpilePackages...`);
       
-      // Simple approach to add the configuration
-      let updatedConfig;
+      // Create a completely new config file instead of trying to modify the existing one
       if (nextConfigPath.endsWith('.ts')) {
         // For TypeScript config
-        if (nextConfigContent.includes('export default')) {
-          updatedConfig = nextConfigContent.replace(
-            'export default',
-            `export default {
-  experimental: {
-    transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
-  },
-  ...`
-          );
-        } else {
-          updatedConfig = `
+        fs.writeFileSync(nextConfigPath, `
 import { type NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
@@ -710,21 +699,10 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
-          `.trim();
-        }
+        `.trim());
       } else {
         // For JavaScript config
-        if (nextConfigContent.includes('module.exports')) {
-          updatedConfig = nextConfigContent.replace(
-            'module.exports',
-            `module.exports = {
-  experimental: {
-    transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
-  },
-  ...`
-          );
-        } else {
-          updatedConfig = `
+        fs.writeFileSync(nextConfigPath, `
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
@@ -733,14 +711,46 @@ const nextConfig = {
 };
 
 module.exports = nextConfig;
-          `.trim();
-        }
+        `.trim());
       }
       
-      fs.writeFileSync(nextConfigPath, updatedConfig);
+      console.log(`${nextConfigPath} has been updated with proper configuration.`);
+    } else {
+      console.log(`${nextConfigPath} already has transpilePackages configuration.`);
     }
   } catch (error) {
     console.error(`Error updating ${nextConfigPath}:`, error);
+    
+    // If there's an error, create a new config file with a different name
+    const newConfigPath = nextConfigPath.endsWith('.ts') ? 'next.config.new.ts' : 'next.config.new.js';
+    console.log(`Creating ${newConfigPath} as a fallback...`);
+    
+    if (newConfigPath.endsWith('.ts')) {
+      fs.writeFileSync(newConfigPath, `
+import { type NextConfig } from 'next';
+
+const nextConfig: NextConfig = {
+  experimental: {
+    transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
+  },
+};
+
+export default nextConfig;
+      `.trim());
+    } else {
+      fs.writeFileSync(newConfigPath, `
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    transpilePackages: ['@radix-ui/react-navigation-menu', 'lucide-react'],
+  },
+};
+
+module.exports = nextConfig;
+      `.trim());
+    }
+    
+    console.log(`Created ${newConfigPath}. Please rename it to ${nextConfigPath} after the build.`);
   }
 } else {
   console.log('Creating next.config.js with proper configuration...');
