@@ -15,10 +15,10 @@ import MenuItem from '@mui/material/MenuItem';
 import GolfCourseIcon from '@mui/icons-material/GolfCourse';
 
 const pages = [
-  { name: 'Home', href: '/' },
   { name: 'About', href: '/about' },
   { name: 'Competitions', href: '/competitions' },
-  { name: 'Courses', href: '/courses' }
+  { name: 'Courses', href: '/courses' },
+  { name: 'Contact', href: '/contact' }
 ];
 
 export default function Navbar() {

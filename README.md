@@ -1,5 +1,7 @@
 # GolfCompete
 
+[![Golf Compete CI](https://github.com/golfergeek/golf-compete/actions/workflows/ci.yml/badge.svg)](https://github.com/golfergeek/golf-compete/actions/workflows/ci.yml)
+
 A comprehensive golf competition and improvement platform designed to transform how golfers compete, track progress, and enhance their skills.
 
 ## Features
@@ -108,6 +110,57 @@ This project uses Supabase for authentication and data storage. We use two diffe
 - `/src/db`: Database configuration and schema
 - `/src/lib`: Utility functions and business logic
 - `/src/types`: TypeScript type definitions
+- `/e2e`: End-to-end tests with Playwright
+
+## End-to-End Testing
+
+This project uses Playwright for end-to-end testing. The tests are located in the `/e2e` directory.
+
+### Running E2E Tests
+
+```bash
+# Run all E2E tests
+yarn test:e2e
+
+# Run E2E tests with UI mode
+yarn test:e2e:ui
+
+# Run E2E tests in debug mode
+yarn test:e2e:debug
+
+# View the HTML report of the last test run
+yarn test:e2e:report
+```
+
+### Test Structure
+
+- `home.spec.ts`: Tests for the homepage functionality
+- `about.spec.ts`: Tests for the about page functionality
+- `responsive.spec.ts`: Tests for responsive design across different device sizes
+
+### CI Integration
+
+E2E tests are automatically run on GitHub Actions for all pull requests and pushes to the main branch. The workflow includes:
+
+1. **Linting**: Checks code quality and style
+2. **E2E Testing**: Runs Playwright tests across multiple browsers
+3. **Artifact Upload**: Test reports are uploaded as artifacts and can be viewed in the GitHub Actions tab
+
+The CI configuration is defined in `.github/workflows/ci.yml`. You can view the status of CI runs in the GitHub Actions tab of the repository.
+
+#### Running Tests Locally Before Pushing
+
+While CI will catch issues automatically, it's good practice to run tests locally before pushing:
+
+```bash
+# Run linting
+yarn lint
+
+# Run E2E tests
+yarn test:e2e
+```
+
+This helps catch issues early and reduces the number of failed CI builds.
 
 ## Contributing
 
