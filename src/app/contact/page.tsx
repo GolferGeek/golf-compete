@@ -79,7 +79,7 @@ export default function ContactPage() {
       
       <Paper elevation={3} sx={{ p: { xs: 3, md: 5 }, borderRadius: 2 }}>
         <Typography variant="h6" gutterBottom color="text.secondary" sx={{ mb: 3 }}>
-          Have questions about GolfCompete? We'd love to hear from you!
+          Have questions about GolfCompete? We would love to hear from you!
         </Typography>
         
         <Box component="form" onSubmit={handleSubmit(onSubmit)} noValidate>
@@ -212,7 +212,7 @@ export default function ContactPage() {
       {/* Success message */}
       <Snackbar open={submitSuccess} autoHideDuration={6000} onClose={handleCloseAlert}>
         <Alert onClose={handleCloseAlert} severity="success" sx={{ width: '100%' }}>
-          Thank you for your message! We'll get back to you soon.
+          Thank you for your message! We will get back to you soon.
         </Alert>
       </Snackbar>
       
