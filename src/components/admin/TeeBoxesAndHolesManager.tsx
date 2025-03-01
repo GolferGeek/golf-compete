@@ -32,7 +32,10 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { supabaseClient } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
+import CircularProgress from '@mui/material/CircularProgress';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 interface TeeBoxesAndHolesManagerProps {
   courseId: string;
@@ -53,9 +56,9 @@ interface TeeBox {
 interface Hole {
   id?: string;
   holeNumber: number;
-  par: number;
-  handicapIndex: number;
-  distances: { [teeBoxId: string]: number };
+  par: number | null;
+  handicapIndex: number | null;
+  distances: { [teeBoxId: string]: number | null };
 }
 
 export default function TeeBoxesAndHolesManager({ 
@@ -63,12 +66,17 @@ export default function TeeBoxesAndHolesManager({
   courseName,
   numberOfHoles 
 }: TeeBoxesAndHolesManagerProps) {
+  const { session } = useAuth();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState(0);
   const [teeBoxes, setTeeBoxes] = useState<TeeBox[]>([]);
   const [holes, setHoles] = useState<Hole[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  
+  // Add back the isSaving state
+  const [isSaving, setIsSaving] = useState(false);
   
   // Dialog states
   const [teeBoxDialogOpen, setTeeBoxDialogOpen] = useState(false);
@@ -90,14 +98,26 @@ export default function TeeBoxesAndHolesManager({
   const [editingTeeBoxId, setEditingTeeBoxId] = useState<string | null>(null);
   const [editingHoleId, setEditingHoleId] = useState<string | null>(null);
   
+  // Replace the complex state management with a simpler approach
+  const [editableHoles, setEditableHoles] = useState<Hole[]>([]);
+  const [hasChanges, setHasChanges] = useState(false);
+  
   // Fetch tee boxes and holes data
   const fetchData = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    
     try {
+      setLoading(true);
+      setError(null);
+      
+      // Check if we have a session
+      if (!session) {
+        console.error('No session found when trying to fetch tee boxes and holes');
+        setError('You must be logged in to view tee boxes and holes. Please log in and try again.');
+        setLoading(false);
+        return;
+      }
+      
       // Fetch tee boxes
-      const { data: teeBoxData, error: teeBoxError } = await supabaseClient
+      const { data: teeBoxData, error: teeBoxError } = await supabase
         .from('tee_sets')
         .select('*')
         .eq('course_id', courseId);
@@ -105,7 +125,7 @@ export default function TeeBoxesAndHolesManager({
       if (teeBoxError) throw teeBoxError;
       
       // Fetch holes
-      const { data: holeData, error: holeError } = await supabaseClient
+      const { data: holeData, error: holeError } = await supabase
         .from('holes')
         .select('*')
         .eq('course_id', courseId)
@@ -114,7 +134,7 @@ export default function TeeBoxesAndHolesManager({
       if (holeError) throw holeError;
       
       // Fetch tee set distances
-      const { data: distanceData, error: distanceError } = await supabaseClient
+      const { data: distanceData, error: distanceError } = await supabase
         .from('tee_set_distances')
         .select('*')
         .in('hole_id', holeData?.map(hole => hole.id) || []);
@@ -134,7 +154,7 @@ export default function TeeBoxesAndHolesManager({
       
       // Process holes with distances
       const processedHoles = holeData?.map(hole => {
-        const holeDistances: { [teeBoxId: string]: number } = {};
+        const holeDistances: { [teeBoxId: string]: number | null } = {};
         
         distanceData?.forEach(distance => {
           if (distance.hole_id === hole.id) {
@@ -146,20 +166,22 @@ export default function TeeBoxesAndHolesManager({
           id: hole.id,
           holeNumber: hole.hole_number,
           par: hole.par,
-          handicapIndex: hole.handicap_index || 0,
+          handicapIndex: hole.handicap_index,
           distances: holeDistances
         };
       }) || [];
       
       setTeeBoxes(processedTeeBoxes);
       setHoles(processedHoles);
+      setEditableHoles(JSON.parse(JSON.stringify(processedHoles))); // Deep copy
+      setHasChanges(false); // Reset changes flag when data is refreshed
     } catch (err) {
       console.error('Error fetching data:', err);
       setError('Failed to load tee boxes and holes data.');
     } finally {
       setLoading(false);
     }
-  }, [courseId]);
+  }, [courseId, session]);
   
   useEffect(() => {
     fetchData();
@@ -203,6 +225,13 @@ export default function TeeBoxesAndHolesManager({
   
   const handleTeeBoxSubmit = async () => {
     try {
+      // Check if we have a session
+      if (!session) {
+        console.error('No session found when trying to save tee box');
+        setError('You must be logged in to save tee boxes. Please log in and try again.');
+        return;
+      }
+      
       setLoading(true);
       
       // Validate form
@@ -215,7 +244,7 @@ export default function TeeBoxesAndHolesManager({
       
       if (editingTeeBoxId) {
         // Update existing tee box
-        result = await supabaseClient
+        result = await supabase
           .from('tee_sets')
           .update({
             name: currentTeeBox.name,
@@ -228,7 +257,7 @@ export default function TeeBoxesAndHolesManager({
           .eq('id', editingTeeBoxId);
       } else {
         // Insert new tee box
-        result = await supabaseClient
+        result = await supabase
           .from('tee_sets')
           .insert({
             course_id: courseId,
@@ -255,14 +284,21 @@ export default function TeeBoxesAndHolesManager({
   };
   
   const handleDeleteTeeBox = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this tee box? This will also delete all associated distances.')) {
-      return;
-    }
-    
     try {
+      // Check if we have a session
+      if (!session) {
+        console.error('No session found when trying to delete tee box');
+        setError('You must be logged in to delete tee boxes. Please log in and try again.');
+        return;
+      }
+      
+      if (!confirm('Are you sure you want to delete this tee box? This will also delete all associated distances.')) {
+        return;
+      }
+      
       setLoading(true);
       
-      const { error } = await supabaseClient
+      const { error } = await supabase
         .from('tee_sets')
         .delete()
         .eq('id', id);
@@ -315,18 +351,28 @@ export default function TeeBoxesAndHolesManager({
     }));
   };
   
-  const handleHoleDistanceChange = (teeBoxId: string, value: string) => {
+  // Fix the handleHoleDialogDistanceChange function to handle undefined teeBoxId
+  const handleHoleDialogDistanceChange = (teeBoxId: string | undefined, value: string) => {
+    if (!teeBoxId) return;
+    
     setCurrentHole(prev => ({
       ...prev,
       distances: {
         ...prev.distances,
-        [teeBoxId]: Number(value)
+        [teeBoxId]: value === '' ? null : Number(value)
       }
     }));
   };
   
   const handleHoleSubmit = async () => {
     try {
+      // Check if we have a session
+      if (!session) {
+        console.error('No session found when trying to save hole');
+        setError('You must be logged in to save holes. Please log in and try again.');
+        return;
+      }
+      
       setLoading(true);
       
       // Validate form
@@ -348,7 +394,7 @@ export default function TeeBoxesAndHolesManager({
       
       if (editingHoleId) {
         // Update existing hole
-        const { error } = await supabaseClient
+        const { error } = await supabase
           .from('holes')
           .update({
             hole_number: currentHole.holeNumber,
@@ -360,7 +406,7 @@ export default function TeeBoxesAndHolesManager({
         if (error) throw error;
       } else {
         // Insert new hole
-        const { data, error } = await supabaseClient
+        const { data, error } = await supabase
           .from('holes')
           .insert({
             course_id: courseId,
@@ -380,7 +426,7 @@ export default function TeeBoxesAndHolesManager({
           const distance = currentHole.distances[teeBoxId];
           
           // Check if distance record exists
-          const { data: existingData, error: checkError } = await supabaseClient
+          const { data: existingData, error: checkError } = await supabase
             .from('tee_set_distances')
             .select('id')
             .eq('hole_id', holeId)
@@ -390,7 +436,7 @@ export default function TeeBoxesAndHolesManager({
           
           if (existingData && existingData.length > 0) {
             // Update existing distance
-            const { error } = await supabaseClient
+            const { error } = await supabase
               .from('tee_set_distances')
               .update({ distance })
               .eq('id', existingData[0].id);
@@ -398,7 +444,7 @@ export default function TeeBoxesAndHolesManager({
             if (error) throw error;
           } else {
             // Insert new distance
-            const { error } = await supabaseClient
+            const { error } = await supabase
               .from('tee_set_distances')
               .insert({
                 hole_id: holeId,
@@ -423,14 +469,21 @@ export default function TeeBoxesAndHolesManager({
   };
   
   const handleDeleteHole = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this hole? This will also delete all associated distances.')) {
-      return;
-    }
-    
     try {
+      // Check if we have a session
+      if (!session) {
+        console.error('No session found when trying to delete hole');
+        setError('You must be logged in to delete holes. Please log in and try again.');
+        return;
+      }
+      
+      if (!confirm('Are you sure you want to delete this hole? This will also delete all associated distances.')) {
+        return;
+      }
+      
       setLoading(true);
       
-      const { error } = await supabaseClient
+      const { error } = await supabase
         .from('holes')
         .delete()
         .eq('id', id);
@@ -447,14 +500,19 @@ export default function TeeBoxesAndHolesManager({
     }
   };
   
-  // Generate empty holes for a course
+  // Update the generateEmptyHoles function to create holes without pre-filled values
   const generateEmptyHoles = async () => {
-    if (!confirm(`This will generate ${numberOfHoles} holes with default values. Continue?`)) {
-      return;
-    }
-    
     try {
-      setLoading(true);
+      // Check if we have a session
+      if (!session) {
+        console.error('No session found when trying to generate holes');
+        setError('You must be logged in to generate holes. Please log in and try again.');
+        return;
+      }
+      
+      if (!confirm(`This will generate ${numberOfHoles} empty holes. Continue?`)) {
+        return;
+      }
       
       // Check if holes already exist
       if (holes.length > 0) {
@@ -465,26 +523,26 @@ export default function TeeBoxesAndHolesManager({
       const newHoles: {
         course_id: string;
         hole_number: number;
-        par: number;
-        handicap_index: number;
+        par: number | null;
+        handicap_index: number | null;
       }[] = [];
       
       for (let i = 1; i <= numberOfHoles; i++) {
         newHoles.push({
           course_id: courseId,
           hole_number: i,
-          par: i % 5 === 0 ? 5 : i % 4 === 0 ? 3 : 4, // Alternate par values
-          handicap_index: i
+          par: null,  // Set to null instead of a default value
+          handicap_index: null  // Set to null instead of a default value
         });
       }
       
-      const { error } = await supabaseClient
+      const { error } = await supabase
         .from('holes')
         .insert(newHoles);
       
       if (error) throw error;
       
-      setSuccess(`${numberOfHoles} holes generated successfully!`);
+      setSuccess(`${numberOfHoles} empty holes generated successfully!`);
       fetchData();
     } catch (err) {
       console.error('Error generating holes:', err);
@@ -492,6 +550,164 @@ export default function TeeBoxesAndHolesManager({
     } finally {
       setLoading(false);
     }
+  };
+  
+  // Replace the complex handleHoleFieldChange with a simpler direct update function
+  const updateHoleField = (holeIndex: number, field: string, value: string) => {
+    const newHoles = [...editableHoles];
+    
+    // Convert to number if the value is a valid number, otherwise keep as is
+    const numValue = value === '' ? null : isNaN(Number(value)) ? newHoles[holeIndex][field as keyof Hole] : Number(value);
+    
+    // Update the field
+    newHoles[holeIndex] = {
+      ...newHoles[holeIndex],
+      [field]: numValue
+    };
+    
+    setEditableHoles(newHoles);
+    setHasChanges(true);
+  };
+  
+  // Replace the complex handleHoleDistanceChange with a simpler direct update function
+  const updateHoleDistance = (holeIndex: number, teeBoxId: string, value: string) => {
+    const newHoles = [...editableHoles];
+    const numValue = value === '' ? null : Number(value);
+    
+    // Update the distance
+    newHoles[holeIndex] = {
+      ...newHoles[holeIndex],
+      distances: {
+        ...newHoles[holeIndex].distances,
+        [teeBoxId]: numValue
+      }
+    };
+    
+    setEditableHoles(newHoles);
+    setHasChanges(true);
+  };
+  
+  // Simplify the saveAllHoleChanges function to use the editableHoles state
+  const saveAllHoleChanges = async () => {
+    try {
+      // Check if we have a session
+      if (!session) {
+        console.error('No session found when trying to save all hole changes');
+        setError('You must be logged in to save hole changes. Please log in and try again.');
+        return;
+      }
+      
+      if (!hasChanges) return;
+      
+      setIsSaving(true);
+      setError(null);
+      
+      // Save each hole
+      for (const hole of editableHoles) {
+        if (!hole.id) continue;
+        
+        // Update hole data
+        const { error: holeError } = await supabase
+          .from('holes')
+          .update({
+            hole_number: hole.holeNumber,
+            par: hole.par,
+            handicap_index: hole.handicapIndex
+          })
+          .eq('id', hole.id);
+        
+        if (holeError) throw holeError;
+        
+        // Update distances for each tee box
+        for (const teeBoxId in hole.distances) {
+          const distance = hole.distances[teeBoxId];
+          
+          // Skip null distances (empty fields)
+          if (distance === null) continue;
+          
+          // Check if distance record exists
+          const { data: existingData, error: checkError } = await supabase
+            .from('tee_set_distances')
+            .select('id')
+            .eq('hole_id', hole.id)
+            .eq('tee_set_id', teeBoxId);
+          
+          if (checkError) throw checkError;
+          
+          if (existingData && existingData.length > 0) {
+            // Update existing distance
+            const { error } = await supabase
+              .from('tee_set_distances')
+              .update({ distance })
+              .eq('id', existingData[0].id);
+            
+            if (error) throw error;
+          } else if (distance) { // Only insert if distance is not null and not 0
+            // Insert new distance
+            const { error } = await supabase
+              .from('tee_set_distances')
+              .insert({
+                hole_id: hole.id,
+                tee_set_id: teeBoxId,
+                distance
+              });
+            
+            if (error) throw error;
+          }
+        }
+      }
+      
+      setSuccess('All hole changes saved successfully!');
+      setHasChanges(false);
+      
+      // Refresh data to ensure UI is updated correctly
+      await fetchData();
+      
+    } catch (err) {
+      console.error('Error saving hole changes:', err);
+      setError('Failed to save hole changes. Please try again.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  // Add a function to handle key press events for better keyboard navigation
+  const handleKeyDown = (e: React.KeyboardEvent, holeId: string, teeBoxId: string | null, fieldType: string, currentIndex: number) => {
+    // If Enter is pressed, move to the next field
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      
+      // Find the next input field and focus it
+      const inputs = document.querySelectorAll('input[type="number"]');
+      const currentInputIndex = Array.from(inputs).findIndex(input => input === e.target);
+      
+      if (currentInputIndex !== -1 && currentInputIndex < inputs.length - 1) {
+        (inputs[currentInputIndex + 1] as HTMLElement).focus();
+      }
+    }
+  };
+  
+  // Add a function to check if a field has been modified
+  const isFieldModified = (holeId: string, field: string): boolean => {
+    if (!editableHoles.find(h => h.id === holeId)) return false;
+    
+    const hole = holes.find(h => h.id === holeId);
+    if (!hole) return false;
+    
+    return editableHoles.find(h => h.id === holeId)?.[field as keyof Hole] !== hole[field as keyof Hole];
+  };
+
+  // Update the isDistanceModified function to handle null values
+  const isDistanceModified = (holeId: string, teeBoxId: string): boolean => {
+    if (!editableHoles.find(h => h.id === holeId)) return false;
+    
+    const hole = holes.find(h => h.id === holeId);
+    if (!hole) return false;
+    
+    const originalDistance = hole.distances[teeBoxId] || null;
+    const editedDistance = editableHoles.find(h => h.id === holeId)?.distances[teeBoxId];
+    
+    return originalDistance !== editedDistance;
   };
   
   return (
@@ -601,12 +817,22 @@ export default function TeeBoxesAndHolesManager({
                 variant="outlined" 
                 sx={{ mr: 1 }}
                 onClick={generateEmptyHoles}
-                disabled={holes.length > 0}
+                disabled={holes.length > 0 || loading}
               >
                 Generate {numberOfHoles} Holes
               </Button>
               <Button 
                 variant="contained" 
+                onClick={saveAllHoleChanges}
+                disabled={!hasChanges || isSaving}
+                color="primary"
+                sx={{ mr: 1, fontWeight: 'bold', fontSize: '1.1rem', py: 1 }}
+                startIcon={isSaving ? <CircularProgress size={20} color="inherit" /> : null}
+              >
+                {isSaving ? 'Saving...' : 'SAVE ALL CHANGES'}
+              </Button>
+              <Button 
+                variant="outlined" 
                 startIcon={<AddIcon />}
                 onClick={() => openHoleDialog()}
               >
@@ -615,7 +841,14 @@ export default function TeeBoxesAndHolesManager({
             </Box>
           </Box>
           
-          {holes.length === 0 ? (
+          {/* Add a message about manual saving */}
+          {hasChanges && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              You have unsaved changes. Click the "SAVE ALL CHANGES" button when you're ready to save.
+            </Alert>
+          )}
+          
+          {editableHoles.length === 0 ? (
             <Paper sx={{ p: 2 }}>
               <Typography variant="body1" align="center">
                 No holes defined yet. Add holes individually or use the "Generate Holes" button.
@@ -636,24 +869,77 @@ export default function TeeBoxesAndHolesManager({
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {holes.sort((a, b) => a.holeNumber - b.holeNumber).map((hole) => (
+                  {editableHoles.sort((a, b) => a.holeNumber - b.holeNumber).map((hole, index) => (
                     <TableRow key={hole.id}>
                       <TableCell>{hole.holeNumber}</TableCell>
-                      <TableCell>{hole.par}</TableCell>
-                      <TableCell>{hole.handicapIndex}</TableCell>
+                      <TableCell>
+                        <TextField
+                          size="small"
+                          type="text"
+                          value={hole.par === null ? '' : hole.par}
+                          onChange={(e) => updateHoleField(index, 'par', e.target.value)}
+                          InputProps={{ 
+                            inputProps: { 
+                              pattern: '[0-9]*',
+                              style: { textAlign: 'center' } 
+                            }
+                          }}
+                          sx={{ 
+                            width: '60px',
+                            '& .MuiOutlinedInput-root': {
+                              backgroundColor: hole.par !== holes.find(h => h.id === hole.id)?.par ? 'rgba(255, 152, 0, 0.1)' : 'transparent'
+                            }
+                          }}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <TextField
+                          size="small"
+                          type="text"
+                          value={hole.handicapIndex === null ? '' : hole.handicapIndex}
+                          onChange={(e) => updateHoleField(index, 'handicapIndex', e.target.value)}
+                          InputProps={{ 
+                            inputProps: { 
+                              pattern: '[0-9]*',
+                              style: { textAlign: 'center' } 
+                            }
+                          }}
+                          sx={{ 
+                            width: '60px',
+                            '& .MuiOutlinedInput-root': {
+                              backgroundColor: hole.handicapIndex !== holes.find(h => h.id === hole.id)?.handicapIndex ? 'rgba(255, 152, 0, 0.1)' : 'transparent'
+                            }
+                          }}
+                        />
+                      </TableCell>
                       {teeBoxes.map((teeBox) => (
                         <TableCell key={teeBox.id}>
-                          {hole.distances[teeBox.id as string] || '-'} 
-                          {hole.distances[teeBox.id as string] ? ' yards' : ''}
+                          <TextField
+                            size="small"
+                            type="text"
+                            value={hole.distances[teeBox.id as string] === null ? '' : hole.distances[teeBox.id as string] || ''}
+                            onChange={(e) => teeBox.id && updateHoleDistance(index, teeBox.id, e.target.value)}
+                            InputProps={{ 
+                              inputProps: { 
+                                pattern: '[0-9]*',
+                                style: { textAlign: 'right' }
+                              },
+                              endAdornment: <Typography variant="caption" sx={{ ml: 1 }}>yds</Typography>
+                            }}
+                            sx={{ 
+                              width: '100px',
+                              '& .MuiOutlinedInput-root': {
+                                backgroundColor: 
+                                  hole.distances[teeBox.id as string] !== 
+                                  holes.find(h => h.id === hole.id)?.distances[teeBox.id as string] 
+                                    ? 'rgba(255, 152, 0, 0.1)' 
+                                    : 'transparent'
+                              }
+                            }}
+                          />
                         </TableCell>
                       ))}
                       <TableCell>
-                        <IconButton 
-                          size="small" 
-                          onClick={() => openHoleDialog(hole)}
-                        >
-                          <EditIcon />
-                        </IconButton>
                         <IconButton 
                           size="small" 
                           onClick={() => hole.id && handleDeleteHole(hole.id)}
@@ -815,7 +1101,7 @@ export default function TeeBoxesAndHolesManager({
                       label={`${teeBox.name} (${teeBox.color})`}
                       type="number"
                       value={currentHole.distances[teeBox.id as string] || ''}
-                      onChange={(e) => teeBox.id && handleHoleDistanceChange(teeBox.id, e.target.value)}
+                      onChange={(e) => handleHoleDialogDistanceChange(teeBox.id, e.target.value)}
                       InputProps={{ inputProps: { min: 100, max: 700 } }}
                     />
                   </Grid>

@@ -18,55 +18,97 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Link from 'next/link';
-import { supabaseClient } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import { Course } from '@/types/golf';
 import VisibilityIcon from '@mui/icons-material/Visibility';
+import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'next/navigation';
 
 export default function CoursesList() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { session } = useAuth();
+  const router = useRouter();
 
   useEffect(() => {
     async function fetchCourses() {
       try {
         setLoading(true);
         
-        // During development, allow anyone to view courses
-        const { data, error } = await supabaseClient
+        // Check if we have a session
+        if (!session) {
+          console.error('No session found when trying to fetch courses');
+          setError('You must be logged in to view courses. Please log in and try again.');
+          setLoading(false);
+          return;
+        }
+        
+        const { data, error } = await supabase
           .from('courses')
           .select('*');
         
-        if (error) throw error;
+        if (error) {
+          console.error('Error fetching courses:', error);
+          
+          // Handle authentication errors
+          if (error.code === 'PGRST301' || error.code === '401') {
+            setError('Your session has expired. Please log in again.');
+          } else {
+            setError('Failed to load courses. Please try again later.');
+          }
+          
+          throw error;
+        }
         
-        setCourses(data || []);
+        // Safely handle the data
+        if (data) {
+          // Convert to unknown first, then to Course[] to satisfy TypeScript
+          setCourses(data as unknown as Course[]);
+        } else {
+          setCourses([]);
+        }
       } catch (err) {
         console.error('Error fetching courses:', err);
-        setError('Failed to load courses. Please try again later.');
+        // Error is already set above
       } finally {
         setLoading(false);
       }
     }
 
     fetchCourses();
-  }, []);
+  }, [session]);
 
   const handleDelete = async (id: string) => {
-    // For development, allow anyone to delete courses
+    // Ensure user is authenticated
+    if (!session) {
+      setError('You must be logged in to delete courses. Please log in and try again.');
+      return;
+    }
+    
     if (confirm('Are you sure you want to delete this course?')) {
       try {
-        const { error } = await supabaseClient
+        const { error } = await supabase
           .from('courses')
           .delete()
           .eq('id', id);
         
-        if (error) throw error;
+        if (error) {
+          // Handle authentication errors
+          if (error.code === 'PGRST301' || error.code === '401') {
+            setError('Your session has expired. Please log in again.');
+          } else {
+            alert('Failed to delete course. Please try again.');
+          }
+          
+          throw error;
+        }
         
         // Remove the deleted course from state
         setCourses(courses.filter(course => course.id !== id));
       } catch (err) {
         console.error('Error deleting course:', err);
-        alert('Failed to delete course. Please try again.');
+        // Error is already handled above
       }
     }
   };

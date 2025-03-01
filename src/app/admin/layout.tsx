@@ -10,7 +10,6 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import MenuIcon from '@mui/icons-material/Menu';
 import Link from 'next/link';
 import { AdminAuthGuard } from '@/components/auth/AdminAuthGuard';
-import Navbar from '@/components/layout/Navbar';
 
 const drawerWidth = 240;
 
@@ -91,7 +90,6 @@ export default function AdminLayout({
 
   return (
     <AdminAuthGuard>
-      <Navbar />
       <Box sx={{ display: 'flex' }}>
         <AppBar
           position="fixed"
@@ -164,10 +162,9 @@ export default function AdminLayout({
             flexGrow: 1, 
             p: 3, 
             width: { sm: `calc(100% - ${drawerWidth}px)` },
-            mt: '64px' // Add space below the main navbar
+            mt: '128px' // Increase space to account for both navbars (64px for main navbar + 64px for admin toolbar)
           }}
         >
-          <Toolbar />
           <Container maxWidth="lg">
             {children}
           </Container>

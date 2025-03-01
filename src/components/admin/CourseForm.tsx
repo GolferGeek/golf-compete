@@ -21,8 +21,9 @@ import {
   Paper
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
-import { supabaseClient } from '@/lib/auth';
+import { supabase } from '@/lib/supabase';
 import TeeBoxesAndHolesManager from './TeeBoxesAndHolesManager';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface CourseFormProps {
   courseId?: string; // Optional for edit mode
@@ -43,6 +44,7 @@ interface CourseFormData {
 export default function CourseForm({ courseId }: CourseFormProps) {
   const router = useRouter();
   const isEditMode = !!courseId;
+  const { session } = useAuth();
   
   const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState<CourseFormData>({
@@ -65,13 +67,28 @@ export default function CourseForm({ courseId }: CourseFormProps) {
     try {
       setLoading(true);
       
-      const { data, error } = await supabaseClient
+      // Check if we have a session
+      if (!session) {
+        console.error('No session found when trying to fetch course data');
+        setError('You must be logged in to view course data. Please log in and try again.');
+        setLoading(false);
+        return;
+      }
+      
+      const { data, error } = await supabase
         .from('courses')
         .select('*')
         .eq('id', courseId)
         .single();
       
       if (error) {
+        // Handle authentication errors
+        if (error.code === 'PGRST301' || error.code === '401') {
+          setError('Your session has expired. Please log in again.');
+          router.push('/auth/login?redirect=/admin/courses');
+        } else {
+          setError('Failed to load course data. Please try again.');
+        }
         throw error;
       }
       
@@ -96,11 +113,11 @@ export default function CourseForm({ courseId }: CourseFormProps) {
       }
     } catch (error) {
       console.error('Error fetching course data:', error);
-      setError('Failed to load course data. Please try again.');
+      // Error is already set above
     } finally {
       setLoading(false);
     }
-  }, [courseId]);
+  }, [courseId, session, router]);
   
   useEffect(() => {
     if (isEditMode) {
@@ -133,6 +150,14 @@ export default function CourseForm({ courseId }: CourseFormProps) {
       setLoading(true);
       setError(null);
       
+      // Check if we have a session
+      if (!session) {
+        console.error('No session found when trying to save course data');
+        setError('You must be logged in to save course data. Please log in and try again.');
+        setLoading(false);
+        return;
+      }
+      
       // Validate form data
       if (!formData.name || !formData.location) {
         setError('Name and location are required fields');
@@ -157,13 +182,13 @@ export default function CourseForm({ courseId }: CourseFormProps) {
       
       if (isEditMode) {
         // Update existing course
-        result = await supabaseClient
+        result = await supabase
           .from('courses')
           .update(courseData)
           .eq('id', courseId);
       } else {
         // Insert new course
-        result = await supabaseClient
+        result = await supabase
           .from('courses')
           .insert(courseData)
           .select();
@@ -173,7 +198,16 @@ export default function CourseForm({ courseId }: CourseFormProps) {
         }
       }
       
-      if (result.error) throw result.error;
+      if (result.error) {
+        // Handle authentication errors
+        if (result.error.code === 'PGRST301' || result.error.code === '401') {
+          setError('Your session has expired. Please log in again.');
+          router.push('/auth/login?redirect=/admin/courses');
+        } else {
+          setError('Failed to save course. Please try again.');
+        }
+        throw result.error;
+      }
       
       setSuccess(true);
       
@@ -189,7 +223,7 @@ export default function CourseForm({ courseId }: CourseFormProps) {
       
     } catch (err) {
       console.error('Error saving course:', err);
-      setError('Failed to save course. Please try again.');
+      // Error is already set above
     } finally {
       setLoading(false);
     }

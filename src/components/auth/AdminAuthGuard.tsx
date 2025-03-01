@@ -6,13 +6,6 @@ import { CircularProgress, Box, Typography, Button, Alert } from '@mui/material'
 import { useAuth } from '@/contexts/AuthContext';
 
 export function AdminAuthGuard({ children }: { children: React.ReactNode }) {
-  // TEMPORARY: Allow access to admin area without authentication checks
-  // This is just for development purposes and should be removed in production
-  console.log('AdminAuthGuard - TEMPORARY: Bypassing authentication checks');
-  return <>{children}</>;
-
-  // The code below is the proper implementation that should be used in production
-  /*
   const { user, profile, session, isLoading } = useAuth();
   const router = useRouter();
   const [isChecking, setIsChecking] = useState(true);
@@ -99,5 +92,4 @@ export function AdminAuthGuard({ children }: { children: React.ReactNode }) {
 
   // User is admin, render children
   return <>{children}</>;
-  */
 } 
