@@ -23,10 +23,14 @@ export const signUpWithEmail = async (email: string, password: string) => {
 }
 
 export const signInWithGoogle = async () => {
+  const redirectTo = process.env.NEXT_PUBLIC_SITE_URL 
+    ? `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
+    : `${window.location.origin}/auth/callback`
+
   return await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: `${window.location.origin}/auth/callback`
+      redirectTo
     }
   })
 }
