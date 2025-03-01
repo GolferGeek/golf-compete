@@ -1,11 +1,12 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase, getUserProfile } from '@/lib/supabase'
 import { Box, CircularProgress, Typography, Alert } from '@mui/material'
 
-export default function AuthCallbackPage() {
+// Create a client component that uses the search params
+function AuthCallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [error, setError] = useState<string | null>(null)
@@ -141,5 +142,33 @@ export default function AuthCallbackPage() {
         </>
       )}
     </Box>
+  )
+}
+
+// Create a loading fallback component
+function AuthCallbackLoading() {
+  return (
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      height: '100vh',
+      p: 2
+    }}>
+      <CircularProgress />
+      <Typography variant="h6" sx={{ mt: 2 }}>
+        Loading authentication...
+      </Typography>
+    </Box>
+  )
+}
+
+// Main page component with Suspense boundary
+export default function AuthCallbackPage() {
+  return (
+    <Suspense fallback={<AuthCallbackLoading />}>
+      <AuthCallbackContent />
+    </Suspense>
   )
 } 
