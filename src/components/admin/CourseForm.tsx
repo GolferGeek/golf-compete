@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   TextField, 
   Button, 
@@ -12,12 +12,10 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  FormHelperText,
   SelectChangeEvent
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { supabaseClient } from '@/lib/auth';
-import { Course } from '@/types/golf';
 
 interface CourseFormProps {
   courseId?: string; // Optional for edit mode
@@ -55,14 +53,7 @@ export default function CourseForm({ courseId }: CourseFormProps) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   
-  useEffect(() => {
-    // If in edit mode, fetch the course data
-    if (isEditMode) {
-      fetchCourseData();
-    }
-  }, [courseId]);
-  
-  const fetchCourseData = async () => {
+  const fetchCourseData = useCallback(async () => {
     try {
       setLoading(true);
       
@@ -72,7 +63,9 @@ export default function CourseForm({ courseId }: CourseFormProps) {
         .eq('id', courseId)
         .single();
       
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
       
       if (data) {
         setFormData({
@@ -84,16 +77,22 @@ export default function CourseForm({ courseId }: CourseFormProps) {
           slope: data.slope || 113,
           amenities: data.amenities || '',
           website: data.website || '',
-          phoneNumber: data.phoneNumber || ''
+          phoneNumber: data.phone_number || ''
         });
       }
-    } catch (err) {
-      console.error('Error fetching course:', err);
+    } catch (error) {
+      console.error('Error fetching course data:', error);
       setError('Failed to load course data. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [courseId]);
+  
+  useEffect(() => {
+    if (isEditMode) {
+      fetchCourseData();
+    }
+  }, [isEditMode, fetchCourseData]);
   
   // Handle text field changes
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {

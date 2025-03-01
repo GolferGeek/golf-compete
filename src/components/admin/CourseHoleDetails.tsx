@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -12,14 +12,27 @@ import {
   TextField,
   Button,
   CircularProgress,
-  Alert,
-  Divider
+  Alert
 } from '@mui/material';
 import { supabaseClient } from '@/lib/auth';
-import { Hole, TeeSets, TeeSetDistance } from '@/types/golf';
 
 interface CourseHoleDetailsProps {
   courseId: string;
+}
+
+interface TeeSet {
+  id: string;
+  name: string;
+  color: string;
+  rating: number;
+  slope: number;
+}
+
+interface HoleData {
+  id: string;
+  holeNumber: number;
+  par: number;
+  handicapIndex: number;
 }
 
 export default function CourseHoleDetails({ courseId }: CourseHoleDetailsProps) {
@@ -27,16 +40,12 @@ export default function CourseHoleDetails({ courseId }: CourseHoleDetailsProps) 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [teeSets, setTeeSets] = useState<any[]>([]);
-  const [holes, setHoles] = useState<any[]>([]);
+  const [teeSets, setTeeSets] = useState<TeeSet[]>([]);
+  const [holes, setHoles] = useState<HoleData[]>([]);
   const [distances, setDistances] = useState<Record<string, Record<string, number>>>({});
   const [editMode, setEditMode] = useState(false);
 
-  useEffect(() => {
-    fetchCourseDetails();
-  }, [courseId]);
-
-  const fetchCourseDetails = async () => {
+  const fetchCourseDetails = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -68,6 +77,27 @@ export default function CourseHoleDetails({ courseId }: CourseHoleDetailsProps) 
         .order('holeNumber');
 
       if (holeError) throw holeError;
+      
+      // Helper function to create default holes
+      const createDefaultHoles = async (numHoles: number) => {
+        try {
+          const holeData = Array.from({ length: numHoles }, (_, i) => ({
+            courseId,
+            holeNumber: i + 1,
+            par: 4, // Default par
+            handicapIndex: i + 1
+          }));
+
+          const { error } = await supabaseClient
+            .from('holes')
+            .insert(holeData);
+
+          if (error) throw error;
+        } catch (err) {
+          console.error('Error creating default holes:', err);
+          throw err;
+        }
+      };
       
       // If no holes exist yet, create them
       if (!holeData || holeData.length === 0) {
@@ -120,27 +150,11 @@ export default function CourseHoleDetails({ courseId }: CourseHoleDetailsProps) 
     } finally {
       setLoading(false);
     }
-  };
+  }, [courseId, holes]);
 
-  const createDefaultHoles = async (numHoles: number) => {
-    try {
-      const holeData = Array.from({ length: numHoles }, (_, i) => ({
-        courseId,
-        holeNumber: i + 1,
-        par: 4, // Default par
-        handicapIndex: i + 1
-      }));
-
-      const { error } = await supabaseClient
-        .from('holes')
-        .insert(holeData);
-
-      if (error) throw error;
-    } catch (err) {
-      console.error('Error creating default holes:', err);
-      throw err;
-    }
-  };
+  useEffect(() => {
+    fetchCourseDetails();
+  }, [fetchCourseDetails]);
 
   const handleDistanceChange = (holeId: string, teeSetId: string, value: string) => {
     const numValue = parseInt(value, 10);

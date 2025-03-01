@@ -17,7 +17,6 @@ import {
 } from '@mui/material'
 import { useAuth } from '@/contexts/AuthContext'
 import { createUserProfile } from '@/lib/supabase'
-import { AuthError } from '@supabase/supabase-js'
 
 const steps = ['Basic Information', 'Golf Details']
 
@@ -148,7 +147,7 @@ export default function OnboardingPage() {
       const { error } = await Promise.race([
         createUserProfile(profile),
         timeoutPromise
-      ]) as any
+      ]) as { error?: Error }
       
       if (error) {
         console.error('Profile creation error details:', error)

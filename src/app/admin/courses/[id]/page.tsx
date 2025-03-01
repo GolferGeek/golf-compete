@@ -1,9 +1,8 @@
 import React from 'react';
-import { Typography, Box, Paper, Button, Tabs, Tab } from '@mui/material';
+import { Typography, Box, Paper, Button } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Link from 'next/link';
 import CourseHoleDetails from '@/components/admin/CourseHoleDetails';
-import { supabaseClient } from '@/lib/auth';
 
 interface CourseDetailPageProps {
   params: {

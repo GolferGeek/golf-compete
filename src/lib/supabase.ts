@@ -23,7 +23,7 @@ const customStorage = {
       return null
     }
   },
-  setItem: (key: string, value: any) => {
+  setItem: (key: string, value: unknown) => {
     if (typeof window === 'undefined') {
       return
     }

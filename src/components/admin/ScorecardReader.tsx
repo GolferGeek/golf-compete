@@ -13,6 +13,7 @@ import {
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import { styled } from '@mui/material/styles';
 import { supabaseClient } from '@/lib/auth';
+import Image from 'next/image';
 
 // Styled component for the file input
 const VisuallyHiddenInput = styled('input')({
@@ -94,7 +95,7 @@ export default function ScorecardReader() {
       
       // Upload the file to Supabase Storage
       const fileName = `scorecards/${Date.now()}_${file.name}`;
-      const { data: uploadData, error: uploadError } = await supabaseClient
+      const { error: uploadError } = await supabaseClient
         .storage
         .from('golf-compete')
         .upload(fileName, file);
@@ -102,12 +103,10 @@ export default function ScorecardReader() {
       if (uploadError) throw uploadError;
       
       // Get the public URL for the uploaded file
-      const { data: urlData } = supabaseClient
+      supabaseClient
         .storage
         .from('golf-compete')
         .getPublicUrl(fileName);
-      
-      const imageUrl = urlData.publicUrl;
       
       // TODO: In a real implementation, this would call an AI service
       // For now, we'll simulate the AI response with a timeout
@@ -289,9 +288,11 @@ export default function ScorecardReader() {
           
           {imagePreview && (
             <Box sx={{ mt: 2, mb: 3, maxWidth: '100%', overflow: 'hidden' }}>
-              <img 
+              <Image 
                 src={imagePreview} 
                 alt="Scorecard preview" 
+                width={800}
+                height={300}
                 style={{ maxWidth: '100%', maxHeight: '300px', objectFit: 'contain' }} 
               />
             </Box>
