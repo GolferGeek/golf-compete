@@ -6,11 +6,14 @@ test.describe('Homepage', () => {
     await page.goto('/');
     
     // Check if the page title contains the app name
-    await expect(page).toHaveTitle(/GolfCompete/);
+    await expect(page).toHaveTitle(/Golf Compete/);
     
     // Check if the main heading is visible
     const heading = page.getByRole('heading').first();
     await expect(heading).toBeVisible();
+    
+    // Check if the login link is visible
+    await expect(page.getByRole('link', { name: 'Login' })).toBeVisible();
   });
 
   test('should have navigation elements', async ({ page, isMobile }) => {

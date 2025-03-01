@@ -43,7 +43,7 @@ export default function Home() {
             track progress, and enhance their skills.
           </Typography>
           <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: 2, justifyContent: 'center' }}>
-            <StyledLink href="/signup">
+            <StyledLink href="/auth/signup">
               <Button variant="contained" size="large">
                 Get Started
               </Button>
@@ -125,7 +125,7 @@ export default function Home() {
           <Typography variant="h6" color="text.secondary" sx={{ maxWidth: 800, mx: 'auto', mb: 5 }}>
             Join GolfCompete today and take your game to the next level with our comprehensive platform.
           </Typography>
-          <StyledLink href="/signup">
+          <StyledLink href="/auth/signup">
             <Button variant="contained" size="large">
               Sign Up Now
             </Button>
