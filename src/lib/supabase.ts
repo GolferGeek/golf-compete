@@ -48,15 +48,62 @@ const customStorage = {
   }
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-    flowType: 'pkce',
-    storage: customStorage
+// Check if we have the required environment variables before creating the client
+let supabase: ReturnType<typeof createClient>;
+
+if (supabaseUrl && supabaseAnonKey) {
+  supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      flowType: 'pkce',
+      storage: customStorage
+    }
+  });
+} else {
+  // Create a mock client with methods that return appropriate errors
+  // This prevents crashes during build/test when env vars aren't available
+  const mockErrorMessage = 'Supabase client not initialized: Missing environment variables';
+  
+  const createMockResponse = () => ({
+    data: null,
+    error: new Error(mockErrorMessage)
+  });
+  
+  supabase = {
+    auth: {
+      getSession: async () => createMockResponse(),
+      getUser: async () => createMockResponse(),
+      signInWithPassword: async () => createMockResponse(),
+      signUp: async () => createMockResponse(),
+      signInWithOAuth: async () => createMockResponse(),
+      signOut: async () => createMockResponse(),
+      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+      resetPasswordForEmail: async () => createMockResponse(),
+      updateUser: async () => createMockResponse()
+    },
+    from: () => ({
+      select: () => ({
+        eq: () => ({
+          single: async () => createMockResponse()
+        }),
+        single: async () => createMockResponse()
+      }),
+      insert: async () => createMockResponse(),
+      update: () => ({
+        eq: async () => createMockResponse()
+      })
+    })
+  } as unknown as ReturnType<typeof createClient>;
+  
+  // Log warning only on the client side to avoid console spam during builds
+  if (typeof window !== 'undefined') {
+    console.warn(mockErrorMessage);
   }
-})
+}
+
+export { supabase };
 
 // Authentication functions
 export const signInWithEmail = async (email: string, password: string) => {
@@ -184,7 +231,7 @@ export const getUserProfile = async (userId: string) => {
   }
 }
 
-export const createUserProfile = async (profile: Profile) => {
+export const createUserProfile = async (profile: Record<string, unknown>) => {
   return await supabase
     .from('profiles')
     .insert(profile)

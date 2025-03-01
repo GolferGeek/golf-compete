@@ -109,9 +109,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) {
           console.error('Error getting session:', error)
           // Handle specific errors
-          if (error.message.includes('Invalid Refresh Token')) {
+          if (error.message?.includes('Invalid Refresh Token')) {
             console.log('Invalid refresh token, clearing auth data')
             await supabase.auth.signOut()
+          } else if (error.message?.includes('Missing environment variables')) {
+            console.warn('Supabase client not initialized properly due to missing environment variables')
           }
           setSession(null)
           setUser(null)
