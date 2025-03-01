@@ -14,10 +14,15 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  SelectChangeEvent
+  SelectChangeEvent,
+  Stepper,
+  Step,
+  StepLabel,
+  Paper
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
 import { supabaseClient } from '@/lib/auth';
+import TeeBoxesAndHolesManager from './TeeBoxesAndHolesManager';
 
 interface CourseFormProps {
   courseId?: string; // Optional for edit mode
@@ -39,6 +44,7 @@ export default function CourseForm({ courseId }: CourseFormProps) {
   const router = useRouter();
   const isEditMode = !!courseId;
   
+  const [activeStep, setActiveStep] = useState(0);
   const [formData, setFormData] = useState<CourseFormData>({
     name: '',
     location: '',
@@ -147,6 +153,7 @@ export default function CourseForm({ courseId }: CourseFormProps) {
       };
       
       let result;
+      let savedCourseId = courseId;
       
       if (isEditMode) {
         // Update existing course
@@ -158,17 +165,27 @@ export default function CourseForm({ courseId }: CourseFormProps) {
         // Insert new course
         result = await supabaseClient
           .from('courses')
-          .insert(courseData);
+          .insert(courseData)
+          .select();
+          
+        if (result.data && result.data.length > 0) {
+          savedCourseId = result.data[0].id;
+        }
       }
       
       if (result.error) throw result.error;
       
       setSuccess(true);
       
-      // Redirect after successful submission
-      setTimeout(() => {
-        router.push('/admin/courses');
-      }, 1500);
+      if (activeStep === 0) {
+        // Move to the next step if we're on the first step
+        setActiveStep(1);
+      } else {
+        // Redirect after successful submission if we're on the second step
+        setTimeout(() => {
+          router.push('/admin/courses');
+        }, 1500);
+      }
       
     } catch (err) {
       console.error('Error saving course:', err);
@@ -178,8 +195,18 @@ export default function CourseForm({ courseId }: CourseFormProps) {
     }
   };
   
+  const steps = ['Basic Course Information', 'Tee Boxes & Holes'];
+  
+  const handleNext = () => {
+    setActiveStep((prevActiveStep) => prevActiveStep + 1);
+  };
+  
+  const handleBack = () => {
+    setActiveStep((prevActiveStep) => prevActiveStep - 1);
+  };
+  
   return (
-    <Box component="form" onSubmit={handleSubmit} noValidate>
+    <Box>
       <Snackbar 
         open={success} 
         autoHideDuration={6000} 
@@ -197,155 +224,210 @@ export default function CourseForm({ courseId }: CourseFormProps) {
         </Alert>
       )}
       
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <Typography variant="h6">Basic Information</Typography>
-          <Divider sx={{ mb: 2 }} />
-        </Grid>
-        
-        <Grid item xs={12} md={6}>
-          <TextField
-            required
-            fullWidth
-            label="Course Name"
-            name="name"
-            value={formData.name}
-            onChange={handleTextChange}
-            disabled={loading}
-          />
-        </Grid>
-        
-        <Grid item xs={12} md={6}>
-          <TextField
-            required
-            fullWidth
-            label="Location"
-            name="location"
-            value={formData.location}
-            onChange={handleTextChange}
-            disabled={loading}
-            helperText="City, State or full address"
-          />
-        </Grid>
-        
-        <Grid item xs={12} md={3}>
-          <FormControl fullWidth>
-            <InputLabel id="holes-label">Holes</InputLabel>
-            <Select
-              labelId="holes-label"
-              name="holes"
-              value={formData.holes.toString()}
-              label="Holes"
-              onChange={handleSelectChange}
-              disabled={loading}
-            >
-              <MenuItem value="9">9</MenuItem>
-              <MenuItem value="18">18</MenuItem>
-              <MenuItem value="27">27</MenuItem>
-              <MenuItem value="36">36</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
-        
-        <Grid item xs={12} md={3}>
-          <TextField
-            fullWidth
-            label="Par"
-            name="par"
-            type="number"
-            value={formData.par}
-            onChange={handleTextChange}
-            disabled={loading}
-            InputProps={{ inputProps: { min: 27, max: 100 } }}
-          />
-        </Grid>
-        
-        <Grid item xs={12} md={3}>
-          <TextField
-            fullWidth
-            label="Course Rating"
-            name="rating"
-            type="number"
-            value={formData.rating}
-            onChange={handleTextChange}
-            disabled={loading}
-            InputProps={{ inputProps: { min: 55, max: 90, step: 0.1 } }}
-          />
-        </Grid>
-        
-        <Grid item xs={12} md={3}>
-          <TextField
-            fullWidth
-            label="Slope Rating"
-            name="slope"
-            type="number"
-            value={formData.slope}
-            onChange={handleTextChange}
-            disabled={loading}
-            InputProps={{ inputProps: { min: 55, max: 155 } }}
-          />
-        </Grid>
-        
-        <Grid item xs={12}>
-          <Typography variant="h6" sx={{ mt: 2 }}>Additional Information</Typography>
-          <Divider sx={{ mb: 2 }} />
-        </Grid>
-        
-        <Grid item xs={12}>
-          <TextField
-            fullWidth
-            label="Amenities"
-            name="amenities"
-            value={formData.amenities}
-            onChange={handleTextChange}
-            disabled={loading}
-            helperText="Enter amenities separated by commas (e.g., Driving Range, Pro Shop, Restaurant)"
-            placeholder="Driving Range, Pro Shop, Restaurant, Cart Rental"
-          />
-        </Grid>
-        
-        <Grid item xs={12} md={6}>
-          <TextField
-            fullWidth
-            label="Website"
-            name="website"
-            value={formData.website}
-            onChange={handleTextChange}
-            disabled={loading}
-          />
-        </Grid>
-        
-        <Grid item xs={12} md={6}>
-          <TextField
-            fullWidth
-            label="Phone Number"
-            name="phoneNumber"
-            value={formData.phoneNumber}
-            onChange={handleTextChange}
-            disabled={loading}
-          />
-        </Grid>
-        
-        <Grid item xs={12} sx={{ mt: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+      <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+        {steps.map((label) => (
+          <Step key={label}>
+            <StepLabel>{label}</StepLabel>
+          </Step>
+        ))}
+      </Stepper>
+      
+      {activeStep === 0 ? (
+        <Box component="form" onSubmit={handleSubmit} noValidate>
+          <Grid container spacing={3}>
+            <Grid item xs={12}>
+              <Typography variant="h6">Basic Information</Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                required
+                fullWidth
+                label="Course Name"
+                name="name"
+                value={formData.name}
+                onChange={handleTextChange}
+                disabled={loading}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                required
+                fullWidth
+                label="Location"
+                name="location"
+                value={formData.location}
+                onChange={handleTextChange}
+                disabled={loading}
+                helperText="City, State or full address"
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={3}>
+              <FormControl fullWidth>
+                <InputLabel id="holes-label">Holes</InputLabel>
+                <Select
+                  labelId="holes-label"
+                  name="holes"
+                  value={formData.holes.toString()}
+                  label="Holes"
+                  onChange={handleSelectChange}
+                  disabled={loading}
+                >
+                  <MenuItem value="9">9</MenuItem>
+                  <MenuItem value="18">18</MenuItem>
+                  <MenuItem value="27">27</MenuItem>
+                  <MenuItem value="36">36</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            
+            <Grid item xs={12} md={3}>
+              <TextField
+                fullWidth
+                label="Par"
+                name="par"
+                type="number"
+                value={formData.par}
+                onChange={handleTextChange}
+                disabled={loading}
+                InputProps={{ inputProps: { min: 27, max: 100 } }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={3}>
+              <TextField
+                fullWidth
+                label="Course Rating"
+                name="rating"
+                type="number"
+                value={formData.rating}
+                onChange={handleTextChange}
+                disabled={loading}
+                InputProps={{ inputProps: { min: 55, max: 90, step: 0.1 } }}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={3}>
+              <TextField
+                fullWidth
+                label="Slope Rating"
+                name="slope"
+                type="number"
+                value={formData.slope}
+                onChange={handleTextChange}
+                disabled={loading}
+                InputProps={{ inputProps: { min: 55, max: 155 } }}
+              />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <Typography variant="h6" sx={{ mt: 2 }}>Additional Information</Typography>
+              <Divider sx={{ mb: 2 }} />
+            </Grid>
+            
+            <Grid item xs={12}>
+              <TextField
+                fullWidth
+                label="Amenities"
+                name="amenities"
+                value={formData.amenities}
+                onChange={handleTextChange}
+                disabled={loading}
+                helperText="Enter amenities separated by commas (e.g., Driving Range, Pro Shop, Restaurant)"
+                placeholder="Driving Range, Pro Shop, Restaurant, Cart Rental"
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Website"
+                name="website"
+                value={formData.website}
+                onChange={handleTextChange}
+                disabled={loading}
+              />
+            </Grid>
+            
+            <Grid item xs={12} md={6}>
+              <TextField
+                fullWidth
+                label="Phone Number"
+                name="phoneNumber"
+                value={formData.phoneNumber}
+                onChange={handleTextChange}
+                disabled={loading}
+              />
+            </Grid>
+            
+            <Grid item xs={12} sx={{ mt: 2 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => router.push('/admin/courses')}
+                  disabled={loading}
+                >
+                  Cancel
+                </Button>
+                <Box>
+                  {isEditMode && (
+                    <Button
+                      variant="outlined"
+                      onClick={handleNext}
+                      sx={{ mr: 1 }}
+                      disabled={loading}
+                    >
+                      Skip to Tee Boxes & Holes
+                    </Button>
+                  )}
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    color="primary"
+                    disabled={loading}
+                  >
+                    {loading ? 'Saving...' : isEditMode ? 'Update Course' : 'Save and Continue'}
+                  </Button>
+                </Box>
+              </Box>
+            </Grid>
+          </Grid>
+        </Box>
+      ) : (
+        <Paper sx={{ p: 3 }}>
+          {courseId ? (
+            <TeeBoxesAndHolesManager 
+              courseId={courseId} 
+              courseName={formData.name}
+              numberOfHoles={formData.holes}
+            />
+          ) : (
+            <Alert severity="info">
+              Please save the course information first before adding tee boxes and holes.
+            </Alert>
+          )}
+          
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
             <Button
               variant="outlined"
+              onClick={handleBack}
+              disabled={loading}
+            >
+              Back to Course Details
+            </Button>
+            <Button
+              variant="contained"
               onClick={() => router.push('/admin/courses')}
               disabled={loading}
             >
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              variant="contained"
-              color="primary"
-              disabled={loading}
-            >
-              {loading ? 'Saving...' : isEditMode ? 'Update Course' : 'Create Course'}
+              Finish
             </Button>
           </Box>
-        </Grid>
-      </Grid>
+        </Paper>
+      )}
     </Box>
   );
 } 
