@@ -77,7 +77,13 @@ export default function CourseForm({ courseId }: CourseFormProps) {
           par: data.par || 72,
           rating: data.rating || 72.0,
           slope: data.slope || 113,
-          amenities: data.amenities || '',
+          amenities: data.amenities ? 
+            (typeof data.amenities === 'string' ? 
+              JSON.parse(data.amenities).join(', ') : 
+              Array.isArray(data.amenities) ? 
+                data.amenities.join(', ') : 
+                data.amenities) : 
+            '',
           website: data.website || '',
           phoneNumber: data.phone_number || ''
         });
@@ -135,7 +141,7 @@ export default function CourseForm({ courseId }: CourseFormProps) {
         par: Number(formData.par),
         rating: Number(formData.rating),
         slope: Number(formData.slope),
-        amenities: formData.amenities ? JSON.stringify(formData.amenities.split(',').map(item => item.trim())) : null,
+        amenities: formData.amenities ? JSON.stringify(formData.amenities.split(',').map(item => item.trim()).filter(item => item !== '')) : null,
         website: formData.website || null,
         phone_number: formData.phoneNumber || null,
       };
@@ -293,7 +299,8 @@ export default function CourseForm({ courseId }: CourseFormProps) {
             value={formData.amenities}
             onChange={handleTextChange}
             disabled={loading}
-            helperText="Comma-separated list (e.g., Driving Range, Pro Shop, Restaurant)"
+            helperText="Enter amenities separated by commas (e.g., Driving Range, Pro Shop, Restaurant)"
+            placeholder="Driving Range, Pro Shop, Restaurant, Cart Rental"
           />
         </Grid>
         
