@@ -1,3 +1,5 @@
+"use client";
+
 import React from 'react';
 import { Box, Container, Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Toolbar, Typography, AppBar, Divider, IconButton } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
@@ -8,6 +10,7 @@ import SettingsIcon from '@mui/icons-material/Settings';
 import MenuIcon from '@mui/icons-material/Menu';
 import Link from 'next/link';
 import { AdminAuthGuard } from '@/components/auth/AdminAuthGuard';
+import Navbar from '@/components/layout/Navbar';
 
 const drawerWidth = 240;
 
@@ -88,12 +91,14 @@ export default function AdminLayout({
 
   return (
     <AdminAuthGuard>
+      <Navbar />
       <Box sx={{ display: 'flex' }}>
         <AppBar
           position="fixed"
           sx={{
             width: { sm: `calc(100% - ${drawerWidth}px)` },
             ml: { sm: `${drawerWidth}px` },
+            top: '64px', // Add space below the main navbar
           }}
         >
           <Toolbar>
@@ -113,7 +118,11 @@ export default function AdminLayout({
         </AppBar>
         <Box
           component="nav"
-          sx={{ width: { sm: drawerWidth }, flexShrink: { sm: 0 } }}
+          sx={{ 
+            width: { sm: drawerWidth }, 
+            flexShrink: { sm: 0 },
+            mt: '64px' // Add space below the main navbar
+          }}
           aria-label="admin navigation"
         >
           <Drawer
@@ -125,7 +134,11 @@ export default function AdminLayout({
             }}
             sx={{
               display: { xs: 'block', sm: 'none' },
-              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+              '& .MuiDrawer-paper': { 
+                boxSizing: 'border-box', 
+                width: drawerWidth,
+                top: '64px', // Add space below the main navbar
+              },
             }}
           >
             {drawer}
@@ -134,7 +147,11 @@ export default function AdminLayout({
             variant="permanent"
             sx={{
               display: { xs: 'none', sm: 'block' },
-              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: drawerWidth },
+              '& .MuiDrawer-paper': { 
+                boxSizing: 'border-box', 
+                width: drawerWidth,
+                top: '64px', // Add space below the main navbar
+              },
             }}
             open
           >
@@ -143,7 +160,12 @@ export default function AdminLayout({
         </Box>
         <Box
           component="main"
-          sx={{ flexGrow: 1, p: 3, width: { sm: `calc(100% - ${drawerWidth}px)` } }}
+          sx={{ 
+            flexGrow: 1, 
+            p: 3, 
+            width: { sm: `calc(100% - ${drawerWidth}px)` },
+            mt: '64px' // Add space below the main navbar
+          }}
         >
           <Toolbar />
           <Container maxWidth="lg">
