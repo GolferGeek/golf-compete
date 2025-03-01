@@ -17,6 +17,7 @@ import {
 } from '@mui/material'
 import { useAuth } from '@/contexts/AuthContext'
 import { createUserProfile } from '@/lib/supabase'
+import { AuthError } from '@supabase/supabase-js'
 
 const steps = ['Basic Information', 'Golf Details']
 
@@ -144,9 +145,9 @@ export default function OnboardingPage() {
       
       // Redirect to dashboard
       router.push('/dashboard')
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Profile creation error:', error)
-      setError(error.message || 'Failed to create profile')
+      setError(error instanceof AuthError ? error.message : 'Failed to create profile')
     } finally {
       setIsLoading(false)
     }
@@ -230,7 +231,7 @@ export default function OnboardingPage() {
                   value={handicap}
                   onChange={(e) => setHandicap(e.target.value)}
                   disabled={isLoading}
-                  helperText="Leave blank if you don't have a handicap yet"
+                  helperText="Leave blank if you do not have a handicap yet"
                 />
               </>
             )}

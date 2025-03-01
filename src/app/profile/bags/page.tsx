@@ -71,8 +71,7 @@ interface SnackbarState {
 }
 
 export default function BagsPage() {
-  const { user, profile } = useAuth();
-  const router = useRouter();
+  const { user } = useAuth();
   const [bags, setBags] = useState<Bag[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
   const [open, setOpen] = useState(false);

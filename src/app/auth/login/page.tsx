@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent } from 'react'
+import { useState, FormEvent, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { 
@@ -15,8 +15,9 @@ import {
   Paper
 } from '@mui/material'
 import { signInWithEmail, signInWithGoogle } from '@/lib/supabase'
+import { AuthError } from '@supabase/supabase-js'
 
-export default function LoginPage() {
+function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -41,9 +42,9 @@ export default function LoginPage() {
       if (data.user) {
         router.push(redirectPath)
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error)
-      setError(error.message || 'Failed to sign in')
+      setError(error instanceof AuthError ? error.message : 'Failed to sign in')
     } finally {
       setIsLoading(false)
     }
@@ -61,9 +62,9 @@ export default function LoginPage() {
       }
       
       // The redirect will happen automatically
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Google login error:', error)
-      setError(error.message || 'Failed to sign in with Google')
+      setError(error instanceof AuthError ? error.message : 'Failed to sign in with Google')
       setIsGoogleLoading(false)
     }
   }
@@ -146,7 +147,7 @@ export default function LoginPage() {
               </Link>
               <Link href="/auth/signup" style={{ textDecoration: 'none' }}>
                 <Typography variant="body2" color="primary">
-                  Don't have an account? Sign Up
+                  Do not have an account? Sign Up
                 </Typography>
               </Link>
             </Box>
@@ -154,5 +155,19 @@ export default function LoginPage() {
         </Paper>
       </Box>
     </Container>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <Container maxWidth="sm">
+        <Box sx={{ mt: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <CircularProgress />
+        </Box>
+      </Container>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 } 

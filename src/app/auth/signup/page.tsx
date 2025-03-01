@@ -15,6 +15,7 @@ import {
   Paper
 } from '@mui/material'
 import { signUpWithEmail, signInWithGoogle } from '@/lib/supabase'
+import { AuthError } from '@supabase/supabase-js'
 
 export default function SignUpPage() {
   const [email, setEmail] = useState('')
@@ -68,9 +69,9 @@ export default function SignUpPage() {
           router.push('/onboarding')
         }, 2000)
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Signup error:', error)
-      setError(error.message || 'Failed to create account')
+      setError(error instanceof AuthError ? error.message : 'Failed to sign up')
     } finally {
       setIsLoading(false)
     }
@@ -89,9 +90,9 @@ export default function SignUpPage() {
       }
       
       // The redirect will happen automatically
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Google signup error:', error)
-      setError(error.message || 'Failed to sign up with Google')
+      setError(error instanceof AuthError ? error.message : 'Failed to sign up with Google')
       setIsGoogleLoading(false)
     }
   }

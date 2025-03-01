@@ -13,6 +13,7 @@ import {
   Paper
 } from '@mui/material'
 import { resetPassword } from '@/lib/supabase'
+import { AuthError } from '@supabase/supabase-js'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')
@@ -41,9 +42,9 @@ export default function ForgotPasswordPage() {
 
       setSuccess('Password reset instructions have been sent to your email')
       setEmail('')
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Password reset error:', error)
-      setError(error.message || 'Failed to send reset instructions')
+      setError(error instanceof AuthError ? error.message : 'Failed to send reset instructions')
     } finally {
       setIsLoading(false)
     }
@@ -58,7 +59,7 @@ export default function ForgotPasswordPage() {
           </Typography>
           
           <Typography variant="body1" align="center" sx={{ mb: 3 }}>
-            Enter your email address and we'll send you instructions to reset your password.
+            Enter your email address and we will send you instructions to reset your password.
           </Typography>
           
           {error && (

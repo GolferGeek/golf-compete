@@ -119,9 +119,9 @@ export default function ProfilePage() {
       // Redirect immediately to dashboard
       console.log('Redirecting to dashboard')
       router.push('/dashboard')
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Profile update error:', error)
-      setError(error.message || 'Failed to update profile')
+      setError(error instanceof Error ? error.message : 'Failed to update profile')
       setIsLoading(false)
     }
   }
@@ -274,7 +274,7 @@ export default function ProfilePage() {
                     disabled={isLoading}
                     helperText={multipleClubsSets 
                       ? "This handicap will be associated with your default bag" 
-                      : "Leave blank if you don't have a handicap"}
+                      : "Leave blank if you do not have a handicap"}
                   />
                 </Grid>
                 

@@ -13,6 +13,7 @@ import {
   Paper
 } from '@mui/material'
 import { updatePassword } from '@/lib/supabase'
+import { AuthError } from '@supabase/supabase-js'
 
 export default function ResetPasswordPage() {
   const [password, setPassword] = useState('')
@@ -62,9 +63,9 @@ export default function ResetPasswordPage() {
       setTimeout(() => {
         router.push('/auth/login')
       }, 2000)
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Password update error:', error)
-      setError(error.message || 'Failed to update password')
+      setError(error instanceof AuthError ? error.message : 'Failed to update password')
     } finally {
       setIsLoading(false)
     }

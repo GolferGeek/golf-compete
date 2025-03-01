@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect } from 'react'
 import { 
   Container, 
   Box, 
@@ -13,8 +12,7 @@ import {
   Divider,
   List,
   ListItem,
-  ListItemText,
-  ListItemIcon
+  ListItemText
 } from '@mui/material'
 import { useAuth } from '@/contexts/AuthContext'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
@@ -26,7 +24,7 @@ import BuildIcon from '@mui/icons-material/Build'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 
 export default function DashboardPage() {
-  const { user, profile } = useAuth()
+  const { profile } = useAuth()
 
   return (
     <ProtectedRoute>
@@ -166,7 +164,7 @@ export default function DashboardPage() {
                 <List dense>
                   <ListItem>
                     <ListItemText 
-                      primary="Add areas you're working on" 
+                      primary="Add areas you are working on" 
                       secondary="No issues added yet" 
                     />
                   </ListItem>

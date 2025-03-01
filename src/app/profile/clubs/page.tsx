@@ -84,9 +84,26 @@ interface SnackbarState {
   severity: 'success' | 'error' | 'info' | 'warning';
 }
 
-export default function ClubsPage() {
-  const { user, profile } = useAuth();
+// Multiple clubs check component
+function MultipleClubsCheck({ children }: { children: React.ReactNode }) {
+  const { profile } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    if (profile && !profile.multiple_clubs_sets) {
+      router.push('/dashboard');
+    }
+  }, [profile, router]);
+
+  if (profile && !profile.multiple_clubs_sets) {
+    return null;
+  }
+
+  return <>{children}</>;
+}
+
+export default function ClubsPage() {
+  const { user } = useAuth();
   const [clubs, setClubs] = useState<Club[]>([]);
   const [open, setOpen] = useState(false);
   const [editingClub, setEditingClub] = useState<number | null>(null);
@@ -102,14 +119,6 @@ export default function ClubsPage() {
     message: '',
     severity: 'success'
   });
-
-  // Check if user has multiple_clubs_sets flag set
-  useEffect(() => {
-    if (profile && !profile.multiple_clubs_sets) {
-      // Redirect to dashboard if user doesn't have multiple_clubs_sets flag set
-      router.push('/dashboard');
-    }
-  }, [profile, router]);
 
   // Load clubs from localStorage on component mount
   useEffect(() => {
@@ -127,11 +136,6 @@ export default function ClubsPage() {
       localStorage.setItem(`golf-clubs-${user.id}`, JSON.stringify(clubs));
     }
   }, [clubs, user]);
-
-  // If user doesn't have multiple_clubs_sets flag set, show message and return
-  if (profile && !profile.multiple_clubs_sets) {
-    return null; // Return null as we're redirecting
-  }
 
   const handleClickOpen = () => {
     setFormData({
@@ -232,196 +236,198 @@ export default function ClubsPage() {
 
   return (
     <ProtectedRoute>
-      <Container maxWidth="lg">
-        <Box sx={{ mt: 4, mb: 4 }}>
-          {/* Back button */}
-          <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-            <Button 
-              component={Link} 
-              href="/profile" 
-              startIcon={<ArrowBackIcon />}
-              sx={{ mr: 2 }}
-            >
-              Back to Profile
-            </Button>
-          </Box>
-          
-          <Typography variant="h4" component="h1" gutterBottom>
-            My Golf Clubs
-          </Typography>
-          
-          <Paper elevation={3} sx={{ p: 4, mt: 3 }}>
-            <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-              <Typography variant="h6" gutterBottom>
-                Manage your golf clubs and equipment
-              </Typography>
-              
-              <Button
-                variant="contained"
-                color="primary"
-                startIcon={<AddIcon />}
-                onClick={handleClickOpen}
+      <MultipleClubsCheck>
+        <Container maxWidth="lg">
+          <Box sx={{ mt: 4, mb: 4 }}>
+            {/* Back button */}
+            <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+              <Button 
+                component={Link} 
+                href="/profile" 
+                startIcon={<ArrowBackIcon />}
+                sx={{ mr: 2 }}
               >
-                Add New Club
+                Back to Profile
               </Button>
             </Box>
             
-            {clubs.length === 0 ? (
-              <Alert severity="info" sx={{ mt: 2 }}>
-                You haven't added any clubs yet. Click the "Add New Club" button to get started.
-              </Alert>
-            ) : (
-              <Grid container spacing={3}>
-                {clubs.map((club, index) => (
-                  <Grid item xs={12} sm={6} md={4} key={club.id}>
-                    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                      <CardContent sx={{ flexGrow: 1 }}>
-                        <Typography variant="h6" component="div" gutterBottom>
-                          {club.name}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                          {club.brand} • {club.type}
-                        </Typography>
-                        {club.loft && (
-                          <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Loft: {club.loft}°
+            <Typography variant="h4" component="h1" gutterBottom>
+              My Golf Clubs
+            </Typography>
+            
+            <Paper elevation={3} sx={{ p: 4, mt: 3 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+                <Typography variant="h6" gutterBottom>
+                  Manage your golf clubs and equipment
+                </Typography>
+                
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<AddIcon />}
+                  onClick={handleClickOpen}
+                >
+                  Add New Club
+                </Button>
+              </Box>
+              
+              {clubs.length === 0 ? (
+                <Alert severity="info" sx={{ mt: 2 }}>
+                  You haven't added any clubs yet. Click the "Add New Club" button to get started.
+                </Alert>
+              ) : (
+                <Grid container spacing={3}>
+                  {clubs.map((club, index) => (
+                    <Grid item xs={12} sm={6} md={4} key={club.id}>
+                      <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+                        <CardContent sx={{ flexGrow: 1 }}>
+                          <Typography variant="h6" component="div" gutterBottom>
+                            {club.name}
                           </Typography>
-                        )}
-                        {club.notes && (
-                          <>
-                            <Divider sx={{ my: 1 }} />
-                            <Typography variant="body2">
-                              {club.notes}
+                          <Typography variant="body2" color="text.secondary" gutterBottom>
+                            {club.brand} • {club.type}
+                          </Typography>
+                          {club.loft && (
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                              Loft: {club.loft}°
                             </Typography>
-                          </>
-                        )}
-                      </CardContent>
-                      <CardActions>
-                        <IconButton 
-                          aria-label="edit" 
-                          size="small" 
-                          onClick={() => handleEdit(index)}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton 
-                          aria-label="delete" 
-                          size="small" 
-                          onClick={() => handleDelete(index)}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </CardActions>
-                    </Card>
+                          )}
+                          {club.notes && (
+                            <>
+                              <Divider sx={{ my: 1 }} />
+                              <Typography variant="body2">
+                                {club.notes}
+                              </Typography>
+                            </>
+                          )}
+                        </CardContent>
+                        <CardActions>
+                          <IconButton 
+                            aria-label="edit" 
+                            size="small" 
+                            onClick={() => handleEdit(index)}
+                          >
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton 
+                            aria-label="delete" 
+                            size="small" 
+                            onClick={() => handleDelete(index)}
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </CardActions>
+                      </Card>
+                    </Grid>
+                  ))}
+                </Grid>
+              )}
+            </Paper>
+          </Box>
+
+          {/* Add/Edit Club Dialog */}
+          <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+            <DialogTitle>{editingClub !== null ? 'Edit Club' : 'Add New Club'}</DialogTitle>
+            <DialogContent>
+              <Box component="form" sx={{ mt: 1 }}>
+                <TextField
+                  margin="normal"
+                  required
+                  fullWidth
+                  id="name"
+                  label="Club Name"
+                  name="name"
+                  value={formData.name}
+                  onChange={handleInputChange}
+                />
+                
+                <Grid container spacing={2}>
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth margin="normal" required>
+                      <InputLabel id="brand-label">Brand</InputLabel>
+                      <Select
+                        labelId="brand-label"
+                        id="brand"
+                        name="brand"
+                        value={formData.brand}
+                        label="Brand"
+                        onChange={handleInputChange}
+                      >
+                        {clubBrands.map((brand) => (
+                          <MenuItem key={brand} value={brand}>{brand}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
                   </Grid>
-                ))}
-              </Grid>
-            )}
-          </Paper>
-        </Box>
-
-        {/* Add/Edit Club Dialog */}
-        <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-          <DialogTitle>{editingClub !== null ? 'Edit Club' : 'Add New Club'}</DialogTitle>
-          <DialogContent>
-            <Box component="form" sx={{ mt: 1 }}>
-              <TextField
-                margin="normal"
-                required
-                fullWidth
-                id="name"
-                label="Club Name"
-                name="name"
-                value={formData.name}
-                onChange={handleInputChange}
-              />
-              
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth margin="normal" required>
-                    <InputLabel id="brand-label">Brand</InputLabel>
-                    <Select
-                      labelId="brand-label"
-                      id="brand"
-                      name="brand"
-                      value={formData.brand}
-                      label="Brand"
-                      onChange={handleInputChange}
-                    >
-                      {clubBrands.map((brand) => (
-                        <MenuItem key={brand} value={brand}>{brand}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
+                  <Grid item xs={12} sm={6}>
+                    <FormControl fullWidth margin="normal" required>
+                      <InputLabel id="type-label">Club Type</InputLabel>
+                      <Select
+                        labelId="type-label"
+                        id="type"
+                        name="type"
+                        value={formData.type}
+                        label="Club Type"
+                        onChange={handleInputChange}
+                      >
+                        {clubTypes.map((type) => (
+                          <MenuItem key={type} value={type}>{type}</MenuItem>
+                        ))}
+                      </Select>
+                    </FormControl>
+                  </Grid>
                 </Grid>
-                <Grid item xs={12} sm={6}>
-                  <FormControl fullWidth margin="normal" required>
-                    <InputLabel id="type-label">Club Type</InputLabel>
-                    <Select
-                      labelId="type-label"
-                      id="type"
-                      name="type"
-                      value={formData.type}
-                      label="Club Type"
-                      onChange={handleInputChange}
-                    >
-                      {clubTypes.map((type) => (
-                        <MenuItem key={type} value={type}>{type}</MenuItem>
-                      ))}
-                    </Select>
-                  </FormControl>
-                </Grid>
-              </Grid>
-              
-              <TextField
-                margin="normal"
-                fullWidth
-                id="loft"
-                label="Loft (degrees)"
-                name="loft"
-                type="number"
-                value={formData.loft}
-                onChange={handleInputChange}
-                InputProps={{ inputProps: { min: 0, max: 80 } }}
-              />
-              
-              <TextField
-                margin="normal"
-                fullWidth
-                id="notes"
-                label="Notes"
-                name="notes"
-                multiline
-                rows={3}
-                value={formData.notes}
-                onChange={handleInputChange}
-              />
-            </Box>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose}>Cancel</Button>
-            <Button onClick={handleSubmit} variant="contained">
-              {editingClub !== null ? 'Update' : 'Add'}
-            </Button>
-          </DialogActions>
-        </Dialog>
+                
+                <TextField
+                  margin="normal"
+                  fullWidth
+                  id="loft"
+                  label="Loft (degrees)"
+                  name="loft"
+                  type="number"
+                  value={formData.loft}
+                  onChange={handleInputChange}
+                  InputProps={{ inputProps: { min: 0, max: 80 } }}
+                />
+                
+                <TextField
+                  margin="normal"
+                  fullWidth
+                  id="notes"
+                  label="Notes"
+                  name="notes"
+                  multiline
+                  rows={3}
+                  value={formData.notes}
+                  onChange={handleInputChange}
+                />
+              </Box>
+            </DialogContent>
+            <DialogActions>
+              <Button onClick={handleClose}>Cancel</Button>
+              <Button onClick={handleSubmit} variant="contained">
+                {editingClub !== null ? 'Update' : 'Add'}
+              </Button>
+            </DialogActions>
+          </Dialog>
 
-        {/* Snackbar for notifications */}
-        <Snackbar 
-          open={snackbar.open} 
-          autoHideDuration={6000} 
-          onClose={handleCloseSnackbar}
-          anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-        >
-          <Alert 
-            onClose={handleCloseSnackbar} 
-            severity={snackbar.severity} 
-            sx={{ width: '100%' }}
+          {/* Snackbar for notifications */}
+          <Snackbar 
+            open={snackbar.open} 
+            autoHideDuration={6000} 
+            onClose={handleCloseSnackbar}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
           >
-            {snackbar.message}
-          </Alert>
-        </Snackbar>
-      </Container>
+            <Alert 
+              onClose={handleCloseSnackbar} 
+              severity={snackbar.severity} 
+              sx={{ width: '100%' }}
+            >
+              {snackbar.message}
+            </Alert>
+          </Snackbar>
+        </Container>
+      </MultipleClubsCheck>
     </ProtectedRoute>
   );
 } 
