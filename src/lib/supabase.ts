@@ -5,9 +5,6 @@ import { Profile } from '@/types/database.types'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 
-console.log('Supabase URL:', supabaseUrl)
-console.log('Supabase Anon Key (first 8 chars):', supabaseAnonKey.substring(0, 8))
-
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     persistSession: true,
@@ -19,25 +16,10 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 // Authentication functions
 export const signInWithEmail = async (email: string, password: string) => {
-  try {
-    const response = await supabase.auth.signInWithPassword({
-      email,
-      password
-    })
-    
-    if (response.error) {
-      console.error('Sign in error:', {
-        message: response.error.message,
-        status: response.error.status,
-        name: response.error.name
-      })
-    }
-    
-    return response
-  } catch (error) {
-    console.error('Unexpected error during sign in:', error)
-    throw error
-  }
+  return await supabase.auth.signInWithPassword({
+    email,
+    password
+  })
 }
 
 export const signUpWithEmail = async (email: string, password: string) => {
