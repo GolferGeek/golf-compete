@@ -15,7 +15,6 @@ import {
   Divider,
   FormControlLabel,
   Checkbox,
-  Fade,
   Card,
   CardContent,
   CardActions

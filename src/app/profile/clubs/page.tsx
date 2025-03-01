@@ -273,7 +273,7 @@ export default function ClubsPage() {
               
               {clubs.length === 0 ? (
                 <Alert severity="info" sx={{ mt: 2 }}>
-                  You haven't added any clubs yet. Click the "Add New Club" button to get started.
+                  You haven&apos;t added any clubs yet. Click the &quot;Add New Club&quot; button to get started.
                 </Alert>
               ) : (
                 <Grid container spacing={3}>

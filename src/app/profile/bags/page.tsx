@@ -31,7 +31,6 @@ import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
 import ListItemIcon from '@mui/material/ListItemIcon';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
 
@@ -307,7 +306,7 @@ export default function BagsPage() {
             
             {bags.length === 0 ? (
               <Alert severity="info" sx={{ mt: 2 }}>
-                You haven't created any bags yet. Click the "Add New Bag" button to get started.
+                You haven&apos;t created any bags yet. Click the &quot;Add New Bag&quot; button to get started.
               </Alert>
             ) : (
               <Grid container spacing={3}>
@@ -449,7 +448,7 @@ export default function BagsPage() {
               
               {clubs.length === 0 ? (
                 <Alert severity="info" sx={{ mt: 2 }}>
-                  You haven't added any clubs yet. <Link href="/profile/clubs">Add some clubs</Link> first.
+                  You haven&apos;t added any clubs yet. <Link href="/profile/clubs">Add some clubs</Link> first.
                 </Alert>
               ) : (
                 <Paper variant="outlined" sx={{ mt: 2, p: 2, maxHeight: '300px', overflow: 'auto' }}>

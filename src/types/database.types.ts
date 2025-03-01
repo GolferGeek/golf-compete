@@ -1,5 +1,3 @@
-import { Database } from '@supabase/supabase-js';
-
 export type ClubType = 'driver' | 'wood' | 'hybrid' | 'iron' | 'wedge' | 'putter';
 export type CompetitionStatus = 'draft' | 'open' | 'in_progress' | 'completed' | 'cancelled';
 export type CompetitionType = 'stroke_play' | 'match_play' | 'stableford' | 'scramble' | 'best_ball';
@@ -132,7 +130,7 @@ export interface CompetitionInvitation {
   updated_at: string;
 }
 
-export interface DatabaseSchema {
+export type DatabaseSchema = {
   public: {
     Tables: {
       profiles: {
@@ -186,9 +184,7 @@ export interface DatabaseSchema {
         Update: Partial<Omit<CompetitionInvitation, 'id' | 'competition_id' | 'created_at' | 'updated_at'>>;
       };
     };
-    Views: {};
-    Functions: {};
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
   };
-}
-
-export type SupabaseDatabase = Database<DatabaseSchema>; 
+}; 

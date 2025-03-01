@@ -164,7 +164,7 @@ export default function DashboardPage() {
                 <List dense>
                   <ListItem>
                     <ListItemText 
-                      primary="Add areas you are working on" 
+                      primary="Add areas you&apos;re working on" 
                       secondary="No issues added yet" 
                     />
                   </ListItem>

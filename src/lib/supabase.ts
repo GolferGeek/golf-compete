@@ -81,7 +81,7 @@ export const createUserProfile = async (profile: any) => {
     .insert(profile)
 }
 
-export const updateUserProfile = async (userId: string, updates: any) => {
+export async function updateUserProfile(userId: string, updates: Record<string, unknown>) {
   console.log('updateUserProfile called with userId:', userId)
   console.log('Updates to apply:', updates)
   
@@ -97,4 +97,8 @@ export const updateUserProfile = async (userId: string, updates: any) => {
     console.error('Error in updateUserProfile:', error)
     throw error
   }
+}
+
+export async function updateUserSettings(userId: string, settings: Record<string, unknown>) {
+  // Implementation of updateUserSettings function
 } 

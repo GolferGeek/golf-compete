@@ -231,7 +231,7 @@ export default function OnboardingPage() {
                   value={handicap}
                   onChange={(e) => setHandicap(e.target.value)}
                   disabled={isLoading}
-                  helperText="Leave blank if you do not have a handicap yet"
+                  helperText="Leave blank if you don&apos;t have a handicap yet"
                 />
               </>
             )}
