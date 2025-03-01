@@ -225,6 +225,11 @@ export default function Navbar() {
                   <MenuItem component={Link} href="/dashboard" onClick={handleCloseUserMenu}>
                     <Typography textAlign="center">Dashboard</Typography>
                   </MenuItem>
+                  {profile?.is_admin && (
+                    <MenuItem component={Link} href="/admin" onClick={handleCloseUserMenu}>
+                      <Typography textAlign="center">Admin</Typography>
+                    </MenuItem>
+                  )}
                   <MenuItem component={Link} href="/profile" onClick={handleCloseUserMenu}>
                     <Typography textAlign="center">Profile</Typography>
                   </MenuItem>
