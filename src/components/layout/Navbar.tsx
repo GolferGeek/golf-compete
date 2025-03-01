@@ -17,9 +17,6 @@ import MenuItem from '@mui/material/MenuItem';
 import GolfCourseIcon from '@mui/icons-material/GolfCourse';
 import Avatar from '@mui/material/Avatar';
 import Tooltip from '@mui/material/Tooltip';
-import LogoutIcon from '@mui/icons-material/Logout';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import PersonIcon from '@mui/icons-material/Person';
 import { useAuth } from '@/contexts/AuthContext';
 import { signOut } from '@/lib/supabase';
 

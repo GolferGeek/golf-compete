@@ -159,7 +159,7 @@ export default function DashboardPage() {
                 </Box>
                 <Divider sx={{ mb: 2 }} />
                 <Typography variant="body2" paragraph>
-                  Track issues in your game that you're working to improve.
+                  Track issues in your game that you&apos;re working to improve.
                 </Typography>
                 <List dense>
                   <ListItem>

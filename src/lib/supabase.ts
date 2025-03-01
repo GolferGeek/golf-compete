@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js'
+import { Profile } from '@/types/database.types'
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
@@ -75,7 +76,7 @@ export const getUserProfile = async (userId: string) => {
   }
 }
 
-export const createUserProfile = async (profile: any) => {
+export const createUserProfile = async (profile: Profile) => {
   return await supabase
     .from('profiles')
     .insert(profile)
@@ -97,8 +98,4 @@ export async function updateUserProfile(userId: string, updates: Record<string, 
     console.error('Error in updateUserProfile:', error)
     throw error
   }
-}
-
-export async function updateUserSettings(userId: string, settings: Record<string, unknown>) {
-  // Implementation of updateUserSettings function
 } 
