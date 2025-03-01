@@ -1,18 +1,11 @@
 import { createClient } from '@supabase/supabase-js';
 import { User } from '../types/golf';
 
-// Server-side Supabase client with full admin privileges
-// Use this for operations that need elevated permissions
-export const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_API_KEY! // Service role key with admin privileges
-);
-
-// Client-side Supabase client with restricted permissions
-// Safe to use in browser code, uses the anon/public key
+// Supabase client for all operations
+// Using the anon key for all operations
 export const supabaseClient = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY! // Anon key with limited permissions
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 /**

@@ -6,13 +6,13 @@ const https = require('https');
 const { Client } = require('pg');
 
 // Create a Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_API_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const databaseUrl = process.env.DATABASE_URL;
 
 console.log('Environment variables:');
-console.log('- SUPABASE_URL:', supabaseUrl);
-console.log('- SUPABASE_API_KEY:', supabaseKey ? '✓ Set (hidden for security)' : '✗ Missing');
+console.log('- NEXT_PUBLIC_SUPABASE_URL:', supabaseUrl);
+console.log('- NEXT_PUBLIC_SUPABASE_ANON_KEY:', supabaseKey ? '✓ Set (hidden for security)' : '✗ Missing');
 console.log('- DATABASE_URL:', databaseUrl ? '✓ Set (hidden for security)' : '✗ Missing');
 
 if (!supabaseUrl || !supabaseKey) {
@@ -150,8 +150,8 @@ async function runTests() {
     
     if (!restApiSuccess) {
       console.log('\nREST API troubleshooting:');
-      console.log('- Verify your SUPABASE_URL is correct');
-      console.log('- Verify your SUPABASE_API_KEY is correct');
+      console.log('- Verify your NEXT_PUBLIC_SUPABASE_URL is correct');
+      console.log('- Verify your NEXT_PUBLIC_SUPABASE_ANON_KEY is correct');
       console.log('- Check if your network allows connections to Supabase');
     }
     

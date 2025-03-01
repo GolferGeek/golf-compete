@@ -65,8 +65,6 @@ rm .env.migration
 # Reset environment variables
 unset DATABASE_URL
 unset NODE_ENV
-unset SUPABASE_URL
-unset SUPABASE_API_KEY
 unset NEXT_PUBLIC_SUPABASE_URL
 unset NEXT_PUBLIC_SUPABASE_ANON_KEY
 unset USE_SUPABASE

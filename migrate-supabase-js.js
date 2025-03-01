@@ -5,8 +5,8 @@ const { createClient } = require('@supabase/supabase-js');
 const fetch = require('node-fetch');
 
 // Create a Supabase client
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_API_KEY;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.error('Missing Supabase URL or API key. Please check your .env.supabase file.');
