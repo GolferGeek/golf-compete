@@ -22,11 +22,13 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
       
-      - name: Install Playwright Browsers
-        run: npx playwright install --with-deps
+      - name: Install Playwright Chromium browser
+        run: npx playwright install --with-deps chromium
       
       - name: Run Playwright tests
         run: yarn test:e2e
+        env:
+          CI: true
       
       - name: Upload test results
         uses: actions/upload-artifact@v4
