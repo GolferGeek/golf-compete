@@ -137,7 +137,6 @@ export default function CourseForm({ courseId }: CourseFormProps) {
         slope: Number(formData.slope),
         amenities: formData.amenities ? JSON.stringify(formData.amenities.split(',').map(item => item.trim())) : null,
         website: formData.website || null,
-        phoneNumber: formData.phoneNumber || null
       };
       
       let result;
@@ -316,6 +315,7 @@ export default function CourseForm({ courseId }: CourseFormProps) {
             value={formData.phoneNumber}
             onChange={handleTextChange}
             disabled={loading}
+            helperText="This field is for display only and is not saved to the database"
           />
         </Grid>
         
