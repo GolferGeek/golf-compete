@@ -162,7 +162,7 @@ export default function OnboardingPage() {
           </Typography>
           
           <Typography variant="body1" align="center" sx={{ mb: 4 }}>
-            Let's set up your profile to get started.
+            Let&apos;s set up your profile to get started.
           </Typography>
           
           <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
