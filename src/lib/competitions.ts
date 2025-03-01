@@ -1,20 +1,25 @@
-import { db } from '../db';
-import { competitions, competitionParticipants, users } from '../db/schema';
-import { eq, and, sql } from 'drizzle-orm';
+import { supabase } from './supabase';
 import { Competition, User } from '../types/golf';
 
 /**
  * Get all competitions
  */
 export async function getAllCompetitions(): Promise<Competition[]> {
-  const result = await db.select().from(competitions);
+  const { data, error } = await supabase
+    .from('competitions')
+    .select('*');
   
-  return result.map(comp => ({
+  if (error) {
+    console.error('Error fetching competitions:', error);
+    return [];
+  }
+  
+  return data.map(comp => ({
     id: comp.id,
     name: comp.name,
     type: comp.type as 'series' | 'event' | 'daily',
-    startDate: new Date(comp.startDate),
-    endDate: new Date(comp.endDate),
+    startDate: new Date(comp.start_date),
+    endDate: new Date(comp.end_date),
     description: comp.description,
     status: comp.status as 'upcoming' | 'active' | 'completed',
     format: comp.format,
@@ -27,42 +32,69 @@ export async function getAllCompetitions(): Promise<Competition[]> {
  * Get a competition by ID
  */
 export async function getCompetitionById(id: string): Promise<Competition | null> {
-  const result = await db.select().from(competitions).where(eq(competitions.id, id)).limit(1);
+  const { data, error } = await supabase
+    .from('competitions')
+    .select('*')
+    .eq('id', id)
+    .single();
   
-  if (result.length === 0) {
+  if (error) {
+    console.error('Error fetching competition:', error);
     return null;
   }
   
-  const comp = result[0];
+  // Get participants - fetch profiles directly instead of through a join
+  const { data: participantsData, error: participantsError } = await supabase
+    .from('competition_participants')
+    .select('user_id')
+    .eq('competition_id', id);
   
-  // Get participants
-  const participantsResult = await db
-    .select({
-      user: users,
-    })
-    .from(competitionParticipants)
-    .innerJoin(users, eq(competitionParticipants.userId, users.id))
-    .where(eq(competitionParticipants.competitionId, id));
+  if (participantsError) {
+    console.error('Error fetching participants:', participantsError);
+    return null;
+  }
   
-  const participants: User[] = participantsResult.map(row => ({
-    id: row.user.id,
-    name: row.user.name,
-    email: row.user.email,
-    handicap: row.user.handicap || undefined,
-    profileImage: row.user.profileImage || undefined,
-    memberSince: new Date(row.user.memberSince),
-  }));
+  // Initialize empty participants array
+  const participants: User[] = [];
+  
+  // If we have participants, fetch their profiles
+  if (participantsData && participantsData.length > 0) {
+    // Extract user IDs
+    const userIds = participantsData.map(p => p.user_id);
+    
+    // Fetch profiles for these users
+    const { data: profilesData, error: profilesError } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', userIds);
+    
+    if (profilesError) {
+      console.error('Error fetching profiles:', profilesError);
+    } else if (profilesData) {
+      // Map profiles to User objects
+      profilesData.forEach(profile => {
+        participants.push({
+          id: profile.id,
+          name: `${profile.first_name} ${profile.last_name}`,
+          email: '', // Email is not stored in profiles table
+          handicap: profile.handicap || undefined,
+          profileImage: undefined, // Profile image is not stored in profiles table
+          memberSince: new Date(profile.created_at),
+        });
+      });
+    }
+  }
   
   return {
-    id: comp.id,
-    name: comp.name,
-    type: comp.type as 'series' | 'event' | 'daily',
-    startDate: new Date(comp.startDate),
-    endDate: new Date(comp.endDate),
-    description: comp.description,
-    status: comp.status as 'upcoming' | 'active' | 'completed',
-    format: comp.format,
-    prizes: comp.prizes ? JSON.parse(comp.prizes) : undefined,
+    id: data.id,
+    name: data.name,
+    type: data.type as 'series' | 'event' | 'daily',
+    startDate: new Date(data.start_date),
+    endDate: new Date(data.end_date),
+    description: data.description,
+    status: data.status as 'upcoming' | 'active' | 'completed',
+    format: data.format,
+    prizes: data.prizes ? JSON.parse(data.prizes) : undefined,
     participants,
   };
 }
@@ -78,28 +110,37 @@ export async function createCompetition(
   description: string,
   format: string,
   prizes?: string[]
-): Promise<Competition> {
-  const [result] = await db.insert(competitions).values({
-    name,
-    type,
-    startDate, // Pass the Date object directly
-    endDate, // Pass the Date object directly
-    description,
-    status: startDate > new Date() ? 'upcoming' : 'active',
-    format,
-    prizes: prizes ? JSON.stringify(prizes) : null,
-  }).returning();
+): Promise<Competition | null> {
+  const { data, error } = await supabase
+    .from('competitions')
+    .insert({
+      name,
+      type,
+      start_date: startDate.toISOString(),
+      end_date: endDate.toISOString(),
+      description,
+      status: startDate > new Date() ? 'upcoming' : 'active',
+      format,
+      prizes: prizes ? JSON.stringify(prizes) : null,
+    })
+    .select()
+    .single();
+  
+  if (error) {
+    console.error('Error creating competition:', error);
+    return null;
+  }
   
   return {
-    id: result.id,
-    name: result.name,
-    type: result.type as 'series' | 'event' | 'daily',
-    startDate: new Date(result.startDate),
-    endDate: new Date(result.endDate),
-    description: result.description,
-    status: result.status as 'upcoming' | 'active' | 'completed',
-    format: result.format,
-    prizes: result.prizes ? JSON.parse(result.prizes) : undefined,
+    id: data.id,
+    name: data.name,
+    type: data.type as 'series' | 'event' | 'daily',
+    startDate: new Date(data.start_date),
+    endDate: new Date(data.end_date),
+    description: data.description,
+    status: data.status as 'upcoming' | 'active' | 'completed',
+    format: data.format,
+    prizes: data.prizes ? JSON.parse(data.prizes) : undefined,
     participants: [],
   };
 }
@@ -107,11 +148,20 @@ export async function createCompetition(
 /**
  * Add a user to a competition
  */
-export async function addUserToCompetition(competitionId: string, userId: string): Promise<void> {
-  await db.insert(competitionParticipants).values({
-    competitionId,
-    userId,
-  });
+export async function addUserToCompetition(competitionId: string, userId: string): Promise<boolean> {
+  const { error } = await supabase
+    .from('competition_participants')
+    .insert({
+      competition_id: competitionId,
+      user_id: userId,
+    });
+  
+  if (error) {
+    console.error('Error adding user to competition:', error);
+    return false;
+  }
+  
+  return true;
 }
 
 /**
@@ -120,23 +170,24 @@ export async function addUserToCompetition(competitionId: string, userId: string
 export async function getActiveCompetitions(): Promise<Competition[]> {
   const now = new Date().toISOString();
   
-  const result = await db
-    .select()
-    .from(competitions)
-    .where(
-      and(
-        eq(competitions.status, 'active'),
-        sql`${competitions.startDate} <= ${now}`,
-        sql`${competitions.endDate} >= ${now}`
-      )
-    );
+  const { data, error } = await supabase
+    .from('competitions')
+    .select('*')
+    .eq('status', 'active')
+    .lte('start_date', now)
+    .gte('end_date', now);
   
-  return result.map(comp => ({
+  if (error) {
+    console.error('Error fetching active competitions:', error);
+    return [];
+  }
+  
+  return data.map(comp => ({
     id: comp.id,
     name: comp.name,
     type: comp.type as 'series' | 'event' | 'daily',
-    startDate: new Date(comp.startDate),
-    endDate: new Date(comp.endDate),
+    startDate: new Date(comp.start_date),
+    endDate: new Date(comp.end_date),
     description: comp.description,
     status: comp.status as 'upcoming' | 'active' | 'completed',
     format: comp.format,

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, FormEvent, Suspense } from 'react'
+import { useState, FormEvent, Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { 
@@ -14,7 +14,7 @@ import {
   CircularProgress,
   Paper
 } from '@mui/material'
-import { signInWithEmail, signInWithGoogle } from '@/lib/supabase'
+import { signInWithEmail, signInWithGoogle, supabase } from '@/lib/supabase'
 import { AuthError } from '@supabase/supabase-js'
 
 function LoginForm() {
@@ -27,24 +27,74 @@ function LoginForm() {
   const searchParams = useSearchParams()
   const redirectPath = searchParams.get('redirect') || '/dashboard'
 
+  // Clear any stale auth data on component mount
+  useEffect(() => {
+    const clearStaleAuthData = async () => {
+      try {
+        // Check if there's an invalid session
+        const { data, error } = await supabase.auth.getSession()
+        
+        if (error && error.message.includes('Invalid Refresh Token')) {
+          console.log('Found invalid session on login page, signing out')
+          await supabase.auth.signOut()
+          
+          // Clear localStorage manually as a fallback
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('supabase.auth.token')
+          }
+        } else if (data.session) {
+          // If we have a valid session, redirect to dashboard
+          console.log('Found valid session on login page, redirecting')
+          router.push(redirectPath)
+        }
+      } catch (err) {
+        console.error('Error checking session on login page:', err)
+      }
+    }
+    
+    clearStaleAuthData()
+  }, [router, redirectPath])
+
   const handleEmailLogin = async (e: FormEvent) => {
     e.preventDefault()
     setError(null)
     setIsLoading(true)
 
     try {
+      // Validate inputs
+      if (!email || !password) {
+        setError('Email and password are required')
+        setIsLoading(false)
+        return
+      }
+      
+      console.log('Attempting to sign in with email:', email)
       const { data, error } = await signInWithEmail(email, password)
       
       if (error) {
-        throw error
+        console.error('Login error details:', error)
+        
+        // Provide more specific error messages
+        if (error.message.includes('Invalid login credentials')) {
+          throw new Error('Invalid email or password. Please try again.')
+        } else if (error.message.includes('Invalid Refresh Token')) {
+          // Clear any stale auth data
+          await supabase.auth.signOut()
+          throw new Error('Your session has expired. Please try again.')
+        } else {
+          throw error
+        }
       }
 
       if (data.user) {
+        console.log('Login successful, redirecting to:', redirectPath)
         router.push(redirectPath)
+      } else {
+        throw new Error('Login failed. Please try again.')
       }
     } catch (error: unknown) {
       console.error('Login error:', error)
-      setError(error instanceof AuthError ? error.message : 'Failed to sign in')
+      setError(error instanceof Error ? error.message : 'Failed to sign in')
     } finally {
       setIsLoading(false)
     }
@@ -55,13 +105,16 @@ function LoginForm() {
     setIsGoogleLoading(true)
 
     try {
+      console.log('Attempting to sign in with Google')
       const { error } = await signInWithGoogle()
       
       if (error) {
+        console.error('Google login error details:', error)
         throw error
       }
       
       // The redirect will happen automatically
+      console.log('Google sign-in initiated, waiting for redirect')
     } catch (error: unknown) {
       console.error('Google login error:', error)
       setError(error instanceof AuthError ? error.message : 'Failed to sign in with Google')

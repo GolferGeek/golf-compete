@@ -8,6 +8,7 @@ export interface User {
   handicap?: number;
   profileImage?: string;
   memberSince: Date;
+  isAdmin?: boolean; // Flag to identify administrators
 }
 
 // Competition types
@@ -36,6 +37,7 @@ export interface Course {
   rating: number;
   slope: number;
   tees: TeeSets[];
+  holeDetails?: Hole[];
   amenities?: string[];
   website?: string;
   phoneNumber?: string;
@@ -47,6 +49,24 @@ export interface TeeSets {
   rating: number;
   slope: number;
   par: number;
+  distance: number;
+  holeDistances?: Record<number, number>;
+}
+
+export interface Hole {
+  id: string;
+  courseId: string;
+  holeNumber: number;
+  par: number;
+  handicapIndex?: number;
+  length?: number;
+  description?: string;
+  distances: TeeSetDistance[];
+}
+
+export interface TeeSetDistance {
+  teeSetId: string;
+  holeId: string;
   distance: number;
 }
 

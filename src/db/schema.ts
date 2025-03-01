@@ -10,6 +10,7 @@ export const users = pgTable('users', {
   profileImage: text('profile_image'),
   memberSince: timestamp('member_since').notNull().defaultNow(),
   password: text('password').notNull(), // Hashed password
+  isAdmin: boolean('is_admin').default(false), // Flag to identify administrators
 });
 
 // Competitions table
@@ -56,6 +57,25 @@ export const teeSets = pgTable('tee_sets', {
   slope: integer('slope').notNull(),
   par: integer('par').notNull(),
   distance: integer('distance').notNull(),
+});
+
+// Holes table
+export const holes = pgTable('holes', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  courseId: uuid('course_id').notNull().references(() => courses.id),
+  holeNumber: integer('hole_number').notNull(),
+  par: integer('par').notNull(),
+  handicapIndex: integer('handicap_index'),
+  length: integer('length'), // Length in yards (optional, as this varies by tee set)
+  description: text('description'),
+});
+
+// Tee set distances table (connects tee sets to holes with specific distances)
+export const teeSetDistances = pgTable('tee_set_distances', {
+  id: uuid('id').primaryKey().defaultRandom(),
+  teeSetId: uuid('tee_set_id').notNull().references(() => teeSets.id),
+  holeId: uuid('hole_id').notNull().references(() => holes.id),
+  distance: integer('distance').notNull(), // Distance in yards
 });
 
 // Rounds table
@@ -186,6 +206,7 @@ export const competitionsRelations = relations(competitions, ({ many }) => ({
 export const coursesRelations = relations(courses, ({ many }) => ({
   teeSets: many(teeSets),
   rounds: many(rounds),
+  holes: many(holes),
 }));
 
 export const roundsRelations = relations(rounds, ({ one, many }) => ({
@@ -250,11 +271,12 @@ export const competitionParticipantsRelations = relations(competitionParticipant
   }),
 }));
 
-export const teeSetsRelations = relations(teeSets, ({ one }) => ({
+export const teeSetsRelations = relations(teeSets, ({ one, many }) => ({
   course: one(courses, {
     fields: [teeSets.courseId],
     references: [courses.id],
   }),
+  distances: many(teeSetDistances),
 }));
 
 export const practicePlanDrillsRelations = relations(practicePlanDrills, ({ one }) => ({
@@ -302,5 +324,26 @@ export const bagClubsRelations = relations(bagClubs, ({ one }) => ({
   club: one(clubs, {
     fields: [bagClubs.clubId],
     references: [clubs.id],
+  }),
+}));
+
+// Add holes relations
+export const holesRelations = relations(holes, ({ one, many }) => ({
+  course: one(courses, {
+    fields: [holes.courseId],
+    references: [courses.id],
+  }),
+  teeSetDistances: many(teeSetDistances),
+}));
+
+// Add teeSetDistances relations
+export const teeSetDistancesRelations = relations(teeSetDistances, ({ one }) => ({
+  teeSet: one(teeSets, {
+    fields: [teeSetDistances.teeSetId],
+    references: [teeSets.id],
+  }),
+  hole: one(holes, {
+    fields: [teeSetDistances.holeId],
+    references: [holes.id],
   }),
 })); 

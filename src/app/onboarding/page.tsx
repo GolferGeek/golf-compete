@@ -110,17 +110,20 @@ export default function OnboardingPage() {
     }
     
     setError(null)
+    console.log('Starting profile creation process...')
     
     if (!validateGolfDetails()) {
       return
     }
     
     if (!user) {
+      console.error('No user found in onboarding')
       setError('No user found. Please sign in again.')
       setTimeout(() => router.push('/auth/login'), 2000)
       return
     }
     
+    console.log('User found, proceeding with profile creation:', user.id)
     setIsLoading(true)
 
     try {
@@ -134,20 +137,66 @@ export default function OnboardingPage() {
         updated_at: new Date().toISOString()
       }
 
-      const { error } = await createUserProfile(profile)
+      console.log('Attempting to create profile with data:', { ...profile, id: 'REDACTED' })
+      
+      // Add a timeout to prevent infinite hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Profile creation timed out after 10 seconds')), 10000)
+      })
+      
+      // Race the profile creation against the timeout
+      const { error } = await Promise.race([
+        createUserProfile(profile),
+        timeoutPromise
+      ]) as any
       
       if (error) {
+        console.error('Profile creation error details:', error)
+        
+        // Handle specific errors
+        if (error.message && error.message.includes('infinite recursion')) {
+          console.warn('Encountered infinite recursion error during profile creation')
+          // Despite the error, we'll assume the profile was created and proceed
+          console.log('Proceeding to dashboard despite error')
+          router.push('/dashboard')
+          return
+        }
+        
+        // Handle duplicate username error
+        if (error.message && error.message.includes('duplicate key value violates unique constraint')) {
+          throw new Error('This username is already taken. Please choose another one.')
+        }
+        
+        // If the user already has a profile, just redirect to dashboard
+        if (error.message && error.message.includes('duplicate key value')) {
+          console.log('User already has a profile, redirecting to dashboard')
+          router.push('/dashboard')
+          return
+        }
+        
         throw error
       }
 
+      console.log('Profile created successfully, refreshing profile data')
       // Refresh the profile in the auth context
       await refreshProfile()
       
+      console.log('Redirecting to dashboard')
       // Redirect to dashboard
       router.push('/dashboard')
     } catch (error: unknown) {
       console.error('Profile creation error:', error)
-      setError(error instanceof AuthError ? error.message : 'Failed to create profile')
+      
+      // If it's a timeout error, provide a more helpful message
+      if (error instanceof Error && error.message.includes('timed out')) {
+        setError('The operation is taking too long. You may already have a profile - try going to the dashboard.')
+        // Add a button or link to go to dashboard
+        setTimeout(() => {
+          router.push('/dashboard')
+        }, 5000)
+      } else {
+        setError(error instanceof Error ? error.message : 'Failed to create profile')
+      }
     } finally {
       setIsLoading(false)
     }

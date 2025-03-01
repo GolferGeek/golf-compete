@@ -1,8 +1,5 @@
-import { db } from '../db';
-import { users } from '../db/schema';
-import { eq } from 'drizzle-orm';
-import { User } from '../types/golf';
 import { createClient } from '@supabase/supabase-js';
+import { User } from '../types/golf';
 
 // Server-side Supabase client with full admin privileges
 // Use this for operations that need elevated permissions
@@ -22,30 +19,36 @@ export const supabaseClient = createClient(
  * Authenticate a user by email and password
  */
 export async function authenticateUser(email: string, password: string): Promise<User | null> {
-  // In a real application, you would hash the password and compare with the stored hash
-  // This is a simplified version for demonstration purposes
-  const result = await db.select().from(users).where(eq(users.email, email)).limit(1);
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email,
+    password
+  });
   
-  if (result.length === 0) {
+  if (error || !data.user) {
+    console.error('Authentication error:', error);
     return null;
   }
   
-  const user = result[0];
+  // Get the user profile from Supabase
+  const { data: profileData, error: profileError } = await supabaseClient
+    .from('profiles')
+    .select('*')
+    .eq('id', data.user.id)
+    .single();
   
-  // In a real application, you would use a proper password comparison function
-  // such as bcrypt.compare
-  if (user.password !== password) {
+  if (profileError) {
+    console.error('Error fetching user profile:', profileError);
     return null;
   }
   
-  // Convert the database user to the User type
+  // Convert the Supabase user to the User type
   return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    handicap: user.handicap || undefined,
-    profileImage: user.profileImage || undefined,
-    memberSince: new Date(user.memberSince),
+    id: data.user.id,
+    name: `${profileData.first_name} ${profileData.last_name}`,
+    email: data.user.email!,
+    handicap: profileData.handicap || undefined,
+    profileImage: data.user.user_metadata?.avatar_url || undefined,
+    memberSince: new Date(profileData.created_at),
   };
 }
 
@@ -56,20 +59,49 @@ export async function createUser(
   name: string, 
   email: string, 
   password: string
-): Promise<User> {
-  // In a real application, you would hash the password before storing
+): Promise<User | null> {
+  // Split the name into first and last name
+  const nameParts = name.split(' ');
+  const firstName = nameParts[0];
+  const lastName = nameParts.slice(1).join(' ');
   
-  const [newUser] = await db.insert(users).values({
-    name,
+  // Create the user in Supabase Auth
+  const { data, error } = await supabaseClient.auth.signUp({
     email,
-    password, // In a real app, this would be hashed
-  }).returning();
+    password,
+    options: {
+      data: {
+        full_name: name
+      }
+    }
+  });
+  
+  if (error || !data.user) {
+    console.error('Error creating user:', error);
+    return null;
+  }
+  
+  // Create the user profile in Supabase
+  const { error: profileError } = await supabaseClient
+    .from('profiles')
+    .insert({
+      id: data.user.id,
+      first_name: firstName,
+      last_name: lastName,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    });
+  
+  if (profileError) {
+    console.error('Error creating user profile:', profileError);
+    return null;
+  }
   
   return {
-    id: newUser.id,
-    name: newUser.name,
-    email: newUser.email,
-    memberSince: new Date(newUser.memberSince),
+    id: data.user.id,
+    name: name,
+    email: email,
+    memberSince: new Date(),
   };
 }
 
@@ -77,20 +109,32 @@ export async function createUser(
  * Get a user by ID
  */
 export async function getUserById(id: string): Promise<User | null> {
-  const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
+  // Get the user from Supabase Auth
+  const { data: userData, error: userError } = await supabaseClient.auth.admin.getUserById(id);
   
-  if (result.length === 0) {
+  if (userError || !userData.user) {
+    console.error('Error fetching user:', userError);
     return null;
   }
   
-  const user = result[0];
+  // Get the user profile from Supabase
+  const { data: profileData, error: profileError } = await supabaseClient
+    .from('profiles')
+    .select('*')
+    .eq('id', id)
+    .single();
+  
+  if (profileError) {
+    console.error('Error fetching user profile:', profileError);
+    return null;
+  }
   
   return {
-    id: user.id,
-    name: user.name,
-    email: user.email,
-    handicap: user.handicap || undefined,
-    profileImage: user.profileImage || undefined,
-    memberSince: new Date(user.memberSince),
+    id: userData.user.id,
+    name: `${profileData.first_name} ${profileData.last_name}`,
+    email: userData.user.email!,
+    handicap: profileData.handicap || undefined,
+    profileImage: userData.user.user_metadata?.avatar_url || undefined,
+    memberSince: new Date(profileData.created_at),
   };
 } 
