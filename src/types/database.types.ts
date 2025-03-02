@@ -55,6 +55,7 @@ export interface Course {
   holes: number;
   rating: number | null;
   slope: number | null;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }

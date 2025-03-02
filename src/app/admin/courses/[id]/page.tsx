@@ -11,6 +11,10 @@ interface CourseDetailPageProps {
 }
 
 export default function CourseDetailPage({ params }: CourseDetailPageProps) {
+  // Unwrap params using React.use() and add type assertion
+  const unwrappedParams = React.use(params as any) as { id: string };
+  const courseId = unwrappedParams.id;
+
   return (
     <div>
       <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
@@ -28,7 +32,7 @@ export default function CourseDetailPage({ params }: CourseDetailPageProps) {
       </Box>
       
       <Paper sx={{ p: 3, mb: 3 }}>
-        <CourseHoleDetails courseId={params.id} />
+        <CourseHoleDetails courseId={courseId} />
       </Paper>
     </div>
   );

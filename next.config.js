@@ -11,6 +11,10 @@ const nextConfig = {
   // Ensure path aliases work correctly
   webpack: (config, { isServer }) => {
     // Add any webpack customizations here if needed
+    
+    // Add an alias for the problematic import
+    config.resolve.alias['date-fns/_lib/format/longFormatters'] = 'date-fns/format';
+    
     return config;
   },
   

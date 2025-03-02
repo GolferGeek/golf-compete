@@ -18,7 +18,7 @@ import {
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { supabase, refreshSchemaCache } from '@/lib/supabase';
 import { Course } from '@/types/golf';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { useAuth } from '@/contexts/AuthContext';
@@ -44,6 +44,9 @@ export default function CoursesList() {
           return;
         }
         
+        // Try to refresh the schema cache first
+        await refreshSchemaCache();
+        
         const { data, error } = await supabase
           .from('courses')
           .select('*');
@@ -54,6 +57,31 @@ export default function CoursesList() {
           // Handle authentication errors
           if (error.code === 'PGRST301' || error.code === '401') {
             setError('Your session has expired. Please log in again.');
+          } else if (error.code === '42703' && error.message.includes('is_active')) {
+            // Handle missing is_active column
+            console.warn('is_active column not found, trying to fetch without it');
+            
+            // Try again without relying on is_active
+            const { data: fallbackData, error: fallbackError } = await supabase
+              .from('courses')
+              .select('id, name, location, holes, par, rating, slope, amenities, website, phone_number');
+              
+            if (fallbackError) {
+              console.error('Error in fallback fetch:', fallbackError);
+              setError('Failed to load courses. Please try again later.');
+              throw fallbackError;
+            }
+            
+            // Add is_active = true to all courses as a fallback
+            if (fallbackData) {
+              const coursesWithActive = fallbackData.map(course => ({
+                ...course,
+                is_active: true
+              }));
+              setCourses(coursesWithActive as unknown as Course[]);
+              setLoading(false);
+              return;
+            }
           } else {
             setError('Failed to load courses. Please try again later.');
           }
@@ -146,8 +174,8 @@ export default function CoursesList() {
             <TableCell>Location</TableCell>
             <TableCell>Holes</TableCell>
             <TableCell>Par</TableCell>
-            <TableCell>Rating</TableCell>
-            <TableCell>Slope</TableCell>
+            <TableCell>Rating/Slope</TableCell>
+            <TableCell>Status</TableCell>
             <TableCell align="right">Actions</TableCell>
           </TableRow>
         </TableHead>
@@ -160,8 +188,10 @@ export default function CoursesList() {
               <TableCell>{course.location}</TableCell>
               <TableCell>{course.holes}</TableCell>
               <TableCell>{course.par}</TableCell>
-              <TableCell>{course.rating}</TableCell>
-              <TableCell>{course.slope}</TableCell>
+              <TableCell>{course.rating} / {course.slope}</TableCell>
+              <TableCell>
+                {course.is_active !== false ? 'Active' : 'Inactive'}
+              </TableCell>
               <TableCell align="right">
                 <Tooltip title="View Course Details">
                   <IconButton 

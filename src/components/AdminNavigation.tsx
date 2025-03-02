@@ -1,0 +1,115 @@
+"use client";
+
+import React from 'react';
+import { usePathname } from 'next/navigation';
+import Link from 'next/link';
+import {
+  Box,
+  Drawer,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  Typography,
+} from '@mui/material';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import ViewListIcon from '@mui/icons-material/ViewList';
+import EventIcon from '@mui/icons-material/Event';
+import GolfCourseIcon from '@mui/icons-material/GolfCourse';
+import PeopleIcon from '@mui/icons-material/People';
+import SettingsIcon from '@mui/icons-material/Settings';
+
+const drawerWidth = 240;
+
+interface AdminNavigationProps {
+  open?: boolean;
+}
+
+export default function AdminNavigation({ open = true }: AdminNavigationProps) {
+  const pathname = usePathname();
+
+  const isActive = (path: string) => {
+    if (path === '/admin' && pathname === '/admin') {
+      return true;
+    }
+    if (path !== '/admin' && pathname.startsWith(path)) {
+      return true;
+    }
+    return false;
+  };
+
+  const navItems = [
+    { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin' },
+    { text: 'Series', icon: <ViewListIcon />, path: '/admin/series' },
+    { text: 'Events', icon: <EventIcon />, path: '/admin/events' },
+    { text: 'Courses', icon: <GolfCourseIcon />, path: '/admin/courses' },
+    { text: 'Users', icon: <PeopleIcon />, path: '/admin/users' },
+    { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings' },
+  ];
+
+  return (
+    <Drawer
+      variant="permanent"
+      sx={{
+        width: open ? drawerWidth : 64,
+        flexShrink: 0,
+        '& .MuiDrawer-paper': {
+          width: open ? drawerWidth : 64,
+          boxSizing: 'border-box',
+          transition: 'width 0.2s ease-in-out',
+          overflowX: 'hidden',
+        },
+      }}
+    >
+      <Box sx={{ p: 2, display: 'flex', alignItems: 'center', justifyContent: open ? 'flex-start' : 'center' }}>
+        {open ? (
+          <Typography variant="h6" noWrap component="div">
+            Golf Compete
+          </Typography>
+        ) : (
+          <GolfCourseIcon color="primary" />
+        )}
+      </Box>
+      <Divider />
+      <List>
+        {navItems.map((item) => (
+          <Link key={item.text} href={item.path} passHref style={{ textDecoration: 'none', color: 'inherit' }}>
+            <ListItem disablePadding>
+              <ListItemButton
+                sx={{
+                  minHeight: 48,
+                  justifyContent: open ? 'initial' : 'center',
+                  px: 2.5,
+                  bgcolor: isActive(item.path) ? 'rgba(0, 0, 0, 0.04)' : 'transparent',
+                  '&:hover': {
+                    bgcolor: isActive(item.path) ? 'rgba(0, 0, 0, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+                  },
+                }}
+              >
+                <ListItemIcon
+                  sx={{
+                    minWidth: 0,
+                    mr: open ? 3 : 'auto',
+                    justifyContent: 'center',
+                    color: isActive(item.path) ? 'primary.main' : 'inherit',
+                  }}
+                >
+                  {item.icon}
+                </ListItemIcon>
+                <ListItemText 
+                  primary={item.text} 
+                  sx={{ 
+                    opacity: open ? 1 : 0,
+                    color: isActive(item.path) ? 'primary.main' : 'inherit',
+                  }} 
+                />
+              </ListItemButton>
+            </ListItem>
+          </Link>
+        ))}
+      </List>
+    </Drawer>
+  );
+} 

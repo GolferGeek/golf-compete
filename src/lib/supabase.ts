@@ -252,4 +252,33 @@ export async function updateUserProfile(userId: string, updates: Record<string, 
     console.error('Error in updateUserProfile:', error)
     throw error
   }
-} 
+}
+
+// Function to refresh the schema cache
+export const refreshSchemaCache = async () => {
+  try {
+    console.log('Attempting to refresh Supabase schema cache...');
+    
+    // Make a request to the Supabase REST API to refresh the schema cache
+    const response = await fetch(`${supabaseUrl}/rest/v1/`, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'count=exact'
+      }
+    });
+    
+    if (response.ok) {
+      console.log('Schema cache refresh request successful');
+      return true;
+    } else {
+      console.error('Failed to refresh schema cache:', response.statusText);
+      return false;
+    }
+  } catch (error) {
+    console.error('Error refreshing schema cache:', error);
+    return false;
+  }
+}; 

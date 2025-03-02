@@ -41,6 +41,7 @@ export interface Course {
   amenities?: string[];
   website?: string;
   phoneNumber?: string;
+  is_active: boolean;
 }
 
 export interface TeeSets {
