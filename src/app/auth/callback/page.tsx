@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getUserProfile } from '@/lib/supabase'
 import { getBrowserClient } from '@/lib/supabase-browser'
@@ -42,6 +42,15 @@ function AuthCallbackContent() {
         try {
           // Get the browser client for consistent auth handling
           const supabase = getBrowserClient();
+          
+          if (!supabase) {
+            console.error('Failed to initialize Supabase client')
+            setError('Authentication service unavailable. Please try again later.')
+            redirectTimeout = setTimeout(() => {
+              router.push('/auth/login');
+            }, 5000);
+            return;
+          }
           
           // Exchange the code for a session
           const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
@@ -101,7 +110,10 @@ function AuthCallbackContent() {
         
         const { data: profileData, error: profileError } = await getUserProfile(userId)
           
-        if (profileError && profileError.code !== 'PGRST116') {
+        if (profileError && 
+            typeof profileError === 'object' && 
+            'code' in profileError && 
+            profileError.code !== 'PGRST116') {
           console.error('Error checking user profile:', profileError)
           setMessage('Sign in successful! Redirecting...')
           redirectTimeout = setTimeout(() => {
@@ -187,6 +199,32 @@ function AuthCallbackContent() {
   )
 }
 
-export default function AuthCallback() {
-  return <AuthCallbackContent />
+// Loading fallback for the Suspense boundary
+function AuthCallbackLoading() {
+  return (
+    <Box sx={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      alignItems: 'center', 
+      justifyContent: 'center', 
+      height: '100vh',
+      p: 2
+    }}>
+      <CircularProgress size={60} />
+      <Typography variant="h6" sx={{ mt: 3, textAlign: 'center' }}>
+        Loading authentication...
+      </Typography>
+    </Box>
+  );
 }
+
+export default function AuthCallback() {
+  return (
+    <Suspense fallback={<AuthCallbackLoading />}>
+      <AuthCallbackContent />
+    </Suspense>
+  );
+}
+
+// Add dynamic configuration to prevent static generation
+export const dynamic = 'force-dynamic';
