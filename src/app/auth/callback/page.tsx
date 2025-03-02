@@ -1,89 +1,97 @@
 'use client'
 
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase, getUserProfile } from '@/lib/supabase'
-import { Box, CircularProgress, Typography, Alert } from '@mui/material'
+import { getUserProfile } from '@/lib/supabase'
+import { getBrowserClient } from '@/lib/supabase-browser'
+import { Box, CircularProgress, Typography, Button } from '@mui/material'
 
 // Create a client component that uses the search params
 function AuthCallbackContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string>('Completing sign in...')
+  const [error, setError] = useState<string | null>(null)
+  const [debugInfo, setDebugInfo] = useState<string | null>(null)
 
   useEffect(() => {
+    let redirectTimeout: NodeJS.Timeout | null = null;
+    
     const handleAuthCallback = async () => {
       try {
-        // Check if we have a code in the URL
+        // Log all URL parameters for debugging
+        console.log('Auth callback URL parameters:');
+        searchParams.forEach((value, key) => {
+          console.log(`${key}: ${value}`);
+        });
+        
         const code = searchParams.get('code')
         
         if (!code) {
           console.error('No code found in URL')
-          setError('Authentication failed: No code found in URL. Please try again.')
-          setTimeout(() => router.push('/auth/login'), 3000)
+          setError('Authentication code missing. Please try signing in again.')
+          redirectTimeout = setTimeout(() => {
+            router.push('/auth/login');
+          }, 5000);
           return
         }
         
         setMessage('Processing authentication...')
+        console.log('Auth callback processing with code:', code.substring(0, 10) + '...')
         
-        // Get the session
-        const { data, error: sessionError } = await supabase.auth.getSession()
-        
-        if (sessionError) {
-          console.error('Error getting auth session:', sessionError)
+        try {
+          // Get the browser client for consistent auth handling
+          const supabase = getBrowserClient();
           
-          if (sessionError.message.includes('Invalid Refresh Token')) {
-            // Try to exchange the code for a session
-            setMessage('Exchanging authentication code...')
-            
-            try {
-              // This will complete the OAuth flow by exchanging the code for a session
-              const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
-              
-              if (exchangeError) {
-                console.error('Error exchanging code for session:', exchangeError)
-                setError('Authentication failed: Could not complete the sign-in process. Please try again.')
-                setTimeout(() => router.push('/auth/login'), 3000)
-                return
-              }
-              
-              // Try to get the session again after exchange
-              const { data: newData, error: newSessionError } = await supabase.auth.getSession()
-              
-              if (newSessionError || !newData.session) {
-                console.error('Error getting session after exchange:', newSessionError)
-                setError('Authentication failed: Session could not be established. Please try again.')
-                setTimeout(() => router.push('/auth/login'), 3000)
-                return
-              }
-              
-              // Continue with the new session
-              handleUserSession(newData.session.user.id)
-            } catch (exchangeErr) {
-              console.error('Unexpected error exchanging code:', exchangeErr)
-              setError('An unexpected error occurred during authentication. Please try again.')
-              setTimeout(() => router.push('/auth/login'), 3000)
-            }
-          } else {
-            setError(`Authentication failed: ${sessionError.message}. Please try again.`)
-            setTimeout(() => router.push('/auth/login'), 3000)
+          // Exchange the code for a session
+          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
+          
+          if (exchangeError) {
+            console.error('Error exchanging code for session:', exchangeError)
+            setError('Authentication failed. Please try signing in again.')
+            redirectTimeout = setTimeout(() => {
+              router.push('/auth/login');
+            }, 5000);
+            return;
           }
-          return
-        }
-        
-        if (data?.session) {
-          handleUserSession(data.session.user.id)
-        } else {
-          // No session, redirect to login
-          console.error('No session found after OAuth callback')
-          setError('No session found. Please try signing in again.')
-          setTimeout(() => router.push('/auth/login'), 3000)
+          
+          if (!data.session) {
+            console.error('No session returned after code exchange')
+            setError('Unable to establish a session. Please try signing in again.')
+            redirectTimeout = setTimeout(() => {
+              router.push('/auth/login');
+            }, 5000);
+            return;
+          }
+          
+          console.log('Successfully exchanged code for session')
+          
+          // Verify the session was properly stored
+          const { data: sessionCheck } = await supabase.auth.getSession()
+          console.log('Session verification:', sessionCheck.session ? 'Session found' : 'No session found')
+          
+          if (sessionCheck.session) {
+            handleUserSession(data.session.user.id)
+          } else {
+            console.error('Session verification failed - session not stored properly')
+            setError('Session could not be established. Please try signing in again.')
+            redirectTimeout = setTimeout(() => {
+              router.push('/auth/login');
+            }, 5000);
+          }
+        } catch (exchangeErr) {
+          console.error('Unexpected error exchanging code:', exchangeErr)
+          setError('An unexpected error occurred. Please try signing in again.')
+          redirectTimeout = setTimeout(() => {
+            router.push('/auth/login');
+          }, 5000);
         }
       } catch (err) {
         console.error('Unexpected error in auth callback:', err)
-        setError('An unexpected error occurred. Please try again.')
-        setTimeout(() => router.push('/auth/login'), 3000)
+        setError('An unexpected error occurred. Please try signing in again.')
+        redirectTimeout = setTimeout(() => {
+          router.push('/auth/login');
+        }, 5000);
       }
     }
     
@@ -91,34 +99,51 @@ function AuthCallbackContent() {
       try {
         setMessage('Checking user profile...')
         
-        // Check if user has a profile
         const { data: profileData, error: profileError } = await getUserProfile(userId)
           
         if (profileError && profileError.code !== 'PGRST116') {
           console.error('Error checking user profile:', profileError)
-          setError('Error checking user profile. Please try again.')
-          setTimeout(() => router.push('/auth/login'), 3000)
+          setMessage('Sign in successful! Redirecting...')
+          redirectTimeout = setTimeout(() => {
+            router.push('/dashboard');
+          }, 1000);
           return
         }
         
         if (!profileData) {
-          // User doesn't have a profile, redirect to onboarding
           setMessage('Redirecting to complete your profile...')
-          router.push('/onboarding')
+          redirectTimeout = setTimeout(() => {
+            router.push('/onboarding');
+          }, 1000);
         } else {
-          // User has a profile, redirect to dashboard
           setMessage('Sign in successful! Redirecting...')
-          router.push('/dashboard')
+          redirectTimeout = setTimeout(() => {
+            router.push('/dashboard');
+          }, 1000);
         }
       } catch (profileErr) {
         console.error('Error handling user session:', profileErr)
-        setError('Error processing your profile. Please try again.')
-        setTimeout(() => router.push('/auth/login'), 3000)
+        setMessage('Sign in successful! Redirecting...')
+        redirectTimeout = setTimeout(() => {
+          router.push('/dashboard');
+        }, 1000);
       }
     }
 
-    handleAuthCallback()
+    // Start the auth process immediately
+    handleAuthCallback();
+    
+    // Clean up any timeouts when component unmounts
+    return () => {
+      if (redirectTimeout) {
+        clearTimeout(redirectTimeout);
+      }
+    };
   }, [router, searchParams])
+
+  const handleManualLogin = () => {
+    router.push('/auth/login');
+  };
 
   return (
     <Box sx={{ 
@@ -130,14 +155,31 @@ function AuthCallbackContent() {
       p: 2
     }}>
       {error ? (
-        <Alert severity="error" sx={{ mb: 2, width: '100%', maxWidth: 400 }}>
-          {error}
-        </Alert>
+        <>
+          <Typography variant="h6" color="error" sx={{ textAlign: 'center', mb: 2 }}>
+            {error}
+          </Typography>
+          
+          <Typography variant="body2" sx={{ mb: 3, color: 'text.secondary', textAlign: 'center' }}>
+            Redirecting you back to the login page in a few seconds...
+          </Typography>
+          
+          <Button 
+            variant="contained" 
+            color="primary"
+            onClick={handleManualLogin}
+          >
+            Return to Login
+          </Button>
+        </>
       ) : (
         <>
-          <CircularProgress />
-          <Typography variant="h6" sx={{ mt: 2 }}>
+          <CircularProgress size={60} />
+          <Typography variant="h6" sx={{ mt: 3, textAlign: 'center' }}>
             {message}
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary', textAlign: 'center' }}>
+            Please wait while we complete your authentication...
           </Typography>
         </>
       )}
@@ -145,30 +187,6 @@ function AuthCallbackContent() {
   )
 }
 
-// Create a loading fallback component
-function AuthCallbackLoading() {
-  return (
-    <Box sx={{ 
-      display: 'flex', 
-      flexDirection: 'column', 
-      alignItems: 'center', 
-      justifyContent: 'center', 
-      height: '100vh',
-      p: 2
-    }}>
-      <CircularProgress />
-      <Typography variant="h6" sx={{ mt: 2 }}>
-        Loading authentication...
-      </Typography>
-    </Box>
-  )
+export default function AuthCallback() {
+  return <AuthCallbackContent />
 }
-
-// Main page component with Suspense boundary
-export default function AuthCallbackPage() {
-  return (
-    <Suspense fallback={<AuthCallbackLoading />}>
-      <AuthCallbackContent />
-    </Suspense>
-  )
-} 

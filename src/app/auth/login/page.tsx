@@ -1,226 +1,242 @@
 'use client'
 
-import { useState, FormEvent, Suspense, useEffect } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
-import { 
-  Container, 
-  Box, 
-  Typography, 
-  TextField, 
-  Button, 
-  Divider, 
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { signInWithEmail, signInWithGoogle } from '@/lib/supabase'
+import { getBrowserClient } from '@/lib/supabase-browser'
+import {
+  Box,
+  Button,
+  Container,
+  TextField,
+  Typography,
+  Paper,
+  Divider,
   Alert,
   CircularProgress,
-  Paper
+  Link as MuiLink,
 } from '@mui/material'
-import { signInWithEmail, signInWithGoogle, supabase } from '@/lib/supabase'
-import { AuthError } from '@supabase/supabase-js'
+import GoogleIcon from '@mui/icons-material/Google'
+import EmailIcon from '@mui/icons-material/Email'
+import { useAuth } from '@/contexts/AuthContext'
 
-function LoginForm() {
+export default function Login() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [isLoading, setIsLoading] = useState(false)
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const [checkingSession, setCheckingSession] = useState(true)
   const router = useRouter()
-  const searchParams = useSearchParams()
-  const redirectPath = searchParams.get('redirect') || '/dashboard'
+  const { user } = useAuth()
 
-  // Clear any stale auth data on component mount
+  // Check if user is already logged in
   useEffect(() => {
-    const clearStaleAuthData = async () => {
+    const checkSession = async () => {
       try {
-        // Check if there's an invalid session
+        console.log('Checking for existing session...')
+        const supabase = getBrowserClient()
         const { data, error } = await supabase.auth.getSession()
         
-        if (error && error.message.includes('Invalid Refresh Token')) {
-          console.log('Found invalid session on login page, signing out')
-          await supabase.auth.signOut()
-          
-          // Clear localStorage manually as a fallback
-          if (typeof window !== 'undefined') {
-            localStorage.removeItem('supabase.auth.token')
-          }
-        } else if (data.session) {
-          // If we have a valid session, redirect to dashboard
-          console.log('Found valid session on login page, redirecting')
-          router.push(redirectPath)
+        if (error) {
+          console.error('Error checking session:', error)
         }
+        
+        if (data?.session) {
+          console.log('Active session found, redirecting to dashboard')
+          router.push('/dashboard')
+          return
+        }
+        
+        console.log('No active session found, showing login form')
+        setCheckingSession(false)
       } catch (err) {
-        console.error('Error checking session on login page:', err)
+        console.error('Unexpected error checking session:', err)
+        setCheckingSession(false)
       }
     }
-    
-    clearStaleAuthData()
-  }, [router, redirectPath])
 
-  const handleEmailLogin = async (e: FormEvent) => {
+    // Only check session if we don't already have a user in context
+    if (user) {
+      console.log('User already in context, redirecting to dashboard')
+      router.push('/dashboard')
+    } else {
+      checkSession()
+    }
+  }, [router, user])
+
+  const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
+    setLoading(true)
     setError(null)
-    setIsLoading(true)
-
+    
     try {
-      // Validate inputs
-      if (!email || !password) {
-        setError('Email and password are required')
-        setIsLoading(false)
+      console.log('Attempting email login...')
+      const supabase = getBrowserClient()
+      
+      const { error } = await signInWithEmail(email, password, supabase)
+      
+      if (error) {
+        console.error('Email login error:', error)
+        setError(error.message || 'Failed to sign in with email')
+        setLoading(false)
         return
       }
       
-      console.log('Attempting to sign in with email:', email)
-      const { data, error } = await signInWithEmail(email, password)
-      
-      if (error) {
-        console.error('Login error details:', error)
-        
-        // Provide more specific error messages
-        if (error.message.includes('Invalid login credentials')) {
-          throw new Error('Invalid email or password. Please try again.')
-        } else if (error.message.includes('Invalid Refresh Token')) {
-          // Clear any stale auth data
-          await supabase.auth.signOut()
-          throw new Error('Your session has expired. Please try again.')
-        } else {
-          throw error
-        }
-      }
-
-      if (data.user) {
-        console.log('Login successful, redirecting to:', redirectPath)
-        router.push(redirectPath)
-      } else {
-        throw new Error('Login failed. Please try again.')
-      }
-    } catch (error: unknown) {
-      console.error('Login error:', error)
-      setError(error instanceof Error ? error.message : 'Failed to sign in')
-    } finally {
-      setIsLoading(false)
+      console.log('Email login successful, redirecting...')
+      router.push('/dashboard')
+    } catch (err) {
+      console.error('Unexpected error during email login:', err)
+      setError('An unexpected error occurred. Please try again.')
+      setLoading(false)
     }
   }
 
   const handleGoogleLogin = async () => {
+    setLoading(true)
     setError(null)
-    setIsGoogleLoading(true)
-
+    
     try {
-      console.log('Attempting to sign in with Google')
-      const { error } = await signInWithGoogle()
+      console.log('Initiating Google login...')
+      const supabase = getBrowserClient()
+      
+      const { error } = await signInWithGoogle(supabase)
       
       if (error) {
-        console.error('Google login error details:', error)
-        throw error
+        console.error('Google login error:', error)
+        setError(error.message || 'Failed to sign in with Google')
+        setLoading(false)
       }
       
-      // The redirect will happen automatically
-      console.log('Google sign-in initiated, waiting for redirect')
-    } catch (error: unknown) {
-      console.error('Google login error:', error)
-      setError(error instanceof AuthError ? error.message : 'Failed to sign in with Google')
-      setIsGoogleLoading(false)
+      // Note: We don't redirect here as the OAuth flow will handle that
+    } catch (err) {
+      console.error('Unexpected error during Google login:', err)
+      setError('An unexpected error occurred. Please try again.')
+      setLoading(false)
     }
   }
 
-  return (
-    <Container maxWidth="sm">
-      <Box sx={{ mt: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-        <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
-          <Typography component="h1" variant="h4" align="center" gutterBottom>
-            Sign In
+  const clearError = () => {
+    setError(null)
+  }
+
+  if (checkingSession) {
+    return (
+      <Container maxWidth="sm" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <Box sx={{ textAlign: 'center' }}>
+          <CircularProgress size={60} />
+          <Typography variant="h6" sx={{ mt: 2 }}>
+            Checking authentication status...
           </Typography>
+        </Box>
+      </Container>
+    )
+  }
+
+  return (
+    <Container maxWidth="sm" sx={{ py: 8 }}>
+      <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
+        <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ fontWeight: 'bold' }}>
+          Welcome to Golf Compete
+        </Typography>
+        
+        <Typography variant="body1" align="center" sx={{ mb: 4, color: 'text.secondary' }}>
+          Sign in to continue to your account
+        </Typography>
+        
+        {error && (
+          <Alert 
+            severity="error" 
+            sx={{ mb: 3 }}
+            onClose={clearError}
+          >
+            {error}
+          </Alert>
+        )}
+        
+        <Button
+          variant="contained"
+          fullWidth
+          startIcon={<GoogleIcon />}
+          onClick={handleGoogleLogin}
+          disabled={loading}
+          sx={{ 
+            py: 1.5, 
+            mb: 2,
+            bgcolor: '#4285F4',
+            '&:hover': {
+              bgcolor: '#3367D6',
+            }
+          }}
+        >
+          {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign in with Google'}
+        </Button>
+        
+        <Divider sx={{ my: 3 }}>
+          <Typography variant="body2" color="text.secondary">
+            OR
+          </Typography>
+        </Divider>
+        
+        <Box component="form" onSubmit={handleEmailLogin} noValidate>
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            id="email"
+            label="Email Address"
+            name="email"
+            autoComplete="email"
+            autoFocus
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={loading}
+          />
           
-          {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
-          )}
+          <TextField
+            margin="normal"
+            required
+            fullWidth
+            name="password"
+            label="Password"
+            type="password"
+            id="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            disabled={loading}
+          />
           
           <Button
+            type="submit"
             fullWidth
-            variant="outlined"
-            onClick={handleGoogleLogin}
-            disabled={isGoogleLoading}
-            sx={{ py: 1.5, mb: 2 }}
+            variant="contained"
+            disabled={loading}
+            startIcon={<EmailIcon />}
+            sx={{ mt: 3, mb: 2, py: 1.5 }}
           >
-            {isGoogleLoading ? (
-              <CircularProgress size={24} />
-            ) : (
-              <>
-                <Box component="img" src="/google-logo.svg" alt="Google" sx={{ width: 20, height: 20, mr: 1 }} />
-                Sign in with Google
-              </>
-            )}
+            {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign in with Email'}
           </Button>
-          
-          <Divider sx={{ my: 2 }}>or</Divider>
-          
-          <Box component="form" onSubmit={handleEmailLogin} noValidate>
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              id="email"
-              label="Email Address"
-              name="email"
-              autoComplete="email"
-              autoFocus
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={isLoading}
-            />
-            <TextField
-              margin="normal"
-              required
-              fullWidth
-              name="password"
-              label="Password"
-              type="password"
-              id="password"
-              autoComplete="current-password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              disabled={isLoading}
-            />
-            <Button
-              type="submit"
-              fullWidth
-              variant="contained"
-              sx={{ mt: 3, mb: 2, py: 1.5 }}
-              disabled={isLoading}
+        </Box>
+        
+        <Box sx={{ mt: 2, textAlign: 'center' }}>
+          <Typography variant="body2">
+            Don't have an account?{' '}
+            <MuiLink 
+              href="/auth/signup" 
+              sx={{ 
+                fontWeight: 'medium',
+                cursor: 'pointer',
+                textDecoration: 'none',
+                '&:hover': {
+                  textDecoration: 'underline',
+                }
+              }}
             >
-              {isLoading ? <CircularProgress size={24} /> : 'Sign In'}
-            </Button>
-            
-            <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between' }}>
-              <Link href="/auth/forgot-password" style={{ textDecoration: 'none' }}>
-                <Typography variant="body2" color="primary">
-                  Forgot password?
-                </Typography>
-              </Link>
-              <Link href="/auth/signup" style={{ textDecoration: 'none' }}>
-                <Typography variant="body2" color="primary">
-                  Do not have an account? Sign Up
-                </Typography>
-              </Link>
-            </Box>
-          </Box>
-        </Paper>
-      </Box>
+              Sign up
+            </MuiLink>
+          </Typography>
+        </Box>
+      </Paper>
     </Container>
   )
 }
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={
-      <Container maxWidth="sm">
-        <Box sx={{ mt: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-          <CircularProgress />
-        </Box>
-      </Container>
-    }>
-      <LoginForm />
-    </Suspense>
-  )
-} 

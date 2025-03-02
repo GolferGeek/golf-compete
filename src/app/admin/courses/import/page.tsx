@@ -2,7 +2,7 @@ import React from 'react';
 import { Typography, Box, Paper, Button } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Link from 'next/link';
-import ScorecardReader from '@/components/admin/ScorecardReader';
+import CourseCreationWizard from '@/components/admin/CourseCreationWizard';
 
 export default function ImportCoursePage() {
   return (
@@ -22,8 +22,8 @@ export default function ImportCoursePage() {
       </Box>
       
       <Paper sx={{ p: 3 }}>
-        <ScorecardReader />
+        <CourseCreationWizard />
       </Paper>
     </div>
   );
-} 
+}

@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
 // Create a custom storage object that safely handles server-side rendering
 const customStorage = {
@@ -50,15 +51,25 @@ const customStorage = {
 // Check if we have the required environment variables before creating the client
 let supabase: ReturnType<typeof createClient>;
 
-if (supabaseUrl && supabaseAnonKey) {
+if (supabaseUrl && supabaseServiceKey) {
+  // Use service role key for server-side operations (bypasses RLS)
+  supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    auth: {
+      persistSession: typeof window !== 'undefined', // Only persist on client-side
+      autoRefreshToken: typeof window !== 'undefined', // Only auto-refresh on client-side
+      detectSessionInUrl: typeof window !== 'undefined', // Only detect in URL on client-side
+      storage: customStorage,
+    },
+  });
+} else if (supabaseUrl && supabaseAnonKey) {
+  // Fallback to anon key if service role key is not available
   supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
-      persistSession: true,
-      autoRefreshToken: true,
-      detectSessionInUrl: true,
-      flowType: 'pkce',
-      storage: customStorage
-    }
+      persistSession: typeof window !== 'undefined', // Only persist on client-side
+      autoRefreshToken: typeof window !== 'undefined', // Only auto-refresh on client-side
+      detectSessionInUrl: typeof window !== 'undefined', // Only detect in URL on client-side
+      storage: customStorage,
+    },
   });
 } else {
   // Create a mock client with methods that return appropriate errors
@@ -105,26 +116,27 @@ if (supabaseUrl && supabaseAnonKey) {
 export { supabase };
 
 // Authentication functions
-export const signInWithEmail = async (email: string, password: string) => {
+export const signInWithEmail = async (email: string, password: string, client: ReturnType<typeof createClient>) => {
   try {
-    const result = await supabase.auth.signInWithPassword({
+    console.log('Signing in with email using provided client')
+    return await client.auth.signInWithPassword({
       email,
       password
     })
-    
-    console.log('Sign in result:', result)
-    return result
   } catch (error) {
     console.error('Error signing in with email:', error)
     throw error
   }
 }
 
-export const signUpWithEmail = async (email: string, password: string) => {
+export const signUpWithEmail = async (client: ReturnType<typeof createClient>, email: string, password: string) => {
   try {
-    const result = await supabase.auth.signUp({
+    const result = await client.auth.signUp({
       email,
-      password
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`
+      }
     })
     
     console.log('Sign up result:', result)
@@ -135,31 +147,42 @@ export const signUpWithEmail = async (email: string, password: string) => {
   }
 }
 
-export const signInWithGoogle = async () => {
+export const signInWithGoogle = async (client: ReturnType<typeof createClient>) => {
+  // Get the current origin for the redirect URL
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  
+  // Use environment variable if available, otherwise use origin
+  // Make sure to use the full URL including the protocol
   const redirectTo = process.env.NEXT_PUBLIC_SITE_URL 
     ? `${process.env.NEXT_PUBLIC_SITE_URL}/auth/callback`
-    : `${window.location.origin}/auth/callback`
+    : `${origin}/auth/callback`;
 
-  console.log('Google sign in redirect URL:', redirectTo)
+  console.log('Google sign in redirect URL:', redirectTo);
   
   try {
-    const result = await supabase.auth.signInWithOAuth({
+    // Now initiate the OAuth flow with explicit scopes
+    console.log('Initiating Google OAuth flow');
+    const result = await client.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo,
-        skipBrowserRedirect: false,
         queryParams: {
-          access_type: 'offline',
-          prompt: 'consent'
+          prompt: 'select_account',
         }
       }
-    })
+    });
     
-    console.log('Google sign in result:', result)
-    return result
+    console.log('Google sign in result:', result);
+    
+    if (result.error) {
+      console.error('Error in OAuth initiation:', result.error);
+      throw result.error;
+    }
+    
+    return result;
   } catch (error) {
-    console.error('Error signing in with Google:', error)
-    throw error
+    console.error('Error signing in with Google:', error);
+    throw error;
   }
 }
 
@@ -205,30 +228,39 @@ export const getCurrentUser = async () => {
 }
 
 // Profile management
-export const getUserProfile = async (userId: string) => {
-  console.log('getUserProfile called for userId:', userId)
-  
+export const getUserProfile = async (userId?: string) => {
   try {
-    // Try to get the profile with a simple query
-    const result = await supabase
+    // If no userId is provided, get the current user's ID
+    if (!userId) {
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (!sessionData.session) {
+        console.log('No active session found when getting user profile');
+        return { data: null, error: { message: 'No active session', code: 'AUTH_REQUIRED' } };
+      }
+      
+      userId = sessionData.session.user.id;
+    }
+    
+    console.log('Getting user profile for:', userId);
+    
+    const { data, error } = await supabase
       .from('profiles')
       .select('*')
       .eq('id', userId)
-      .single()
+      .single();
     
-    // Log the result for debugging
-    if (result.error) {
-      console.error('Error in getUserProfile:', result.error)
-    } else {
-      console.log('getUserProfile result:', result.data ? 'Profile found' : 'No profile found')
+    if (error) {
+      console.error('Error fetching user profile:', error);
+      return { data: null, error };
     }
     
-    return result
+    return { data, error: null };
   } catch (error) {
-    console.error('Unexpected error in getUserProfile:', error)
-    throw error
+    console.error('Unexpected error in getUserProfile:', error);
+    return { data: null, error };
   }
-}
+};
 
 export const createUserProfile = async (profile: Record<string, unknown>) => {
   return await supabase

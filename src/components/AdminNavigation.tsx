@@ -60,6 +60,9 @@ export default function AdminNavigation({ open = true }: AdminNavigationProps) {
           boxSizing: 'border-box',
           transition: 'width 0.2s ease-in-out',
           overflowX: 'hidden',
+          mt: '64px', // Add top margin to position below AppBar
+          height: 'calc(100% - 64px)', // Adjust height to account for AppBar
+          pt: 0, // Remove any padding
         },
       }}
     >

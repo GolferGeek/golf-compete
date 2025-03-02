@@ -19,6 +19,7 @@ import Avatar from '@mui/material/Avatar';
 import Tooltip from '@mui/material/Tooltip';
 import { useAuth } from '@/contexts/AuthContext';
 import { signOut } from '@/lib/supabase';
+import { getBrowserClient } from '@/lib/supabase-browser';
 
 const pages = [
   { name: 'About', href: '/about' },
@@ -69,6 +70,53 @@ export default function Navbar() {
       return (firstInitial + lastInitial).toUpperCase();
     }
     return user?.email?.charAt(0).toUpperCase() || '?';
+  };
+
+  // Add the checkAuthState function
+  const checkAuthState = async () => {
+    try {
+      // Get the current Supabase client
+      const supabase = getBrowserClient();
+      
+      // Check Supabase session
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      console.log('=== AUTH DEBUG ===');
+      console.log('Supabase Session:', session ? 'Active' : 'None');
+      if (session) {
+        console.log('User ID:', session.user.id);
+        console.log('User Email:', session.user.email);
+        console.log('Session Expires:', new Date(session.expires_at * 1000).toLocaleString());
+      }
+      if (sessionError) {
+        console.error('Session Error:', sessionError);
+      }
+      
+      // Check for user profile if session exists
+      if (session) {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single();
+          
+        console.log('Profile Data:', profileData);
+        if (profileError) {
+          console.error('Profile Error:', profileError);
+        }
+      }
+      
+      // Check AuthContext state
+      console.log('AuthContext State:');
+      console.log('User:', user ? 'Present' : 'None');
+      console.log('Profile:', profile ? 'Present' : 'None');
+      if (profile) {
+        console.log('Is Admin:', profile.is_admin ? 'Yes' : 'No');
+      }
+      
+      console.log('==================');
+    } catch (error) {
+      console.error('Error checking auth state:', error);
+    }
   };
 
   return (
@@ -238,6 +286,9 @@ export default function Navbar() {
                       <Typography textAlign="center">My Clubs</Typography>
                     </MenuItem>
                   )}
+                  <MenuItem onClick={() => { handleCloseUserMenu(); checkAuthState(); }}>
+                    <Typography textAlign="center">Check Auth</Typography>
+                  </MenuItem>
                   <MenuItem onClick={handleLogout}>
                     <Typography textAlign="center">Logout</Typography>
                   </MenuItem>
@@ -259,8 +310,17 @@ export default function Navbar() {
                   color="primary"
                   component={Link}
                   href="/auth/signup"
+                  sx={{ mr: 2 }}
                 >
                   Sign Up
+                </Button>
+                <Button
+                  variant="text"
+                  color="secondary"
+                  onClick={checkAuthState}
+                  sx={{ ml: 1 }}
+                >
+                  Debug
                 </Button>
               </>
             )}

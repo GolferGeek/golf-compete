@@ -5,7 +5,15 @@ import { User } from '../types/golf';
 // Using the anon key for all operations
 export const supabaseClient = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: typeof window !== 'undefined' ? localStorage : undefined
+    }
+  }
 );
 
 /**
@@ -42,6 +50,7 @@ export async function authenticateUser(email: string, password: string): Promise
     handicap: profileData.handicap || undefined,
     profileImage: data.user.user_metadata?.avatar_url || undefined,
     memberSince: new Date(profileData.created_at),
+    isAdmin: profileData.is_admin || false
   };
 }
 
@@ -129,5 +138,6 @@ export async function getUserById(id: string): Promise<User | null> {
     handicap: profileData.handicap || undefined,
     profileImage: userData.user.user_metadata?.avatar_url || undefined,
     memberSince: new Date(profileData.created_at),
+    isAdmin: profileData.is_admin || false
   };
 } 
