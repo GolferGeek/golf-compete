@@ -23,8 +23,6 @@ import { getBrowserClient } from '@/lib/supabase-browser';
 
 const pages = [
   { name: 'About', href: '/about' },
-  { name: 'Competitions', href: '/competitions' },
-  { name: 'Courses', href: '/courses' },
   { name: 'Contact', href: '/contact' }
 ];
 
@@ -78,6 +76,11 @@ export default function Navbar() {
       // Get the current Supabase client
       const supabase = getBrowserClient();
       
+      if (!supabase) {
+        console.error('Supabase client is null');
+        return;
+      }
+      
       // Check Supabase session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       console.log('=== AUTH DEBUG ===');
@@ -85,7 +88,7 @@ export default function Navbar() {
       if (session) {
         console.log('User ID:', session.user.id);
         console.log('User Email:', session.user.email);
-        console.log('Session Expires:', new Date(session.expires_at * 1000).toLocaleString());
+        console.log('Session Expires:', session.expires_at ? new Date(session.expires_at * 1000).toLocaleString() : 'Unknown');
       }
       if (sessionError) {
         console.error('Session Error:', sessionError);
@@ -129,7 +132,7 @@ export default function Navbar() {
             variant="h6"
             noWrap
             component={Link}
-            href="/"
+            href={mounted && user ? "/dashboard" : "/"}
             sx={{
               mr: 2,
               display: { xs: 'none', md: 'flex' },
@@ -181,11 +184,6 @@ export default function Navbar() {
                   <Typography textAlign="center">Dashboard</Typography>
                 </MenuItem>
               )}
-              {mounted && user && profile?.multiple_clubs_sets && (
-                <MenuItem onClick={handleCloseNavMenu} component={Link} href="/clubs">
-                  <Typography textAlign="center">My Clubs</Typography>
-                </MenuItem>
-              )}
             </Menu>
           </Box>
 
@@ -195,7 +193,7 @@ export default function Navbar() {
             variant="h6"
             noWrap
             component={Link}
-            href="/"
+            href={mounted && user ? "/dashboard" : "/"}
             sx={{
               mr: 2,
               display: { xs: 'flex', md: 'none' },
@@ -229,16 +227,6 @@ export default function Navbar() {
                 sx={{ my: 2, color: 'text.primary', display: 'block' }}
               >
                 Dashboard
-              </Button>
-            )}
-            {mounted && user && profile?.multiple_clubs_sets && (
-              <Button
-                component={Link}
-                href="/clubs"
-                onClick={handleCloseNavMenu}
-                sx={{ my: 2, color: 'text.primary', display: 'block' }}
-              >
-                My Clubs
               </Button>
             )}
           </Box>
@@ -281,11 +269,6 @@ export default function Navbar() {
                   <MenuItem component={Link} href="/profile" onClick={handleCloseUserMenu}>
                     <Typography textAlign="center">Profile</Typography>
                   </MenuItem>
-                  {profile?.multiple_clubs_sets && (
-                    <MenuItem component={Link} href="/clubs" onClick={handleCloseUserMenu}>
-                      <Typography textAlign="center">My Clubs</Typography>
-                    </MenuItem>
-                  )}
                   <MenuItem onClick={() => { handleCloseUserMenu(); checkAuthState(); }}>
                     <Typography textAlign="center">Check Auth</Typography>
                   </MenuItem>

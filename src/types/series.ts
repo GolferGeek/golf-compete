@@ -51,6 +51,12 @@ export interface SeriesParticipant {
   role: ParticipantRole;
   joined_at: string;
   status: ParticipantStatus;
+  // User profile fields
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  handicap?: number;
+  is_admin?: boolean;
 }
 
 // Series Event junction interface

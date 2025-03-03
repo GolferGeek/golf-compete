@@ -86,7 +86,36 @@ Deliverables:
 	•	Database migrations for courses, series, events.
 	•	E2E tests verifying admin creation and updating of data.
 
-Phase 4: Season-Long Competition Mechanics
+Phase 4: Invitation & Participation Management System
+
+Goal: Implement a comprehensive system for inviting users to series and events, managing participation requests, and handling the user onboarding flow.
+	1.	Invitation Infrastructure
+	•	Create an "invitations" table to track email invites with unique tokens.
+	•	Implement invitation status workflow (pending, accepted, declined, expired).
+	•	Design email templates for series and event invitations.
+	2.	User Participation Flows
+	•	Direct invitations: Admin sends email invites to specific users.
+	•	Join requests: Users can request to join public series/events.
+	•	Auto-enrollment: New users are automatically added to series/events they were invited to.
+	3.	Admin Management Tools
+	•	UI for sending bulk invitations to series/events.
+	•	Dashboard for managing join requests and participant statuses.
+	•	Options to configure series as public (open to requests) or private (invitation only).
+	4.	Notification System
+	•	Email notifications for invitations, status changes, and upcoming events.
+	•	In-app notifications for new invitations and status updates.
+	5.	E2E Testing
+	•	Test invitation flow for existing and new users.
+	•	Verify join request workflow.
+	•	Confirm proper status transitions and notifications.
+
+Deliverables:
+	•	Complete invitation system with email integration.
+	•	User-friendly participant management for admins.
+	•	Seamless onboarding for new users with pending invitations.
+	•	E2E tests covering all invitation and participation flows.
+
+Phase 5: Season-Long Competition Mechanics
 
 Goal: Implement the FedEx Cup–style logic: points calculation, standings, and multi-event progression.
 	1.	Points & Leaderboard Logic
@@ -109,7 +138,7 @@ Deliverables:
 	•	Leaderboard UI for each series.
 	•	E2E test coverage for multi-event progression and point calculations.
 
-Phase 5: Standalone Events & Score Tracking
+Phase 6: Standalone Events & Score Tracking
 
 Goal: Extend the event system so users can create events not tied to a series and track scores live.
 	1.	Standalone Events
@@ -133,7 +162,7 @@ Deliverables:
 	•	Media upload for event participants.
 	•	E2E tests for the full event flow.
 
-Phase 6: Practice & Improvement Tools
+Phase 7: Practice & Improvement Tools
 
 Goal: Enable users to log notes about their game, plan practice sessions, and reference them later.
 	1.	Notes & Improvement Logging
@@ -158,7 +187,7 @@ Deliverables:
 	•	Combined calendar view for events + practices.
 	•	E2E tests confirming creation, retrieval, and updates of notes and sessions.
 
-Phase 7: Routines & Handicap Calculation for Multiple Bags
+Phase 8: Routines & Handicap Calculation for Multiple Bags
 
 Goal: Incorporate user-defined routines (pre/post shot, etc.) and refine bag-based handicap calculations.
 	1.	Routines Management
@@ -183,7 +212,7 @@ Deliverables:
 	•	UI flow integration.
 	•	E2E tests ensuring routine creation and handicap recalculation.
 
-Phase 8: Coach/Pro Interaction & Payments
+Phase 9: Coach/Pro Interaction & Payments
 
 Goal: Enable users to request help from a coach and handle micro-consultation payments.
 	1.	Coach/Pro Linking
@@ -209,7 +238,7 @@ Deliverables:
 	•	Payment or "invoice" workflow.
 	•	E2E tests covering all request/response flows.
 
-Phase 9: Drills, Games, and Course-Hosted Competitions
+Phase 10: Drills, Games, and Course-Hosted Competitions
 
 Goal: Build a library of drills/games and allow courses to set up small, daily competitions (e.g., putting contests).
 	1.	Drills & Games Library
@@ -238,7 +267,7 @@ Deliverables:
 	•	Ability for course admins to host daily competitions with a custom practice area.
 	•	E2E tests for creation, participation, and leaderboard generation.
 
-Phase 10: Final Refinements & Advanced Features
+Phase 11: Final Refinements & Advanced Features
 
 Goal: Polish, optimize, and set up advanced features (plus any backlog items). Prepare for production launch.
 	1.	UX/UI Polish
@@ -264,7 +293,7 @@ Deliverables:
 	•	Documentation for all major components.
 	•	A stable app ready for real-world use.
 
-Phase 11: AI Chatbot Integration
+Phase 12: AI Chatbot Integration
 
 Goal: Implement an intelligent conversational interface that allows users to interact with the application through natural language and voice commands.
 	1.	Chatbot Infrastructure
@@ -305,4 +334,4 @@ Deliverables:
 
 Summary
 
-These 11 phases will guide your development from initial setup to a fully featured GolfCompete application. Each phase is intentionally broad, allowing you to create the detailed technical tasks, database migrations, and E2E test steps within each. You may find that some of these phases can be split or combined depending on your team size or workflow, but this structure ensures a logical progression from the foundation to advanced features.
+These 12 phases will guide your development from initial setup to a fully featured GolfCompete application. Each phase is intentionally broad, allowing you to create the detailed technical tasks, database migrations, and E2E test steps within each. You may find that some of these phases can be split or combined depending on your team size or workflow, but this structure ensures a logical progression from the foundation to advanced features.

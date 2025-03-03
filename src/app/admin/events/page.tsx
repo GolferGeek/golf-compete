@@ -22,6 +22,7 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  Link,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -110,6 +111,10 @@ export default function EventsManagement() {
     }
   };
 
+  const handleViewEvent = (eventId: string) => {
+    router.push(`/admin/events/${eventId}`);
+  };
+
   if (loading) {
     return (
       <AdminAuthGuard>
@@ -167,13 +172,21 @@ export default function EventsManagement() {
                   <TableCell>Course</TableCell>
                   <TableCell>Format</TableCell>
                   <TableCell>Status</TableCell>
-                  <TableCell>Actions</TableCell>
+                  <TableCell align="right">Actions</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {events.map((event) => (
                   <TableRow key={event.id}>
-                    <TableCell>{event.name}</TableCell>
+                    <TableCell>
+                      <Link
+                        component="button"
+                        onClick={() => handleViewEvent(event.id)}
+                        sx={{ textAlign: 'left' }}
+                      >
+                        {event.name}
+                      </Link>
+                    </TableCell>
                     <TableCell>
                       {format(new Date(event.event_date), 'MMM d, yyyy')}
                     </TableCell>
@@ -190,12 +203,12 @@ export default function EventsManagement() {
                         size="small"
                       />
                     </TableCell>
-                    <TableCell>
+                    <TableCell align="right">
                       <IconButton
                         color="primary"
-                        onClick={() => handleEditEvent(event.id)}
+                        onClick={() => handleViewEvent(event.id)}
                         size="small"
-                        title="Edit Event"
+                        title="View Event"
                       >
                         <EditIcon />
                       </IconButton>

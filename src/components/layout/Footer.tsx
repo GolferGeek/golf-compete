@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
@@ -5,6 +7,8 @@ import Grid from '@mui/material/Grid';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import { styled } from '@mui/material/styles';
+import { useAuth } from '@/contexts/AuthContext';
+import { useState, useEffect } from 'react';
 
 const FooterLink = styled(Link)(({ theme }) => ({
   color: theme.palette.text.secondary,
@@ -24,6 +28,14 @@ const FooterHeading = styled(Typography)(({ theme }) => ({
 }));
 
 export default function Footer() {
+  const { user } = useAuth();
+  const [mounted, setMounted] = useState(false);
+
+  // Set mounted flag to true when component mounts (client-side only)
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <Box component="footer" sx={{ 
       py: 6, 
@@ -33,7 +45,7 @@ export default function Footer() {
     }}>
       <Container maxWidth="lg">
         <Grid container spacing={4}>
-          <Grid item xs={12} md={3}>
+          <Grid item xs={12} md={4}>
             <FooterSection>
               <FooterHeading variant="h6">GolfCompete</FooterHeading>
               <Typography variant="body2" color="text.secondary">
@@ -42,47 +54,26 @@ export default function Footer() {
             </FooterSection>
           </Grid>
           
-          <Grid item xs={12} sm={4} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <FooterSection>
               <FooterHeading variant="subtitle1">Quick Links</FooterHeading>
               <Box component="ul" sx={{ p: 0, m: 0, listStyle: 'none' }}>
                 <Box component="li" sx={{ mb: 1 }}>
-                  <FooterLink href="/">Home</FooterLink>
+                  <FooterLink href={mounted && user ? "/dashboard" : "/"}>
+                    {mounted && user ? "Dashboard" : "Home"}
+                  </FooterLink>
                 </Box>
                 <Box component="li" sx={{ mb: 1 }}>
                   <FooterLink href="/about">About</FooterLink>
                 </Box>
                 <Box component="li" sx={{ mb: 1 }}>
-                  <FooterLink href="/competitions">Competitions</FooterLink>
-                </Box>
-                <Box component="li" sx={{ mb: 1 }}>
-                  <FooterLink href="/courses">Courses</FooterLink>
+                  <FooterLink href="/contact">Contact</FooterLink>
                 </Box>
               </Box>
             </FooterSection>
           </Grid>
           
-          <Grid item xs={12} sm={4} md={3}>
-            <FooterSection>
-              <FooterHeading variant="subtitle1">Features</FooterHeading>
-              <Box component="ul" sx={{ p: 0, m: 0, listStyle: 'none' }}>
-                <Box component="li" sx={{ mb: 1 }}>
-                  <FooterLink href="/competitions">Competition Management</FooterLink>
-                </Box>
-                <Box component="li" sx={{ mb: 1 }}>
-                  <FooterLink href="/tracking">Performance Tracking</FooterLink>
-                </Box>
-                <Box component="li" sx={{ mb: 1 }}>
-                  <FooterLink href="/improvement">Improvement Framework</FooterLink>
-                </Box>
-                <Box component="li" sx={{ mb: 1 }}>
-                  <FooterLink href="/coaching">Professional Coaching</FooterLink>
-                </Box>
-              </Box>
-            </FooterSection>
-          </Grid>
-          
-          <Grid item xs={12} sm={4} md={3}>
+          <Grid item xs={12} sm={6} md={4}>
             <FooterSection>
               <FooterHeading variant="subtitle1">Legal</FooterHeading>
               <Box component="ul" sx={{ p: 0, m: 0, listStyle: 'none' }}>

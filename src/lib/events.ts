@@ -234,4 +234,66 @@ export async function removeParticipantFromEvent(participantId: string) {
   }
   
   return true;
+}
+
+// Get event participants by user ID
+export async function getEventParticipantsByUserId(userId: string) {
+  // First get the event participant records
+  const { data: participantsData, error: participantsError } = await supabase
+    .from('event_participants')
+    .select(`
+      id,
+      user_id,
+      event_id,
+      status,
+      registration_date,
+      tee_time,
+      starting_hole,
+      group_number,
+      handicap_index
+    `)
+    .eq('user_id', userId);
+
+  if (participantsError) {
+    console.error('Error fetching event participants by user ID:', participantsError);
+    throw participantsError;
+  }
+
+  if (!participantsData || participantsData.length === 0) {
+    return [];
+  }
+
+  // Get the event details for each participant
+  const eventIds = participantsData.map(p => p.event_id);
+  const { data: eventsData, error: eventsError } = await supabase
+    .from('events')
+    .select(`
+      id,
+      name,
+      description,
+      event_date,
+      event_format,
+      status,
+      course_id
+    `)
+    .in('id', eventIds);
+
+  if (eventsError) {
+    console.error('Error fetching event details:', eventsError);
+    throw eventsError;
+  }
+
+  // Combine the data
+  return participantsData.map(participant => {
+    const event = eventsData.find(e => e.id === participant.event_id);
+    return {
+      ...participant,
+      name: event?.name || 'Unknown Event',
+      description: event?.description,
+      event_date: event?.event_date,
+      event_format: event?.event_format,
+      event_status: event?.status,
+      course_id: event?.course_id
+    };
+  });
 } 

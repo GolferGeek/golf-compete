@@ -47,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter()
 
   // Function to fetch user profile
-  const fetchUserProfile = async (userId: string) => {
+  const fetchUserProfile = async (userId: string): Promise<Profile | null> => {
     try {
       const { data, error } = await getUserProfile(userId)
       
@@ -56,7 +56,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return null
       }
       
-      return data
+      if (!data || typeof data.id !== 'string') return null
+
+      // Ensure the data matches the Profile type
+      const profileData: Profile = {
+        id: data.id,
+        first_name: typeof data.first_name === 'string' ? data.first_name : undefined,
+        last_name: typeof data.last_name === 'string' ? data.last_name : undefined,
+        username: typeof data.username === 'string' ? data.username : undefined,
+        handicap: typeof data.handicap === 'number' ? data.handicap : undefined,
+        multiple_clubs_sets: typeof data.multiple_clubs_sets === 'boolean' ? data.multiple_clubs_sets : undefined,
+        is_admin: typeof data.is_admin === 'boolean' ? data.is_admin : undefined,
+        created_at: typeof data.created_at === 'string' ? data.created_at : undefined,
+        updated_at: typeof data.updated_at === 'string' ? data.updated_at : undefined
+      }
+      
+      return profileData
     } catch (error) {
       console.error('Unexpected error fetching profile:', error)
       return null
@@ -72,7 +87,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     try {
       const profileData = await fetchUserProfile(user.id)
-      setProfile(profileData)
+      if (profileData) {
+        setProfile(profileData)
+      }
     } catch (error) {
       console.error('Error refreshing profile:', error)
     }
@@ -82,6 +99,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     try {
       const supabase = getBrowserClient()
+      if (!supabase) {
+        console.error('Supabase client not initialized')
+        return
+      }
+
       console.log('Signing out user...')
       
       // Clear local state first
@@ -92,16 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Clear any local storage items
       if (typeof window !== 'undefined') {
         console.log('Clearing local storage items...')
-        localStorage.removeItem('supabase.auth.token')
-        localStorage.removeItem('sb-refresh-token')
-        localStorage.removeItem('sb-access-token')
-        localStorage.removeItem('sb-auth-token')
-        
-        // Clear any session storage items as well
-        sessionStorage.removeItem('supabase.auth.token')
-        sessionStorage.removeItem('sb-refresh-token')
-        sessionStorage.removeItem('sb-access-token')
-        sessionStorage.removeItem('sb-auth-token')
+        localStorage.clear() // Clear all local storage items
       }
       
       // Now call the Supabase signOut
@@ -127,6 +140,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         setIsLoading(true)
         const supabase = getBrowserClient()
+        if (!supabase) {
+          console.error('Supabase client not initialized')
+          setIsLoading(false)
+          return
+        }
+        
+        console.log('Initializing auth state...')
         
         // Get initial session
         const { data: { session }, error } = await supabase.auth.getSession()
@@ -138,33 +158,63 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
         
         console.log('Session retrieved:', session ? 'Valid session' : 'No session')
-        setSession(session)
-        setUser(session?.user || null)
-
-        if (session?.user) {
-          const profileData = await fetchUserProfile(session.user.id)
-          setProfile(profileData)
+        
+        if (session) {
+          // Try to refresh the session
+          console.log('Attempting to refresh session...')
+          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
+          
+          if (refreshError) {
+            console.error('Error refreshing session:', refreshError)
+            // Clear any stale session data
+            setSession(null)
+            setUser(null)
+            setProfile(null)
+            setIsLoading(false)
+            return
+          }
+          
+          if (refreshData.session) {
+            console.log('Session refreshed successfully')
+            setSession(refreshData.session)
+            setUser(refreshData.session.user)
+            
+            const profileData = await fetchUserProfile(refreshData.session.user.id)
+            if (profileData) {
+              setProfile(profileData)
+            }
+          }
+        } else {
+          // No session found
+          setSession(null)
+          setUser(null)
+          setProfile(null)
         }
 
         // Set up auth state listener
         const { data: { subscription } } = await supabase.auth.onAuthStateChange(
           async (event, session) => {
-            console.log('Auth state changed:', event, session ? 'Has session' : 'No session');
-            console.log('[Supabase session state]', session);
+            console.log('Auth state changed:', event, session ? 'Has session' : 'No session')
             
-            // Always update state to match the actual session state
-            setSession(session);
-            setUser(session?.user || null);
+            if (event === 'SIGNED_OUT') {
+              // Clear all state
+              setSession(null)
+              setUser(null)
+              setProfile(null)
+              return
+            }
             
-            if (session?.user) {
-              const profileData = await fetchUserProfile(session.user.id);
-              setProfile(profileData);
-            } else {
-              // Clear profile when session is gone
-              setProfile(null);
+            if (session) {
+              setSession(session)
+              setUser(session.user)
+              
+              const profileData = await fetchUserProfile(session.user.id)
+              if (profileData) {
+                setProfile(profileData)
+              }
             }
           }
-        );
+        )
 
         return () => {
           subscription.unsubscribe()
@@ -177,7 +227,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     initializeAuth()
-  }, [])
+  }, [router])
 
   return (
     <AuthContext.Provider

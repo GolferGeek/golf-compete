@@ -39,23 +39,26 @@ import {
 
 interface User {
   id: string;
-  email: string;
   first_name: string;
   last_name: string;
+  username: string;
+  handicap: number | null;
 }
 
 interface Participant {
   id: string;
   user_id: string;
   event_id: string;
-  status: 'active' | 'withdrawn' | 'invited';
-  created_at: string;
-  users: {
-    id: string;
-    email: string;
-    first_name: string;
-    last_name: string;
-  };
+  status: 'registered' | 'confirmed' | 'withdrawn' | 'no_show';
+  registration_date: string;
+  tee_time: string | null;
+  starting_hole: number | null;
+  group_number: number | null;
+  handicap_index: number | null;
+  first_name: string;
+  last_name: string;
+  username: string;
+  handicap: number | null;
 }
 
 interface EventParticipantsProps {
@@ -121,7 +124,7 @@ export default function EventParticipants({ eventId }: EventParticipantsProps) {
     }
   };
 
-  const handleStatusChange = async (participantId: string, status: 'active' | 'withdrawn' | 'invited') => {
+  const handleStatusChange = async (participantId: string, status: 'registered' | 'confirmed' | 'withdrawn' | 'no_show') => {
     try {
       await updateEventParticipantStatus(participantId, status);
       setParticipants(participants.map(p => 
@@ -207,9 +210,9 @@ export default function EventParticipants({ eventId }: EventParticipantsProps) {
               {participants.map((participant) => (
                 <TableRow key={participant.id}>
                   <TableCell>
-                    {participant.users.first_name} {participant.users.last_name}
+                    {participant.first_name} {participant.last_name}
                   </TableCell>
-                  <TableCell>{participant.users.email}</TableCell>
+                  <TableCell>{participant.username}</TableCell>
                   <TableCell>
                     <Chip 
                       label={participant.status} 
@@ -221,12 +224,13 @@ export default function EventParticipants({ eventId }: EventParticipantsProps) {
                     <FormControl size="small" sx={{ minWidth: 120, mr: 1 }}>
                       <Select
                         value={participant.status}
-                        onChange={(e) => handleStatusChange(participant.id, e.target.value as 'active' | 'withdrawn' | 'invited')}
+                        onChange={(e) => handleStatusChange(participant.id, e.target.value as 'registered' | 'confirmed' | 'withdrawn' | 'no_show')}
                         size="small"
                       >
-                        <MenuItem value="active">Active</MenuItem>
+                        <MenuItem value="registered">Registered</MenuItem>
+                        <MenuItem value="confirmed">Confirmed</MenuItem>
                         <MenuItem value="withdrawn">Withdrawn</MenuItem>
-                        <MenuItem value="invited">Invited</MenuItem>
+                        <MenuItem value="no_show">No Show</MenuItem>
                       </Select>
                     </FormControl>
                     <IconButton 
@@ -261,7 +265,7 @@ export default function EventParticipants({ eventId }: EventParticipantsProps) {
               ) : (
                 <Autocomplete
                   options={availableUsers}
-                  getOptionLabel={(option) => `${option.first_name} ${option.last_name} (${option.email})`}
+                  getOptionLabel={(option) => `${option.first_name} ${option.last_name} (${option.username})`}
                   renderInput={(params) => (
                     <TextField
                       {...params}

@@ -260,7 +260,7 @@ export default function SeriesDetailPage({ params }: SeriesDetailPageProps) {
                   {participants.slice(0, 3).map((participant) => (
                     <Box key={participant.id} sx={{ mb: 1 }}>
                       <Typography variant="body1">
-                        {participant.users?.first_name} {participant.users?.last_name}
+                        {participant.first_name} {participant.last_name}
                       </Typography>
                       <Typography variant="body2" color="text.secondary">
                         {participant.role === 'admin' ? 'Admin' : 'Participant'} • {participant.status}

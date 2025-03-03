@@ -27,6 +27,7 @@ import { useRouter } from 'next/navigation';
 export default function CoursesList() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
+  const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const { session } = useAuth();
   const router = useRouter();
@@ -116,6 +117,41 @@ export default function CoursesList() {
     
     if (confirm('Are you sure you want to delete this course?')) {
       try {
+        setDeleteLoading(id);
+        
+        // First, check if there are any tee sets associated with this course
+        const { data: teeSets, error: teeSetError } = await supabase
+          .from('tee_sets')
+          .select('id')
+          .eq('course_id', id);
+          
+        if (teeSetError) {
+          console.error('Error checking for tee sets:', teeSetError);
+          alert('Failed to check for associated tee sets. Please try again.');
+          setDeleteLoading(null);
+          return;
+        }
+        
+        // If there are tee sets, delete them first
+        if (teeSets && teeSets.length > 0) {
+          console.log(`Deleting ${teeSets.length} tee sets for course ${id}`);
+          
+          const { error: deleteTeeSetsError } = await supabase
+            .from('tee_sets')
+            .delete()
+            .eq('course_id', id);
+            
+          if (deleteTeeSetsError) {
+            console.error('Error deleting tee sets:', deleteTeeSetsError);
+            alert('Failed to delete associated tee sets. Please try again.');
+            setDeleteLoading(null);
+            return;
+          }
+          
+          console.log('Successfully deleted associated tee sets');
+        }
+        
+        // Now delete the course
         const { error } = await supabase
           .from('courses')
           .delete()
@@ -126,17 +162,21 @@ export default function CoursesList() {
           if (error.code === 'PGRST301' || error.code === '401') {
             setError('Your session has expired. Please log in again.');
           } else {
-            alert('Failed to delete course. Please try again.');
+            console.error('Error deleting course:', error);
+            alert(`Failed to delete course: ${error.message}`);
           }
           
-          throw error;
+          setDeleteLoading(null);
+          return;
         }
         
         // Remove the deleted course from state
         setCourses(courses.filter(course => course.id !== id));
+        setDeleteLoading(null);
       } catch (err) {
         console.error('Error deleting course:', err);
-        // Error is already handled above
+        setDeleteLoading(null);
+        alert('An unexpected error occurred. Please try again.');
       }
     }
   };
@@ -216,8 +256,13 @@ export default function CoursesList() {
                   <IconButton 
                     onClick={() => handleDelete(course.id)}
                     aria-label="delete"
+                    disabled={deleteLoading === course.id}
                   >
-                    <DeleteIcon />
+                    {deleteLoading === course.id ? (
+                      <CircularProgress size={24} />
+                    ) : (
+                      <DeleteIcon />
+                    )}
                   </IconButton>
                 </Tooltip>
               </TableCell>

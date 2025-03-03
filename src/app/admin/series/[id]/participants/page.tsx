@@ -47,7 +47,6 @@ interface User {
   id: string;
   first_name: string;
   last_name: string;
-  email: string;
 }
 
 interface Participant {
@@ -55,7 +54,11 @@ interface Participant {
   user_id: string;
   role: 'admin' | 'participant';
   status: 'active' | 'withdrawn' | 'invited';
-  users?: User;
+  first_name?: string;
+  last_name?: string;
+  email?: string;
+  username?: string;
+  handicap?: number;
 }
 
 interface SeriesParticipantsPageProps {
@@ -281,7 +284,6 @@ export default function SeriesParticipantsPage({ params }: SeriesParticipantsPag
             <TableHead>
               <TableRow>
                 <TableCell>Name</TableCell>
-                <TableCell>Email</TableCell>
                 <TableCell>Role</TableCell>
                 <TableCell>Status</TableCell>
                 <TableCell align="right">Actions</TableCell>
@@ -291,9 +293,8 @@ export default function SeriesParticipantsPage({ params }: SeriesParticipantsPag
               {participants.map((participant) => (
                 <TableRow key={participant.id}>
                   <TableCell>
-                    {participant.users?.first_name} {participant.users?.last_name}
+                    {participant.first_name} {participant.last_name}
                   </TableCell>
-                  <TableCell>{participant.users?.email}</TableCell>
                   <TableCell>
                     <FormControl size="small" fullWidth>
                       <Select
@@ -348,7 +349,7 @@ export default function SeriesParticipantsPage({ params }: SeriesParticipantsPag
               >
                 {availableUsers.map((user) => (
                   <MenuItem key={user.id} value={user.id}>
-                    {user.first_name} {user.last_name} ({user.email})
+                    {user.first_name} {user.last_name}
                   </MenuItem>
                 ))}
               </Select>

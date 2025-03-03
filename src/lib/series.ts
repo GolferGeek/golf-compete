@@ -100,8 +100,8 @@ export async function getSeriesWithParticipants(id: string): Promise<SeriesWithP
   
   // Then get the participants for this series
   const { data: participants, error: participantsError } = await supabase
-    .from('series_participants')
-    .select('*, profiles:user_id(id, first_name, last_name, username, handicap)')
+    .from('series_participants_with_users')
+    .select('*')
     .eq('series_id', id);
   
   if (participantsError) {
@@ -520,4 +520,61 @@ export async function updateSeriesPoints(pointsData: Omit<SeriesPoints, 'id' | '
   }
   
   return assertType<SeriesPoints>(data);
+}
+
+// Get series participants by user ID
+export async function getSeriesParticipantsByUserId(userId: string) {
+  // First get the series participant records
+  const { data: participantsData, error: participantsError } = await supabase
+    .from('series_participants')
+    .select(`
+      id,
+      user_id,
+      series_id,
+      role,
+      status,
+      joined_at
+    `)
+    .eq('user_id', userId);
+
+  if (participantsError) {
+    console.error('Error fetching series participants by user ID:', participantsError);
+    throw participantsError;
+  }
+
+  if (!participantsData || participantsData.length === 0) {
+    return [];
+  }
+
+  // Get the series details for each participant
+  const seriesIds = participantsData.map(p => p.series_id);
+  const { data: seriesData, error: seriesError } = await supabase
+    .from('series')
+    .select(`
+      id,
+      name,
+      description,
+      start_date,
+      end_date,
+      status
+    `)
+    .in('id', seriesIds);
+
+  if (seriesError) {
+    console.error('Error fetching series details:', seriesError);
+    throw seriesError;
+  }
+
+  // Combine the data
+  return participantsData.map(participant => {
+    const series = seriesData.find(s => s.id === participant.series_id);
+    return {
+      ...participant,
+      name: series?.name || 'Unknown Series',
+      description: series?.description,
+      start_date: series?.start_date,
+      end_date: series?.end_date,
+      series_status: series?.status
+    };
+  });
 } 

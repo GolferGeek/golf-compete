@@ -35,10 +35,37 @@ export default function Login() {
       try {
         console.log('Checking for existing session...')
         const supabase = getBrowserClient()
+        
+        if (!supabase) {
+          console.error('Failed to initialize Supabase client')
+          setCheckingSession(false)
+          return
+        }
+        
+        // Clear any stale auth data first
+        if (typeof window !== 'undefined') {
+          const hasStaleToken = localStorage.getItem('sb-refresh-token') || 
+                               localStorage.getItem('sb-access-token') ||
+                               localStorage.getItem('supabase.auth.token')
+          
+          if (hasStaleToken) {
+            console.log('Found stale auth tokens, clearing them...')
+            await supabase.auth.signOut()
+            
+            // Clear local storage manually as well
+            localStorage.removeItem('supabase.auth.token')
+            localStorage.removeItem('sb-refresh-token')
+            localStorage.removeItem('sb-access-token')
+            localStorage.removeItem('sb-auth-token')
+          }
+        }
+        
         const { data, error } = await supabase.auth.getSession()
         
         if (error) {
           console.error('Error checking session:', error)
+          setCheckingSession(false)
+          return
         }
         
         if (data?.session) {
@@ -47,7 +74,7 @@ export default function Login() {
           return
         }
         
-        console.log('No active session found, showing login form')
+        console.log('No active session found, showing login form 2')
         setCheckingSession(false)
       } catch (err) {
         console.error('Unexpected error checking session:', err)
@@ -73,11 +100,18 @@ export default function Login() {
       console.log('Attempting email login...')
       const supabase = getBrowserClient()
       
-      const { error } = await signInWithEmail(email, password, supabase)
+      if (!supabase) {
+        console.error('Failed to initialize Supabase client')
+        setError('Authentication service unavailable. Please try again later.')
+        setLoading(false)
+        return
+      }
+      
+      const { error } = await signInWithEmail(email, password, supabase as any)
       
       if (error) {
         console.error('Email login error:', error)
-        setError(error.message || 'Failed to sign in with email')
+        setError('Failed to sign in with email. Please check your credentials and try again.')
         setLoading(false)
         return
       }
@@ -99,11 +133,22 @@ export default function Login() {
       console.log('Initiating Google login...')
       const supabase = getBrowserClient()
       
-      const { error } = await signInWithGoogle(supabase)
+      if (!supabase) {
+        console.error('Failed to initialize Supabase client')
+        setError('Authentication service unavailable. Please try again later.')
+        setLoading(false)
+        return
+      }
+      
+      // Clear any existing session first
+      await supabase.auth.signOut()
+      
+      const { error } = await signInWithGoogle(supabase as any)
       
       if (error) {
         console.error('Google login error:', error)
-        setError(error.message || 'Failed to sign in with Google')
+        // Use a generic error message to avoid type issues
+        setError('Failed to sign in with Google. Please try again.')
         setLoading(false)
       }
       

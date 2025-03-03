@@ -162,13 +162,35 @@ export const signInWithGoogle = async (client: ReturnType<typeof createClient>) 
   try {
     // Now initiate the OAuth flow with explicit scopes
     console.log('Initiating Google OAuth flow');
+    
+    // Clear any existing session first to prevent conflicts
+    await client.auth.signOut();
+    
+    // Add a small delay to ensure signOut completes
+    await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Clear any existing auth-related cookies and local storage
+    if (typeof window !== 'undefined') {
+      console.log('Clearing any existing auth data before sign-in');
+      localStorage.removeItem('supabase.auth.token');
+      localStorage.removeItem('sb-refresh-token');
+      localStorage.removeItem('sb-access-token');
+      localStorage.removeItem('sb-auth-token');
+      
+      // Also clear any code verifier that might be stored
+      localStorage.removeItem('supabase.auth.code_verifier');
+    }
+    
+    // Use PKCE flow for more secure authentication (configured in the client)
     const result = await client.auth.signInWithOAuth({
       provider: 'google',
       options: {
         redirectTo,
         queryParams: {
           prompt: 'select_account',
-        }
+          access_type: 'offline',
+        },
+        skipBrowserRedirect: false
       }
     });
     
