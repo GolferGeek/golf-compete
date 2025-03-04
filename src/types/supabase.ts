@@ -922,81 +922,81 @@ export type Database = {
           },
         ]
       }
-      tee_set_distances: {
+      tee_sets: {
         Row: {
-          length: number
-          hole_id: string
           id: string
-          tee_set_id: string
+          created_at: string
+          course_id: string
+          name: string
+          color: string
+          rating: number | null
+          slope: number | null
         }
         Insert: {
-          length: number
-          hole_id: string
           id?: string
-          tee_set_id: string
+          created_at?: string
+          course_id: string
+          name: string
+          color: string
+          rating?: number | null
+          slope?: number | null
         }
         Update: {
-          length?: number
-          hole_id?: string
           id?: string
-          tee_set_id?: string
+          created_at?: string
+          course_id?: string
+          name?: string
+          color?: string
+          rating?: number | null
+          slope?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "tee_set_distances_hole_id_fkey"
+            foreignKeyName: "tee_sets_course_id_fkey"
+            columns: ["course_id"]
+            isOneToOne: false
+            referencedRelation: "courses"
+            referencedColumns: ["id"]
+          }
+        ]
+      }
+      tee_set_lengths: {
+        Row: {
+          id: string
+          created_at: string
+          tee_set_id: string
+          hole_id: string
+          length: number
+        }
+        Insert: {
+          id?: string
+          created_at?: string
+          tee_set_id: string
+          hole_id: string
+          length: number
+        }
+        Update: {
+          id?: string
+          created_at?: string
+          tee_set_id?: string
+          hole_id?: string
+          length?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tee_set_lengths_hole_id_fkey"
             columns: ["hole_id"]
             isOneToOne: false
             referencedRelation: "holes"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "tee_set_distances_tee_set_id_fkey"
+            foreignKeyName: "tee_set_lengths_tee_set_id_fkey"
             columns: ["tee_set_id"]
             isOneToOne: false
             referencedRelation: "tee_sets"
             referencedColumns: ["id"]
-          },
-        ]
-      }
-      tee_sets: {
-        Row: {
-          color: string
-          course_id: string
-          distance: number
-          id: string
-          name: string
-          par: number
-          rating: number
-          slope: number
-        }
-        Insert: {
-          color: string
-          course_id: string
-          distance: number
-          id?: string
-          name: string
-          par: number
-          rating: number
-          slope: number
-        }
-        Update: {
-          color?: string
-          course_id?: string
-          distance?: number
-          id?: string
-          name?: string
-          par?: number
-          rating?: number
-          slope?: number
-        }
-        Relationships: [
-          {
-            foreignKeyName: "tee_sets_course_id_courses_id_fk"
-            columns: ["course_id"]
-            isOneToOne: false
-            referencedRelation: "courses"
-            referencedColumns: ["id"]
-          },
+          }
         ]
       }
       users: {

@@ -13,23 +13,23 @@ import {
   Divider,
   CircularProgress,
   Alert,
-  Paper,
   List,
   ListItem,
   ListItemText,
   ListItemIcon,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import EventIcon from '@mui/icons-material/Event';
-import PeopleIcon from '@mui/icons-material/People';
 import ViewListIcon from '@mui/icons-material/ViewList';
-import GolfCourseIcon from '@mui/icons-material/GolfCourse';
-import AddIcon from '@mui/icons-material/Add';
 import { format } from 'date-fns';
 import { getAllSeries } from '@/lib/series';
 import { getAllEvents } from '@/lib/events';
 
 export default function AdminDashboard() {
   const router = useRouter();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [series, setSeries] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,8 +93,11 @@ export default function AdminDashboard() {
   const recentSeries = getRecentSeries();
 
   return (
-    <Box>
-      <Typography variant="h4" component="h1" sx={{ mb: 4 }}>
+    <Box sx={{ width: '100%' }}>
+      <Typography variant="h4" component="h1" sx={{ 
+        mb: { xs: 2, sm: 3, md: 4 },
+        fontSize: { xs: '1.75rem', sm: '2rem', md: '2.25rem' }
+      }}>
         Admin Dashboard
       </Typography>
 
@@ -104,211 +107,155 @@ export default function AdminDashboard() {
         </Alert>
       )}
 
-      <Grid container spacing={3} sx={{ mb: 4 }}>
-        <Grid item xs={12} md={6} lg={3}>
-          <Card>
+      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: { xs: 2, sm: 3, md: 4 } }}>
+        {/* Series Card - Combined */}
+        <Grid item xs={12} md={6}>
+          <Card sx={{ height: '100%' }}>
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="h6" component="div">
-                  Total Series
+                  Series
                 </Typography>
                 <ViewListIcon color="primary" fontSize="large" />
               </Box>
-              <Typography variant="h3" component="div" sx={{ mt: 2, mb: 1 }}>
-                {series.length}
+              <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, mb: 2 }}>
+                <Typography variant="h3" component="div" sx={{ 
+                  mr: 2,
+                  fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' }
+                }}>
+                  {series.length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {getSeriesByStatus('upcoming')} Upcoming • {getSeriesByStatus('in_progress')} In Progress
+                </Typography>
+              </Box>
+              
+              <Divider sx={{ my: 2 }} />
+              
+              <Typography variant="subtitle1" component="h3" sx={{ mb: 1 }}>
+                Recent Series
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {getSeriesByStatus('upcoming')} Upcoming • {getSeriesByStatus('in_progress')} In Progress
-              </Typography>
+              
+              {recentSeries.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  No series created yet.
+                </Typography>
+              ) : (
+                <List dense sx={{ 
+                  '& .MuiListItem-root': {
+                    py: 0.5
+                  }
+                }}>
+                  {recentSeries.slice(0, 3).map((s) => (
+                    <ListItem 
+                      key={s.id}
+                      secondaryAction={
+                        <Button 
+                          size="small"
+                          onClick={() => router.push(`/admin/series/${s.id}`)}
+                        >
+                          View
+                        </Button>
+                      }
+                    >
+                      <ListItemIcon sx={{ minWidth: 36 }}>
+                        <ViewListIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={s.name} 
+                        secondary={`${s.series_type.replace('_', ' ')} • ${s.status}`}
+                        primaryTypographyProps={{ variant: 'body2' }}
+                        secondaryTypographyProps={{ variant: 'caption' }}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              )}
             </CardContent>
-            <Divider />
             <CardActions>
               <Button size="small" onClick={() => router.push('/admin/series')}>
-                Manage Series
+                Manage All Series
+              </Button>
+              <Button size="small" color="primary" onClick={() => router.push('/admin/series/new')}>
+                New Series
               </Button>
             </CardActions>
           </Card>
         </Grid>
 
-        <Grid item xs={12} md={6} lg={3}>
-          <Card>
+        {/* Events Card - Combined */}
+        <Grid item xs={12} md={6}>
+          <Card sx={{ height: '100%' }}>
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <Typography variant="h6" component="div">
-                  Total Events
+                  Events
                 </Typography>
                 <EventIcon color="primary" fontSize="large" />
               </Box>
-              <Typography variant="h3" component="div" sx={{ mt: 2, mb: 1 }}>
-                {events.length}
+              <Box sx={{ display: 'flex', alignItems: 'center', mt: 1, mb: 2 }}>
+                <Typography variant="h3" component="div" sx={{ 
+                  mr: 2,
+                  fontSize: { xs: '2rem', sm: '2.5rem', md: '3rem' }
+                }}>
+                  {events.length}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {getEventsByStatus('upcoming')} Upcoming • {getEventsByStatus('completed')} Completed
+                </Typography>
+              </Box>
+              
+              <Divider sx={{ my: 2 }} />
+              
+              <Typography variant="subtitle1" component="h3" sx={{ mb: 1 }}>
+                Upcoming Events
               </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {getEventsByStatus('upcoming')} Upcoming • {getEventsByStatus('completed')} Completed
-              </Typography>
+              
+              {upcomingEvents.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  No upcoming events.
+                </Typography>
+              ) : (
+                <List dense sx={{ 
+                  '& .MuiListItem-root': {
+                    py: 0.5
+                  }
+                }}>
+                  {upcomingEvents.slice(0, 3).map((event) => (
+                    <ListItem 
+                      key={event.id}
+                      secondaryAction={
+                        <Button 
+                          size="small"
+                          onClick={() => router.push(`/admin/events/${event.id}/edit`)}
+                        >
+                          Edit
+                        </Button>
+                      }
+                    >
+                      <ListItemIcon sx={{ minWidth: 36 }}>
+                        <EventIcon fontSize="small" />
+                      </ListItemIcon>
+                      <ListItemText 
+                        primary={event.name} 
+                        secondary={`${format(new Date(event.event_date), 'MMM d, yyyy')} • ${event.courses?.name || 'Unknown Course'}`}
+                        primaryTypographyProps={{ variant: 'body2' }}
+                        secondaryTypographyProps={{ variant: 'caption' }}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              )}
             </CardContent>
-            <Divider />
             <CardActions>
               <Button size="small" onClick={() => router.push('/admin/events')}>
-                Manage Events
+                Manage All Events
+              </Button>
+              <Button size="small" color="primary" onClick={() => router.push('/admin/events/new')}>
+                New Event
               </Button>
             </CardActions>
           </Card>
-        </Grid>
-
-        <Grid item xs={12} md={6} lg={3}>
-          <Card>
-            <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" component="div">
-                  Quick Actions
-                </Typography>
-                <AddIcon color="primary" fontSize="large" />
-              </Box>
-              <Box sx={{ mt: 2, flexGrow: 1 }}>
-                <Button 
-                  variant="outlined" 
-                  fullWidth 
-                  sx={{ mb: 1 }}
-                  onClick={() => router.push('/admin/series/new')}
-                >
-                  New Series
-                </Button>
-                <Button 
-                  variant="outlined" 
-                  fullWidth 
-                  sx={{ mb: 1 }}
-                  onClick={() => router.push('/admin/events/new')}
-                >
-                  New Event
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-
-        <Grid item xs={12} md={6} lg={3}>
-          <Card>
-            <CardContent sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" component="div">
-                  Management
-                </Typography>
-                <GolfCourseIcon color="primary" fontSize="large" />
-              </Box>
-              <Box sx={{ mt: 2, flexGrow: 1 }}>
-                <Button 
-                  variant="outlined" 
-                  fullWidth 
-                  sx={{ mb: 1 }}
-                  onClick={() => router.push('/admin/courses')}
-                >
-                  Manage Courses
-                </Button>
-                <Button 
-                  variant="outlined" 
-                  fullWidth 
-                  sx={{ mb: 1 }}
-                  onClick={() => router.push('/admin/users')}
-                >
-                  Manage Users
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-      </Grid>
-
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" component="h2" sx={{ mb: 2 }}>
-              Upcoming Events
-            </Typography>
-            {upcomingEvents.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                No upcoming events.
-              </Typography>
-            ) : (
-              <List>
-                {upcomingEvents.map((event) => (
-                  <ListItem 
-                    key={event.id}
-                    secondaryAction={
-                      <Button 
-                        size="small" 
-                        variant="outlined"
-                        onClick={() => router.push(`/admin/events/${event.id}/edit`)}
-                      >
-                        Edit
-                      </Button>
-                    }
-                  >
-                    <ListItemIcon>
-                      <EventIcon />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary={event.name} 
-                      secondary={`${format(new Date(event.event_date), 'MMM d, yyyy')} • ${event.courses?.name || 'Unknown Course'}`}
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            )}
-            <Box sx={{ mt: 2, textAlign: 'right' }}>
-              <Button 
-                color="primary"
-                onClick={() => router.push('/admin/events')}
-              >
-                View All Events
-              </Button>
-            </Box>
-          </Paper>
-        </Grid>
-
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 2 }}>
-            <Typography variant="h6" component="h2" sx={{ mb: 2 }}>
-              Recent Series
-            </Typography>
-            {recentSeries.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                No series created yet.
-              </Typography>
-            ) : (
-              <List>
-                {recentSeries.map((s) => (
-                  <ListItem 
-                    key={s.id}
-                    secondaryAction={
-                      <Button 
-                        size="small" 
-                        variant="outlined"
-                        onClick={() => router.push(`/admin/series/${s.id}`)}
-                      >
-                        View
-                      </Button>
-                    }
-                  >
-                    <ListItemIcon>
-                      <ViewListIcon />
-                    </ListItemIcon>
-                    <ListItemText 
-                      primary={s.name} 
-                      secondary={`${s.series_type.replace('_', ' ')} • ${s.status}`}
-                    />
-                  </ListItem>
-                ))}
-              </List>
-            )}
-            <Box sx={{ mt: 2, textAlign: 'right' }}>
-              <Button 
-                color="primary"
-                onClick={() => router.push('/admin/series')}
-              >
-                View All Series
-              </Button>
-            </Box>
-          </Paper>
         </Grid>
       </Grid>
     </Box>

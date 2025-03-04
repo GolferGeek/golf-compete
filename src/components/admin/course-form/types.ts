@@ -17,7 +17,8 @@ export interface TeeSet {
   color: string;
   rating: number;
   slope: number;
-  [key: string]: any; // For dynamic properties
+  length?: number;
+  [key: string]: any; // For other dynamic properties
 }
 
 // Hole type
@@ -40,43 +41,48 @@ export interface CourseInfoStepProps {
   loading: boolean;
   handleSubmit: (e: React.FormEvent) => Promise<void>;
   isEditMode: boolean;
-  processingImage: boolean;
-  setProcessingImage: React.Dispatch<React.SetStateAction<boolean>>;
-  extractionStep: ExtractionStep;
-  setExtractionStep: React.Dispatch<React.SetStateAction<ExtractionStep>>;
-  router: any;
+  processingImage?: boolean;
+  setProcessingImage?: React.Dispatch<React.SetStateAction<boolean>>;
+  extractionStep?: ExtractionStep;
+  setExtractionStep?: React.Dispatch<React.SetStateAction<ExtractionStep>>;
+  router?: any;
   courseId?: string;
+  isMobile?: boolean;
 }
 
 // Tee boxes step props
 export interface TeeBoxesStepProps {
-  courseId?: string;
+  courseId: string;
   teeBoxes: TeeSet[];
   setTeeBoxes: React.Dispatch<React.SetStateAction<TeeSet[]>>;
-  holes: Hole[];
-  setHoles: React.Dispatch<React.SetStateAction<Hole[]>>;
-  handleNext: () => void;
-  handleBack: () => void;
+  holes?: Hole[];
+  setHoles?: React.Dispatch<React.SetStateAction<Hole[]>>;
+  handleNext?: () => void;
+  handleBack?: () => void;
+  saveTeeBoxes?: () => Promise<boolean>;
   loading: boolean;
   processingImage: boolean;
   setProcessingImage: React.Dispatch<React.SetStateAction<boolean>>;
   extractionStep: ExtractionStep;
   setExtractionStep: React.Dispatch<React.SetStateAction<ExtractionStep>>;
+  isMobile?: boolean;
 }
 
 // Scorecard step props
 export interface ScorecardStepProps {
-  courseId?: string;
+  courseId: string;
   teeBoxes: TeeSet[];
   holes: Hole[];
   setHoles: React.Dispatch<React.SetStateAction<Hole[]>>;
-  handleSubmit: (e: React.FormEvent) => Promise<void>;
-  handleBack: () => void;
+  handleSubmit?: (e: React.FormEvent) => Promise<void>;
+  handleBack?: () => void;
+  saveScorecard?: () => Promise<boolean>;
   loading: boolean;
   processingImage: boolean;
   setProcessingImage: React.Dispatch<React.SetStateAction<boolean>>;
   extractionStep: ExtractionStep;
   setExtractionStep: React.Dispatch<React.SetStateAction<ExtractionStep>>;
+  isMobile?: boolean;
 }
 
 // Image uploader props
@@ -87,6 +93,7 @@ export interface ImageUploaderProps {
   extractionStep: ExtractionStep;
   setExtractionStep: React.Dispatch<React.SetStateAction<ExtractionStep>>;
   onDataExtracted: (data: any) => void;
+  isMobile?: boolean;
 }
 
 // Tee box table props
@@ -94,6 +101,7 @@ export interface TeeBoxTableProps {
   teeBoxes: TeeSet[];
   onEdit: (teeBox: TeeSet) => void;
   onDelete: (id: string) => void;
+  isMobile?: boolean;
 }
 
 // Scorecard grid props
@@ -102,4 +110,5 @@ export interface ScorecardGridProps {
   holes: Hole[];
   setHoles: React.Dispatch<React.SetStateAction<Hole[]>>;
   onSave: () => Promise<void>;
+  isMobile?: boolean;
 } 

@@ -138,15 +138,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const initializeAuth = async () => {
       try {
-        setIsLoading(true)
+        // Remove console log to reduce noise
+        // console.log('Initializing auth state...')
+        
+        // Get the Supabase client
         const supabase = getBrowserClient()
         if (!supabase) {
-          console.error('Supabase client not initialized')
+          console.error('Failed to initialize Supabase client')
           setIsLoading(false)
           return
         }
-        
-        console.log('Initializing auth state...')
         
         // Get initial session
         const { data: { session }, error } = await supabase.auth.getSession()
@@ -194,8 +195,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Set up auth state listener
         const { data: { subscription } } = await supabase.auth.onAuthStateChange(
           async (event, session) => {
-            console.log('Auth state changed:', event, session ? 'Has session' : 'No session')
-            
             if (event === 'SIGNED_OUT') {
               // Clear all state
               setSession(null)

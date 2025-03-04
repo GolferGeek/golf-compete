@@ -27,6 +27,12 @@ import {
   CircularProgress,
   Alert,
   Chip,
+  Card,
+  CardContent,
+  CardActions,
+  Grid,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import Link from 'next/link';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -71,6 +77,8 @@ export default function SeriesParticipantsPage({ params }: SeriesParticipantsPag
   const router = useRouter();
   const unwrappedParams = React.use(params as any) as { id: string };
   const seriesId = unwrappedParams.id;
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
   const [series, setSeries] = useState<any>(null);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -198,6 +206,145 @@ export default function SeriesParticipantsPage({ params }: SeriesParticipantsPag
     }
   };
 
+  const renderMobileView = () => {
+    return (
+      <Grid container spacing={2}>
+        {participants.map((participant) => (
+          <Grid item xs={12} key={participant.id}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" component="div" gutterBottom>
+                  {participant.first_name} {participant.last_name}
+                </Typography>
+                <Box sx={{ mb: 1 }}>
+                  <Chip
+                    label={participant.role === 'admin' ? 'Admin' : 'Participant'}
+                    color={participant.role === 'admin' ? 'primary' : 'default'}
+                    size="small"
+                    sx={{ mr: 1 }}
+                  />
+                  <Chip
+                    label={participant.status.charAt(0).toUpperCase() + participant.status.slice(1)}
+                    color={
+                      participant.status === 'active'
+                        ? 'success'
+                        : participant.status === 'invited'
+                        ? 'info'
+                        : 'default'
+                    }
+                    size="small"
+                  />
+                </Box>
+                {participant.handicap !== undefined && (
+                  <Typography variant="body2" color="text.secondary">
+                    Handicap: {participant.handicap}
+                  </Typography>
+                )}
+              </CardContent>
+              <CardActions sx={{ flexWrap: 'wrap', justifyContent: 'center', gap: 1, pb: 2 }}>
+                <FormControl size="small" sx={{ minWidth: 120 }}>
+                  <InputLabel>Role</InputLabel>
+                  <Select
+                    value={participant.role}
+                    label="Role"
+                    onChange={(e) => handleRoleChange(participant.id, e.target.value as 'admin' | 'participant')}
+                    size="small"
+                  >
+                    <MenuItem value="admin">Admin</MenuItem>
+                    <MenuItem value="participant">Participant</MenuItem>
+                  </Select>
+                </FormControl>
+                <FormControl size="small" sx={{ minWidth: 120 }}>
+                  <InputLabel>Status</InputLabel>
+                  <Select
+                    value={participant.status}
+                    label="Status"
+                    onChange={(e) => handleStatusChange(participant.id, e.target.value as 'active' | 'withdrawn' | 'invited')}
+                    size="small"
+                  >
+                    <MenuItem value="active">Active</MenuItem>
+                    <MenuItem value="withdrawn">Withdrawn</MenuItem>
+                    <MenuItem value="invited">Invited</MenuItem>
+                  </Select>
+                </FormControl>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  onClick={() => handleDeleteClick(participant.id)}
+                >
+                  Remove
+                </Button>
+              </CardActions>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+    );
+  };
+
+  const renderDesktopView = () => {
+    return (
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Role</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell>Handicap</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {participants.map((participant) => (
+              <TableRow key={participant.id}>
+                <TableCell>
+                  {participant.first_name} {participant.last_name}
+                </TableCell>
+                <TableCell>
+                  <FormControl size="small" sx={{ minWidth: 120 }}>
+                    <Select
+                      value={participant.role}
+                      onChange={(e) => handleRoleChange(participant.id, e.target.value as 'admin' | 'participant')}
+                      size="small"
+                    >
+                      <MenuItem value="admin">Admin</MenuItem>
+                      <MenuItem value="participant">Participant</MenuItem>
+                    </Select>
+                  </FormControl>
+                </TableCell>
+                <TableCell>
+                  <FormControl size="small" sx={{ minWidth: 120 }}>
+                    <Select
+                      value={participant.status}
+                      onChange={(e) => handleStatusChange(participant.id, e.target.value as 'active' | 'withdrawn' | 'invited')}
+                      size="small"
+                    >
+                      <MenuItem value="active">Active</MenuItem>
+                      <MenuItem value="withdrawn">Withdrawn</MenuItem>
+                      <MenuItem value="invited">Invited</MenuItem>
+                    </Select>
+                  </FormControl>
+                </TableCell>
+                <TableCell>{participant.handicap !== undefined ? participant.handicap : 'N/A'}</TableCell>
+                <TableCell align="right">
+                  <IconButton
+                    color="error"
+                    onClick={() => handleDeleteClick(participant.id)}
+                    title="Remove Participant"
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -222,7 +369,7 @@ export default function SeriesParticipantsPage({ params }: SeriesParticipantsPag
   }
 
   return (
-    <Box>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
       <Box sx={{ mb: 4 }}>
         <Breadcrumbs aria-label="breadcrumb">
           <Link href="/admin" passHref legacyBehavior>
@@ -250,130 +397,86 @@ export default function SeriesParticipantsPage({ params }: SeriesParticipantsPag
         </Alert>
       )}
 
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' }, 
+        justifyContent: 'space-between', 
+        alignItems: { xs: 'stretch', sm: 'center' }, 
+        mb: 3,
+        gap: 2
+      }}>
         <Typography variant="h4" component="h1">
-          Participants for {series.name}
+          Participants
         </Typography>
-        <Box>
-          <Button 
-            variant="outlined" 
-            startIcon={<ArrowBackIcon />}
-            onClick={() => router.push(`/admin/series/${seriesId}`)}
-            sx={{ mr: 2 }}
-          >
-            Back to Series
-          </Button>
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={() => setAddDialogOpen(true)}
+          disabled={availableUsers.length === 0}
+          fullWidth={isMobile}
+        >
+          Add Participant
+        </Button>
+      </Box>
+
+      {participants.length === 0 ? (
+        <Paper sx={{ p: 3, textAlign: 'center' }}>
+          <Typography variant="body1" sx={{ mb: 2 }}>
+            No participants found. Add participants to get started.
+          </Typography>
           <Button
-            variant="contained"
+            variant="outlined"
             color="primary"
             onClick={() => setAddDialogOpen(true)}
             disabled={availableUsers.length === 0}
           >
             Add Participant
           </Button>
-        </Box>
-      </Box>
-
-      {participants.length === 0 ? (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          No participants have been added to this series yet.
-        </Alert>
+        </Paper>
       ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Role</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {participants.map((participant) => (
-                <TableRow key={participant.id}>
-                  <TableCell>
-                    {participant.first_name} {participant.last_name}
-                  </TableCell>
-                  <TableCell>
-                    <FormControl size="small" fullWidth>
-                      <Select
-                        value={participant.role}
-                        onChange={(e) => handleRoleChange(participant.id, e.target.value as 'admin' | 'participant')}
-                      >
-                        <MenuItem value="admin">Admin</MenuItem>
-                        <MenuItem value="participant">Participant</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </TableCell>
-                  <TableCell>
-                    <FormControl size="small" fullWidth>
-                      <Select
-                        value={participant.status}
-                        onChange={(e) => handleStatusChange(participant.id, e.target.value as 'active' | 'withdrawn' | 'invited')}
-                      >
-                        <MenuItem value="active">Active</MenuItem>
-                        <MenuItem value="withdrawn">Withdrawn</MenuItem>
-                        <MenuItem value="invited">Invited</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </TableCell>
-                  <TableCell align="right">
-                    <IconButton 
-                      color="error" 
-                      onClick={() => handleDeleteClick(participant.id)}
-                      aria-label="delete participant"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        isMobile ? renderMobileView() : renderDesktopView()
       )}
 
       {/* Add Participant Dialog */}
-      <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add Participant to Series</DialogTitle>
-        <DialogContent>
-          <Box sx={{ mt: 2 }}>
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel id="user-select-label">User</InputLabel>
-              <Select
-                labelId="user-select-label"
-                value={selectedUserId}
-                onChange={(e) => setSelectedUserId(e.target.value as string)}
-                label="User"
-              >
-                {availableUsers.map((user) => (
-                  <MenuItem key={user.id} value={user.id}>
-                    {user.first_name} {user.last_name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            
-            <FormControl fullWidth>
-              <InputLabel id="role-select-label">Role</InputLabel>
-              <Select
-                labelId="role-select-label"
-                value={selectedRole}
-                onChange={(e) => setSelectedRole(e.target.value as 'admin' | 'participant')}
-                label="Role"
-              >
-                <MenuItem value="admin">Admin</MenuItem>
-                <MenuItem value="participant">Participant</MenuItem>
-              </Select>
-            </FormControl>
-          </Box>
+      <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)}>
+        <DialogTitle>Add Participant</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          {availableUsers.length === 0 ? (
+            <Typography>No available users to add.</Typography>
+          ) : (
+            <>
+              <FormControl fullWidth sx={{ mb: 2 }}>
+                <InputLabel>User</InputLabel>
+                <Select
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value as string)}
+                  label="User"
+                >
+                  {availableUsers.map((user) => (
+                    <MenuItem key={user.id} value={user.id}>
+                      {user.first_name} {user.last_name}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+              <FormControl fullWidth>
+                <InputLabel>Role</InputLabel>
+                <Select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value as 'admin' | 'participant')}
+                  label="Role"
+                >
+                  <MenuItem value="admin">Admin</MenuItem>
+                  <MenuItem value="participant">Participant</MenuItem>
+                </Select>
+              </FormControl>
+            </>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAddDialogOpen(false)}>Cancel</Button>
-          <Button 
-            onClick={handleAddParticipant} 
-            variant="contained" 
+          <Button
+            onClick={handleAddParticipant}
             color="primary"
             disabled={!selectedUserId || addingParticipant}
           >
@@ -392,9 +495,8 @@ export default function SeriesParticipantsPage({ params }: SeriesParticipantsPag
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button 
-            onClick={handleDeleteConfirm} 
-            variant="contained" 
+          <Button
+            onClick={handleDeleteConfirm}
             color="error"
             disabled={deletingParticipant}
           >

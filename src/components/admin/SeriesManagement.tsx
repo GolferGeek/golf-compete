@@ -22,6 +22,12 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
+  Card,
+  CardContent,
+  CardActions,
+  Grid,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -36,6 +42,8 @@ import { useAuth } from '@/contexts/AuthContext';
 export default function SeriesManagement() {
   const router = useRouter();
   const { user } = useAuth();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [series, setSeries] = useState<Series[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -112,6 +120,151 @@ export default function SeriesManagement() {
     }
   };
 
+  const renderMobileView = () => {
+    return (
+      <Grid container spacing={2}>
+        {series.map((s) => (
+          <Grid item xs={12} key={s.id}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" component="div" gutterBottom>
+                  {s.name}
+                </Typography>
+                <Box sx={{ mb: 1 }}>
+                  <Chip
+                    label={s.status.charAt(0).toUpperCase() + s.status.slice(1)}
+                    color={getStatusChipColor(s.status) as any}
+                    size="small"
+                    sx={{ mr: 1 }}
+                  />
+                  <Chip
+                    label={s.series_type === 'season_long'
+                      ? 'Season Long'
+                      : s.series_type === 'match_play'
+                      ? 'Match Play'
+                      : 'Tournament'}
+                    variant="outlined"
+                    size="small"
+                  />
+                </Box>
+                <Typography variant="body2" color="text.secondary">
+                  {format(new Date(s.start_date), 'MMM d, yyyy')} - {format(new Date(s.end_date), 'MMM d, yyyy')}
+                </Typography>
+              </CardContent>
+              <CardActions sx={{ flexWrap: 'wrap', justifyContent: 'center', gap: 1, pb: 2 }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<EventIcon />}
+                  onClick={() => handleManageEvents(s.id)}
+                >
+                  Events
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<PeopleIcon />}
+                  onClick={() => handleManageParticipants(s.id)}
+                >
+                  Players
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<EditIcon />}
+                  onClick={() => handleEditSeries(s.id)}
+                >
+                  Edit
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  startIcon={<DeleteIcon />}
+                  onClick={() => handleDeleteClick(s.id)}
+                >
+                  Delete
+                </Button>
+              </CardActions>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+    );
+  };
+
+  const renderDesktopView = () => {
+    return (
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Type</TableCell>
+              <TableCell>Dates</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {series.map((s) => (
+              <TableRow key={s.id}>
+                <TableCell>{s.name}</TableCell>
+                <TableCell>
+                  {s.series_type === 'season_long'
+                    ? 'Season Long'
+                    : s.series_type === 'match_play'
+                    ? 'Match Play'
+                    : 'Tournament'}
+                </TableCell>
+                <TableCell>
+                  {format(new Date(s.start_date), 'MMM d, yyyy')} - {format(new Date(s.end_date), 'MMM d, yyyy')}
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    label={s.status.charAt(0).toUpperCase() + s.status.slice(1)}
+                    color={getStatusChipColor(s.status) as any}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell align="right">
+                  <IconButton
+                    color="primary"
+                    onClick={() => handleManageEvents(s.id)}
+                    title="Manage Events"
+                  >
+                    <EventIcon />
+                  </IconButton>
+                  <IconButton
+                    color="primary"
+                    onClick={() => handleManageParticipants(s.id)}
+                    title="Manage Participants"
+                  >
+                    <PeopleIcon />
+                  </IconButton>
+                  <IconButton
+                    color="primary"
+                    onClick={() => handleEditSeries(s.id)}
+                    title="Edit Series"
+                  >
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton
+                    color="error"
+                    onClick={() => handleDeleteClick(s.id)}
+                    title="Delete Series"
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
+  };
+
   if (loading) {
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
@@ -121,8 +274,15 @@ export default function SeriesManagement() {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' }, 
+        justifyContent: 'space-between', 
+        alignItems: { xs: 'stretch', sm: 'center' }, 
+        mb: 3,
+        gap: 2
+      }}>
         <Typography variant="h4" component="h1">
           Series Management
         </Typography>
@@ -131,6 +291,7 @@ export default function SeriesManagement() {
           color="primary"
           startIcon={<AddIcon />}
           onClick={handleCreateSeries}
+          fullWidth={isMobile}
         >
           Create Series
         </Button>
@@ -157,80 +318,7 @@ export default function SeriesManagement() {
           </Button>
         </Paper>
       ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Type</TableCell>
-                <TableCell>Dates</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {series.map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell>{s.name}</TableCell>
-                  <TableCell>
-                    {s.series_type === 'season_long'
-                      ? 'Season Long'
-                      : s.series_type === 'match_play'
-                      ? 'Match Play'
-                      : 'Tournament'}
-                  </TableCell>
-                  <TableCell>
-                    {format(new Date(s.start_date), 'MMM d, yyyy')} - {format(new Date(s.end_date), 'MMM d, yyyy')}
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={s.status.charAt(0).toUpperCase() + s.status.slice(1)}
-                      color={getStatusChipColor(s.status) as any}
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell align="right">
-                    <IconButton
-                      color="primary"
-                      onClick={() => handleManageEvents(s.id)}
-                      title="Manage Events"
-                    >
-                      <EventIcon />
-                    </IconButton>
-                    <IconButton
-                      color="success"
-                      onClick={() => router.push(`/admin/series/${s.id}/events/new`)}
-                      title="Add Event"
-                    >
-                      <AddIcon />
-                    </IconButton>
-                    <IconButton
-                      color="primary"
-                      onClick={() => handleManageParticipants(s.id)}
-                      title="Manage Participants"
-                    >
-                      <PeopleIcon />
-                    </IconButton>
-                    <IconButton
-                      color="primary"
-                      onClick={() => handleEditSeries(s.id)}
-                      title="Edit Series"
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      color="error"
-                      onClick={() => handleDeleteClick(s.id)}
-                      title="Delete Series"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        isMobile ? renderMobileView() : renderDesktopView()
       )}
 
       {/* Delete Confirmation Dialog */}

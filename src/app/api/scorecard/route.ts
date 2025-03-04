@@ -97,13 +97,15 @@ Your response must be ONLY valid JSON in the following format:
     "name": "Blue",  // Often the same as color
     "color": "Blue",
     "rating": 72.3,
-    "slope": 135
+    "slope": 135,
+    "length": 6800  // Total yardage for this tee set if available
   },
   {
     "name": "White",
     "color": "White",
     "rating": 70.1,
-    "slope": 128
+    "slope": 128,
+    "length": 6500  // Total yardage for this tee set if available
   }
 ]`;
         userMessage = "Extract the tee set information from this golf scorecard.";
@@ -161,18 +163,21 @@ Your response must be ONLY valid JSON in the following format:
 {
   "name": "Course Name",
   "location": "City, State",
+  "par": 72,  // Course par if available
   "teeSets": [
     {
       "name": "Blue",
       "color": "Blue",
       "rating": 72.3,
-      "slope": 135
+      "slope": 135,
+      "length": 6800
     },
     {
       "name": "White",
       "color": "White",
       "rating": 70.1,
-      "slope": 128
+      "slope": 128,
+      "length": 6500
     }
   ],
   "holeDetails": [

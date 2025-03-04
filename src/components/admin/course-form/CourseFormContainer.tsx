@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Box, Stepper, Step, StepLabel, Alert, Snackbar } from '@mui/material';
+import { Box, Stepper, Step, StepLabel, Alert, Snackbar, useTheme, useMediaQuery, StepContent, Paper, Typography, MobileStepper, Button } from '@mui/material';
 import { supabase, refreshSchemaCache } from '@/lib/supabase';
 import { useAuth } from '@/contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
+import KeyboardArrowLeft from '@mui/icons-material/KeyboardArrowLeft';
+import KeyboardArrowRight from '@mui/icons-material/KeyboardArrowRight';
 
 // Import step components
 import CourseInfoStep from './steps/CourseInfoStep';
 import TeeBoxesStep from './steps/TeeBoxesStep';
 import ScorecardStep from './steps/ScorecardStep';
+import ScorecardEditor, { HoleData } from '../scorecard/ScorecardEditor';
+import ImageUploader from './components/ImageUploader';
 
 // Types
 import { CourseFormData, TeeSet, Hole } from './types';
@@ -17,15 +21,22 @@ interface CourseFormContainerProps {
   initialCourseId?: string;
   isEditMode?: boolean;
   initialStep?: number;
+  isMobile?: boolean;
 }
 
 const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
   initialCourseId,
   isEditMode = false,
-  initialStep = 0
+  initialStep = 0,
+  isMobile: propIsMobile
 }) => {
   const router = useRouter();
   const { user } = useAuth();
+  const theme = useTheme();
+  const detectedIsMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  
+  // Use prop value if provided, otherwise use detected value
+  const isMobile = propIsMobile !== undefined ? propIsMobile : detectedIsMobile;
   
   // Use a ref to store the courseId to ensure it's consistent across renders
   const courseIdRef = useRef<string | undefined>(initialCourseId);
@@ -54,7 +65,7 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
   const [holes, setHoles] = useState<Hole[]>([]);
   
   // AI extraction state
-  const [processingImage, setProcessingImage] = useState(false);
+  const [processingImage, setProcessingImage] = useState<boolean>(false);
   const [extractionStep, setExtractionStep] = useState<'course' | 'teeBoxes' | 'scorecard' | null>(null);
   
   // Steps definition
@@ -64,8 +75,21 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
   useEffect(() => {
     if (isEditMode && initialCourseId) {
       fetchCourseData();
+      // Set the courseId from initialCourseId to ensure it's available for all steps
+      setCourseId(initialCourseId);
+      courseIdRef.current = initialCourseId;
     }
   }, [isEditMode, initialCourseId]);
+  
+  // Fetch tee boxes and holes when navigating to step 1 or 2 in edit mode
+  useEffect(() => {
+    if (isEditMode && courseId) {
+      if (activeStep === 1 || activeStep === 2) {
+        console.log(`Fetching tee boxes and holes for step ${activeStep} with courseId:`, courseId);
+        fetchTeeBoxesAndHoles(courseId);
+      }
+    }
+  }, [activeStep, isEditMode, courseId]);
   
   // Ensure we have a courseId when on step 1
   useEffect(() => {
@@ -240,7 +264,7 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
       // Fetch tee set distances
       if (holeData && holeData.length > 0 && teeSetData && teeSetData.length > 0) {
         const { data: distanceData, error: distanceError } = await supabase
-          .from('tee_set_distances')
+          .from('tee_set_lengths')
           .select('*')
           .in('hole_id', holeData.map(hole => hole.id));
           
@@ -251,7 +275,12 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
           distanceData.forEach(distance => {
             const hole = processedHoles.find(h => h.id === distance.hole_id);
             if (hole) {
-              hole[`length_${distance.tee_set_id}`] = distance.length;
+              // Check for both 'length' and 'distance' properties
+              const distanceValue = 'length' in distance ? distance.length : 
+                                   'distance' in distance ? distance.distance : 0;
+              
+              console.log(`Setting distance for hole ${hole.number}, tee ${distance.tee_set_id}: ${distanceValue}`);
+              hole[`length_${distance.tee_set_id}`] = distanceValue;
             }
           });
         }
@@ -332,10 +361,17 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
     // Use the ref for consistency
     const currentCourseId = courseIdRef.current;
     console.log('saveScorecard called with courseIdRef:', currentCourseId);
+    console.log('Current holes state:', holes);
     
     if (!currentCourseId) {
       console.error('No courseId available in saveScorecard');
       setError('No course ID available. Please save the course information first.');
+      return false;
+    }
+    
+    if (!holes || holes.length === 0) {
+      console.error('No holes data available to save');
+      setError('No holes data available to save. Please add holes first.');
       return false;
     }
     
@@ -387,14 +423,17 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
         // Now insert the tee set distances
         if (insertedHoles && teeBoxes.length > 0) {
           // Prepare distances data for insertion
-          const distancesData: { tee_set_id: string; hole_id: string; distance: number }[] = [];
+          const distancesData: { tee_set_id: string; hole_id: string; length: number }[] = [];
           
           for (const hole of holes) {
             for (const teeBox of teeBoxes) {
               const distanceKey = `length_${teeBox.id}`;
               const distance = hole[distanceKey];
               
-              if (distance) {
+              console.log(`Processing distance for hole ${hole.number}, tee ${teeBox.id}, key ${distanceKey}, value:`, distance);
+              
+              // Only add if distance is defined and not null
+              if (distance !== undefined && distance !== null) {
                 // Find the corresponding inserted hole
                 const insertedHole = insertedHoles.find(h => h.hole_number === hole.number);
                 
@@ -402,35 +441,49 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
                   distancesData.push({
                     tee_set_id: teeBox.id,
                     hole_id: insertedHole.id as string,
-                    distance: Number(distance)
+                    length: Number(distance)
                   });
+                } else {
+                  console.warn(`Could not find inserted hole for hole number ${hole.number}`);
                 }
               }
             }
           }
           
+          console.log('Inserting tee set distances:', distancesData);
+          
           if (distancesData.length > 0) {
-            console.log('Inserting tee set distances:', distancesData);
+            // Refresh schema cache multiple times to ensure it's updated
+            for (let i = 0; i < 3; i++) {
+              console.log(`Refreshing schema cache attempt ${i + 1}`);
+              await refreshSchemaCache();
+              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between attempts
+            }
             
-            const { error: distancesError } = await supabase
-              .from('tee_set_distances')
-              .insert(distancesData);
+            // Insert distances for each tee box and hole
+            const { data: insertedDistances, error: insertDistancesError } = await supabase
+              .from('tee_set_lengths')
+              .insert(distancesData)
+              .select();
               
-            if (distancesError) {
-              console.error('Error inserting tee set distances:', distancesError);
-              setError(`Failed to save tee set distances: ${distancesError.message}`);
+            if (insertDistancesError) {
+              console.error('Error inserting tee set distances:', insertDistancesError);
+              setError(`Failed to save tee set distances: ${insertDistancesError.message}`);
               return false;
             }
             
             console.log('Tee set distances saved successfully');
+          } else {
+            console.warn('No tee set distances to save');
           }
         }
         
+        setSuccess(true);
         return true;
       }
       
       console.log('No holes to save');
-      return true;
+      return false;
     } catch (error) {
       console.error('Error in saveScorecard:', error);
       setError(`Failed to save scorecard: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -821,90 +874,314 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
   
   // Handle step navigation
   const handleNext = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep + 1);
+    const nextStep = activeStep + 1;
+    
+    // If we're in edit mode and moving to step 1 or 2, ensure we have the course data
+    if (isEditMode && courseId) {
+      if (nextStep === 1 || nextStep === 2) {
+        console.log(`Moving to step ${nextStep} in edit mode with courseId:`, courseId);
+        // The useEffect will handle fetching the data when activeStep changes
+      }
+    }
+    
+    setActiveStep(nextStep);
   };
   
   const handleBack = () => {
     setActiveStep((prevActiveStep) => prevActiveStep - 1);
   };
   
-  return (
-    <Box>
-      {success && (
-        <Snackbar 
-          open={success} 
-          autoHideDuration={6000} 
-          onClose={() => setSuccess(false)}
-          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        >
-          <Alert severity="success" sx={{ width: '100%' }}>
-            {activeStep === 0 && extractionStep === 'course' 
-              ? 'Course information extracted successfully! Review and click "Save and Continue" when ready.'
-              : isEditMode 
-                ? 'Course updated successfully!' 
-                : 'Course created successfully!'}
-          </Alert>
-        </Snackbar>
-      )}
+  // Get content for the current step
+  const getStepContent = (step: number) => {
+    // Handle scorecard data extraction from AI
+    const handleScorecardDataExtracted = (extractedData: any) => {
+      if (!extractedData || !Array.isArray(extractedData) || extractedData.length === 0) {
+        console.error('Invalid scorecard data format:', extractedData);
+        return;
+      }
       
+      try {
+        // Create a map of tee colors to tee box IDs
+        const teeColorMap = teeBoxes.reduce((map, teeBox) => {
+          map[teeBox.color.toLowerCase()] = teeBox.id;
+          return map;
+        }, {} as Record<string, string>);
+        
+        // Update holes with extracted data
+        const updatedHoles = [...holes];
+        
+        extractedData.forEach((holeData, index) => {
+          if (index >= updatedHoles.length) return;
+          
+          // Update par and handicap index if available
+          if (holeData.par) {
+            updatedHoles[index].par = parseInt(holeData.par) || 4;
+          }
+          
+          if (holeData.handicapIndex) {
+            updatedHoles[index].handicap_index = parseInt(holeData.handicapIndex) || index + 1;
+          }
+          
+          // Update distances for each tee color
+          if (holeData.distances) {
+            Object.entries(holeData.distances).forEach(([color, distance]) => {
+              const normalizedColor = color.toLowerCase();
+              const teeBoxId = teeColorMap[normalizedColor];
+              
+              if (teeBoxId) {
+                updatedHoles[index][`length_${teeBoxId}`] = parseInt(distance as string) || 0;
+              }
+            });
+          }
+        });
+        
+        setHoles(updatedHoles);
+      } catch (error) {
+        console.error('Error processing extracted scorecard data:', error);
+      }
+    };
+    
+    switch (step) {
+      case 0:
+        return (
+          <CourseInfoStep
+            formData={formData}
+            setFormData={setFormData}
+            loading={loading}
+            handleSubmit={handleSubmit}
+            isEditMode={isEditMode}
+            processingImage={processingImage}
+            setProcessingImage={setProcessingImage}
+            extractionStep={extractionStep}
+            setExtractionStep={setExtractionStep}
+            router={router}
+            courseId={courseId}
+            isMobile={isMobile}
+          />
+        );
+      case 1:
+        return (
+          <TeeBoxesStep
+            courseId={courseId || ''}
+            teeBoxes={teeBoxes}
+            setTeeBoxes={setTeeBoxes}
+            holes={holes}
+            setHoles={setHoles}
+            handleNext={handleNext}
+            handleBack={handleBack}
+            saveTeeBoxes={saveTeeBoxes}
+            loading={loading}
+            processingImage={processingImage}
+            setProcessingImage={setProcessingImage}
+            extractionStep={extractionStep}
+            setExtractionStep={setExtractionStep}
+            isMobile={isMobile}
+          />
+        );
+      case 2:
+        // If we don't have any holes, generate default ones
+        if (!holes || holes.length === 0) {
+          console.log('No holes found, generating default holes');
+          
+          // Generate default holes (18 holes)
+          const defaultHoles: Hole[] = Array.from({ length: 18 }, (_, i) => ({
+            number: i + 1,
+            par: 4,
+            handicap_index: i + 1,
+            ...Object.fromEntries(
+              teeBoxes.map(teeBox => [`length_${teeBox.id}`, 0])
+            )
+          }));
+          
+          // Update the holes state
+          setHoles(defaultHoles);
+          console.log('Generated default holes:', defaultHoles);
+        }
+        
+        // Convert holes to the format expected by ScorecardEditor
+        const formattedHoles: HoleData[] = holes.map(hole => {
+          // Create distances object for each hole
+          const distances: Record<string, number> = {};
+          
+          // Add distances for each tee set
+          teeBoxes.forEach(teeSet => {
+            const distanceKey = `length_${teeSet.id}`;
+            if (hole[distanceKey] !== undefined) {
+              distances[teeSet.id] = Number(hole[distanceKey]);
+            }
+          });
+          
+          return {
+            id: hole.id,
+            number: hole.number,
+            par: hole.par,
+            handicapIndex: hole.handicap_index,
+            distances
+          };
+        });
+        
+        return (
+          <Box sx={{ p: 2 }}>
+            {/* AI-Assisted Data Extraction */}
+            <ImageUploader
+              step="scorecard"
+              processingImage={processingImage}
+              setProcessingImage={setProcessingImage}
+              extractionStep={extractionStep}
+              setExtractionStep={setExtractionStep}
+              onDataExtracted={handleScorecardDataExtracted}
+              isMobile={isMobile}
+            />
+            
+            <ScorecardEditor
+              courseId={courseId || ''}
+              teeSets={teeBoxes}
+              holes={formattedHoles}
+              onSave={async (updatedHoles) => {
+                // Convert back to the format expected by the form
+                console.log('ScorecardEditor onSave called with updatedHoles:', updatedHoles);
+                
+                const convertedHoles: Hole[] = updatedHoles.map(hole => {
+                  const newHole: Hole = {
+                    id: hole.id,
+                    number: hole.number,
+                    par: hole.par,
+                    handicap_index: hole.handicapIndex
+                  };
+                  
+                  // Add distances for each tee set
+                  Object.entries(hole.distances).forEach(([teeSetId, distance]) => {
+                    newHole[`length_${teeSetId}`] = distance;
+                  });
+                  
+                  return newHole;
+                });
+                
+                console.log('Converted holes for saving:', convertedHoles);
+                
+                // Update the holes state
+                setHoles(convertedHoles);
+                
+                // Save the scorecard data
+                try {
+                  const saveResult = await saveScorecard();
+                  console.log('saveScorecard result:', saveResult);
+                  
+                  if (saveResult) {
+                    // Redirect to courses list after successful save
+                    router.push('/admin/courses');
+                  } else {
+                    console.error('saveScorecard returned false');
+                  }
+                } catch (error) {
+                  console.error('Error saving scorecard:', error);
+                }
+              }}
+              onCancel={handleBack}
+              loading={loading}
+              startInEditMode={true}
+            />
+            
+            <Box sx={{ 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              mt: 4 
+            }}>
+              <Button 
+                onClick={handleBack} 
+                disabled={loading}
+              >
+                Back
+              </Button>
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={() => router.push('/admin/courses')}
+                disabled={loading}
+              >
+                Exit Without Saving
+              </Button>
+            </Box>
+          </Box>
+        );
+      default:
+        return 'Unknown step';
+    }
+  };
+
+  // Render mobile or desktop stepper based on screen size
+  const renderStepper = () => {
+    if (isMobile) {
+      return (
+        <Box sx={{ width: '100%', mb: 3 }}>
+          <Paper square elevation={0} sx={{ p: 2, mb: 2, bgcolor: 'background.default' }}>
+            <Typography variant="h6">{steps[activeStep]}</Typography>
+          </Paper>
+          
+          {getStepContent(activeStep)}
+          
+          <MobileStepper
+            variant="dots"
+            steps={steps.length}
+            position="static"
+            activeStep={activeStep}
+            sx={{ mt: 3, bgcolor: 'background.default' }}
+            nextButton={
+              <Button
+                size="small"
+                onClick={handleNext}
+                disabled={activeStep === steps.length - 1 || loading}
+              >
+                Next
+                <KeyboardArrowRight />
+              </Button>
+            }
+            backButton={
+              <Button 
+                size="small" 
+                onClick={handleBack} 
+                disabled={activeStep === 0 || loading}
+              >
+                <KeyboardArrowLeft />
+                Back
+              </Button>
+            }
+          />
+        </Box>
+      );
+    }
+    
+    return (
+      <Box sx={{ width: '100%' }}>
+        <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
+          {steps.map((label) => (
+            <Step key={label}>
+              <StepLabel>{label}</StepLabel>
+            </Step>
+          ))}
+        </Stepper>
+        
+        {getStepContent(activeStep)}
+      </Box>
+    );
+  };
+
+  return (
+    <Box sx={{ width: '100%' }}>
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 3 }}>
           {error}
         </Alert>
       )}
       
-      <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
-        {steps.map((label) => (
-          <Step key={label}>
-            <StepLabel>{label}</StepLabel>
-          </Step>
-        ))}
-      </Stepper>
+      <Snackbar
+        open={success}
+        autoHideDuration={6000}
+        onClose={() => setSuccess(false)}
+        message="Course saved successfully"
+      />
       
-      {activeStep === 0 ? (
-        <CourseInfoStep 
-          formData={formData}
-          setFormData={setFormData}
-          loading={loading}
-          handleSubmit={handleSubmit}
-          isEditMode={isEditMode}
-          processingImage={processingImage}
-          setProcessingImage={setProcessingImage}
-          extractionStep={extractionStep}
-          setExtractionStep={setExtractionStep}
-          router={router}
-          courseId={courseId}
-        />
-      ) : activeStep === 1 ? (
-        <TeeBoxesStep 
-          courseId={courseId}
-          teeBoxes={teeBoxes}
-          setTeeBoxes={setTeeBoxes}
-          holes={holes}
-          setHoles={setHoles}
-          handleNext={handleNext}
-          handleBack={handleBack}
-          loading={loading}
-          processingImage={processingImage}
-          setProcessingImage={setProcessingImage}
-          extractionStep={extractionStep}
-          setExtractionStep={setExtractionStep}
-        />
-      ) : (
-        <ScorecardStep 
-          courseId={courseId}
-          teeBoxes={teeBoxes}
-          holes={holes}
-          setHoles={setHoles}
-          handleSubmit={handleSubmit}
-          handleBack={handleBack}
-          loading={loading}
-          processingImage={processingImage}
-          setProcessingImage={setProcessingImage}
-          extractionStep={extractionStep}
-          setExtractionStep={setExtractionStep}
-        />
-      )}
+      {renderStepper()}
     </Box>
   );
 };

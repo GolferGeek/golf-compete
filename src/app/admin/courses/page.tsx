@@ -1,14 +1,32 @@
+'use client';
+
 import React from 'react';
-import { Typography, Button, Box, Paper } from '@mui/material';
+import { Typography, Button, Box, Paper, useMediaQuery, useTheme } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import Link from 'next/link';
 import CoursesList from '@/components/admin/CoursesList';
 
 export default function CoursesManagement() {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  
   return (
-    <div>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
+    <Box sx={{ width: '100%' }}>
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' },
+        justifyContent: 'space-between', 
+        alignItems: { xs: 'flex-start', sm: 'center' }, 
+        mb: { xs: 2, sm: 3 },
+        gap: 2
+      }}>
+        <Typography 
+          variant="h4" 
+          component="h1"
+          sx={{ 
+            fontSize: { xs: '1.75rem', sm: '2rem', md: '2.25rem' }
+          }}
+        >
           Courses Management
         </Typography>
         <Box>
@@ -18,15 +36,19 @@ export default function CoursesManagement() {
             startIcon={<AddIcon />}
             component={Link}
             href="/admin/courses/new"
+            fullWidth={isMobile}
+            sx={{
+              whiteSpace: 'nowrap'
+            }}
           >
             Add Course
           </Button>
         </Box>
       </Box>
       
-      <Paper sx={{ p: 2 }}>
+      <Paper sx={{ p: { xs: 1, sm: 2 }, overflow: 'hidden' }}>
         <CoursesList />
       </Paper>
-    </div>
+    </Box>
   );
 } 

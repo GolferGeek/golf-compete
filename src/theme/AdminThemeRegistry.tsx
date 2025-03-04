@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { createTheme, ThemeProvider } from '@mui/material/styles';
+import { createTheme, ThemeProvider, responsiveFontSizes } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Roboto } from 'next/font/google';
 import { PaletteMode } from '@mui/material';
@@ -16,7 +16,7 @@ const roboto = Roboto({
 
 // Create a theme instance
 const createAppTheme = (mode: PaletteMode) => {
-  return createTheme({
+  let theme = createTheme({
     palette: {
       mode,
       primary: {
@@ -26,7 +26,7 @@ const createAppTheme = (mode: PaletteMode) => {
         main: '#f9a825', // Amber color as accent
       },
       background: {
-        default: mode === 'light' ? '#f5f5f5' : '#121212',
+        default: mode === 'light' ? '#e6f0e6' : '#121212',
         paper: mode === 'light' ? '#ffffff' : '#1e1e1e',
       },
     },
@@ -41,6 +41,19 @@ const createAppTheme = (mode: PaletteMode) => {
       h3: {
         fontWeight: 500,
       },
+      // Add responsive font sizes for mobile
+      body1: {
+        fontSize: '1rem',
+        '@media (max-width:600px)': {
+          fontSize: '0.875rem',
+        },
+      },
+      body2: {
+        fontSize: '0.875rem',
+        '@media (max-width:600px)': {
+          fontSize: '0.75rem',
+        },
+      },
     },
     components: {
       MuiButton: {
@@ -48,6 +61,11 @@ const createAppTheme = (mode: PaletteMode) => {
           root: {
             borderRadius: 8,
             textTransform: 'none',
+            padding: '6px 16px',
+            '@media (max-width:600px)': {
+              padding: '4px 10px',
+              fontSize: '0.8125rem',
+            },
           },
         },
       },
@@ -61,8 +79,48 @@ const createAppTheme = (mode: PaletteMode) => {
           },
         },
       },
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            borderRadius: 8,
+          },
+        },
+      },
+      MuiListItem: {
+        styleOverrides: {
+          root: {
+            borderRadius: 4,
+            '&:hover': {
+              backgroundColor: mode === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.08)',
+            },
+          },
+        },
+      },
+      MuiContainer: {
+        styleOverrides: {
+          root: {
+            '@media (max-width:600px)': {
+              padding: '0 8px',
+            },
+          },
+        },
+      },
+    },
+    breakpoints: {
+      values: {
+        xs: 0,
+        sm: 600,
+        md: 960,
+        lg: 1280,
+        xl: 1920,
+      },
     },
   });
+  
+  // Apply responsive font sizes
+  theme = responsiveFontSizes(theme);
+  
+  return theme;
 };
 
 export default function AdminThemeRegistry({ children }: { children: React.ReactNode }) {

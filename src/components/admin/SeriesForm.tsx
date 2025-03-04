@@ -164,7 +164,7 @@ export default function SeriesForm({ seriesId }: SeriesFormProps) {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
       <Typography variant="h4" component="h1" gutterBottom>
         {isEditMode ? 'Edit Series' : 'Create New Series'}
       </Typography>
@@ -175,9 +175,9 @@ export default function SeriesForm({ seriesId }: SeriesFormProps) {
         </Alert>
       )}
 
-      <Paper sx={{ p: 3 }}>
+      <Paper sx={{ p: { xs: 2, sm: 3 } }}>
         <form onSubmit={handleSubmit}>
-          <Grid container spacing={3}>
+          <Grid container spacing={2}>
             <Grid item xs={12}>
               <TextField
                 label="Series Name"
@@ -188,6 +188,7 @@ export default function SeriesForm({ seriesId }: SeriesFormProps) {
                 error={!!formErrors.name}
                 helperText={formErrors.name}
                 disabled={submitting}
+                size="small"
               />
             </Grid>
 
@@ -200,11 +201,12 @@ export default function SeriesForm({ seriesId }: SeriesFormProps) {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 disabled={submitting}
+                size="small"
               />
             </Grid>
 
             <Grid item xs={12} sm={6}>
-              <FormControl fullWidth error={!!formErrors.seriesType}>
+              <FormControl fullWidth error={!!formErrors.seriesType} size="small">
                 <InputLabel>Series Type</InputLabel>
                 <Select
                   value={seriesType}
@@ -233,6 +235,7 @@ export default function SeriesForm({ seriesId }: SeriesFormProps) {
                 error={!!formErrors.startDate}
                 helperText={formErrors.startDate}
                 disabled={submitting}
+                size="small"
               />
             </Grid>
 
@@ -247,19 +250,11 @@ export default function SeriesForm({ seriesId }: SeriesFormProps) {
                 error={!!formErrors.endDate}
                 helperText={formErrors.endDate}
                 disabled={submitting}
+                size="small"
               />
             </Grid>
 
             <Grid item xs={12}>
-              <Divider sx={{ my: 2 }} />
-              <Typography variant="h6" gutterBottom>
-                Scoring System (Optional)
-              </Typography>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Enter the scoring system as a JSON object. For example, for a points-based system:
-                <br />
-                {`{ "first": 100, "second": 80, "third": 60, "participation": 10 }`}
-              </Typography>
               <TextField
                 label="Scoring System (JSON)"
                 fullWidth
@@ -268,16 +263,18 @@ export default function SeriesForm({ seriesId }: SeriesFormProps) {
                 value={scoringSystem}
                 onChange={(e) => setScoringSystem(e.target.value)}
                 error={!!formErrors.scoringSystem}
-                helperText={formErrors.scoringSystem || 'Leave blank to configure later'}
+                helperText={formErrors.scoringSystem || 'Enter scoring system as JSON object'}
                 disabled={submitting}
+                size="small"
               />
             </Grid>
 
-            <Grid item xs={12} sx={{ mt: 2, display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+            <Grid item xs={12} sx={{ mt: 2, display: 'flex', justifyContent: { xs: 'center', sm: 'flex-end' }, flexWrap: 'wrap', gap: 1 }}>
               <Button
                 variant="outlined"
                 onClick={() => router.push('/admin/series')}
                 disabled={submitting}
+                sx={{ minWidth: '120px', mb: { xs: 1, sm: 0 } }}
               >
                 Cancel
               </Button>
@@ -286,13 +283,15 @@ export default function SeriesForm({ seriesId }: SeriesFormProps) {
                 variant="contained"
                 color="primary"
                 disabled={submitting}
-                startIcon={submitting ? <CircularProgress size={20} /> : null}
+                sx={{ minWidth: '120px' }}
               >
-                {submitting
-                  ? 'Saving...'
-                  : isEditMode
-                  ? 'Update Series'
-                  : 'Create Series'}
+                {submitting ? (
+                  <CircularProgress size={24} />
+                ) : isEditMode ? (
+                  'Update Series'
+                ) : (
+                  'Create Series'
+                )}
               </Button>
             </Grid>
           </Grid>

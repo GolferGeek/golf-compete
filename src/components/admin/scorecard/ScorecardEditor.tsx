@@ -42,6 +42,7 @@ export interface ScorecardEditorProps {
   onCancel?: () => void;
   loading?: boolean;
   readOnly?: boolean;
+  startInEditMode?: boolean;
 }
 
 export default function ScorecardEditor({
@@ -51,13 +52,14 @@ export default function ScorecardEditor({
   onSave,
   onCancel,
   loading = false,
-  readOnly = false
+  readOnly = false,
+  startInEditMode = false
 }: ScorecardEditorProps) {
   const [localHoles, setLocalHoles] = useState<HoleData[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [editMode, setEditMode] = useState(false);
+  const [editMode, setEditMode] = useState(startInEditMode);
   const [editingCell, setEditingCell] = useState<{
     holeIndex: number;
     field: 'par' | 'handicapIndex' | 'distance';

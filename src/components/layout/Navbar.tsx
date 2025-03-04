@@ -17,6 +17,7 @@ import MenuItem from '@mui/material/MenuItem';
 import GolfCourseIcon from '@mui/icons-material/GolfCourse';
 import Avatar from '@mui/material/Avatar';
 import Tooltip from '@mui/material/Tooltip';
+import PersonIcon from '@mui/icons-material/Person';
 import { useAuth } from '@/contexts/AuthContext';
 import { signOut } from '@/lib/supabase';
 import { getBrowserClient } from '@/lib/supabase-browser';
@@ -119,6 +120,46 @@ export default function Navbar() {
       console.log('==================');
     } catch (error) {
       console.error('Error checking auth state:', error);
+    }
+  };
+
+  // Generate menu items based on authentication status
+  const getUserMenuItems = () => {
+    if (mounted && user) {
+      // Logged in user menu items
+      const menuItems = [
+        <MenuItem key="dashboard" component={Link} href="/dashboard" onClick={handleCloseUserMenu}>
+          <Typography textAlign="center">Dashboard</Typography>
+        </MenuItem>
+      ];
+      
+      // Add admin menu item if user is admin
+      if (profile?.is_admin) {
+        menuItems.push(
+          <MenuItem key="admin" component={Link} href="/admin" onClick={handleCloseUserMenu}>
+            <Typography textAlign="center">Admin</Typography>
+          </MenuItem>
+        );
+      }
+      
+      // Add profile and logout items
+      menuItems.push(
+        <MenuItem key="profile" component={Link} href="/profile" onClick={handleCloseUserMenu}>
+          <Typography textAlign="center">Profile</Typography>
+        </MenuItem>,
+        <MenuItem key="logout" onClick={handleLogout}>
+          <Typography textAlign="center">Logout</Typography>
+        </MenuItem>
+      );
+      
+      return menuItems;
+    } else {
+      // Not logged in - only show Login option
+      return [
+        <MenuItem key="login" component={Link} href="/auth/login" onClick={handleCloseUserMenu}>
+          <Typography textAlign="center">Login</Typography>
+        </MenuItem>
+      ];
     }
   };
 
@@ -231,82 +272,39 @@ export default function Navbar() {
             )}
           </Box>
 
-          {/* Auth Buttons or User Menu */}
+          {/* User Menu - Always Visible */}
           <Box sx={{ flexGrow: 0 }}>
-            {mounted && user ? (
-              <>
-                <Tooltip title="Open settings">
-                  <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                    <Avatar sx={{ bgcolor: 'primary.main' }}>
-                      {getUserInitials()}
-                    </Avatar>
-                  </IconButton>
-                </Tooltip>
-                <Menu
-                  sx={{ mt: '45px' }}
-                  id="menu-appbar-user"
-                  anchorEl={anchorElUser}
-                  anchorOrigin={{
-                    vertical: 'top',
-                    horizontal: 'right',
-                  }}
-                  keepMounted
-                  transformOrigin={{
-                    vertical: 'top',
-                    horizontal: 'right',
-                  }}
-                  open={Boolean(anchorElUser)}
-                  onClose={handleCloseUserMenu}
-                >
-                  <MenuItem component={Link} href="/dashboard" onClick={handleCloseUserMenu}>
-                    <Typography textAlign="center">Dashboard</Typography>
-                  </MenuItem>
-                  {profile?.is_admin && (
-                    <MenuItem component={Link} href="/admin" onClick={handleCloseUserMenu}>
-                      <Typography textAlign="center">Admin</Typography>
-                    </MenuItem>
-                  )}
-                  <MenuItem component={Link} href="/profile" onClick={handleCloseUserMenu}>
-                    <Typography textAlign="center">Profile</Typography>
-                  </MenuItem>
-                  <MenuItem onClick={() => { handleCloseUserMenu(); checkAuthState(); }}>
-                    <Typography textAlign="center">Check Auth</Typography>
-                  </MenuItem>
-                  <MenuItem onClick={handleLogout}>
-                    <Typography textAlign="center">Logout</Typography>
-                  </MenuItem>
-                </Menu>
-              </>
-            ) : (
-              <>
-                <Button
-                  variant="outlined"
-                  color="primary"
-                  component={Link}
-                  href="/auth/login"
-                  sx={{ mr: 2 }}
-                >
-                  Login
-                </Button>
-                <Button
-                  variant="contained"
-                  color="primary"
-                  component={Link}
-                  href="/auth/signup"
-                  sx={{ mr: 2 }}
-                >
-                  Sign Up
-                </Button>
-                <Button
-                  variant="text"
-                  color="secondary"
-                  onClick={checkAuthState}
-                  sx={{ ml: 1 }}
-                >
-                  Debug
-                </Button>
-              </>
-            )}
+            <Tooltip title="Account menu">
+              <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+                {mounted && user ? (
+                  <Avatar sx={{ bgcolor: 'primary.main' }}>
+                    {getUserInitials()}
+                  </Avatar>
+                ) : (
+                  <Avatar sx={{ bgcolor: 'grey.300' }}>
+                    <PersonIcon color="action" />
+                  </Avatar>
+                )}
+              </IconButton>
+            </Tooltip>
+            <Menu
+              sx={{ mt: '45px' }}
+              id="menu-appbar-user"
+              anchorEl={anchorElUser}
+              anchorOrigin={{
+                vertical: 'top',
+                horizontal: 'right',
+              }}
+              keepMounted
+              transformOrigin={{
+                vertical: 'top',
+                horizontal: 'right',
+              }}
+              open={Boolean(anchorElUser)}
+              onClose={handleCloseUserMenu}
+            >
+              {getUserMenuItems()}
+            </Menu>
           </Box>
         </Toolbar>
       </Container>

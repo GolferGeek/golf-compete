@@ -8,33 +8,34 @@ import {
   Breadcrumbs,
   Link as MuiLink,
   Button,
-  Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  Paper,
   IconButton,
-  Chip,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
   CircularProgress,
   Alert,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
-  TextField,
-  FormControl,
-  InputLabel,
-  Select,
-  MenuItem,
+  Chip,
+  Card,
+  CardContent,
+  CardActions,
+  Grid,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import Link from 'next/link';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import AddIcon from '@mui/icons-material/Add';
+import PeopleIcon from '@mui/icons-material/People';
 import { format } from 'date-fns';
 import { getSeriesById } from '@/lib/series';
 import { getEventsBySeries, getAllEvents, addEventToSeries, removeEventFromSeries } from '@/lib/events';
@@ -49,18 +50,22 @@ export default function SeriesEventsPage({ params }: SeriesEventsPageProps) {
   const router = useRouter();
   const unwrappedParams = React.use(params as any) as { id: string };
   const seriesId = unwrappedParams.id;
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   
   const [series, setSeries] = useState<any>(null);
   const [events, setEvents] = useState<any[]>([]);
   const [availableEvents, setAvailableEvents] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  
   const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<string>('');
-  const [eventOrder, setEventOrder] = useState<number>(1);
-  const [pointsMultiplier, setPointsMultiplier] = useState<number>(1);
-  const [removeDialogOpen, setRemoveDialogOpen] = useState(false);
-  const [eventToRemove, setEventToRemove] = useState<string | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<string>('');
+  const [addingEvent, setAddingEvent] = useState(false);
+  
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState<string | null>(null);
+  const [deletingEvent, setDeletingEvent] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -71,18 +76,18 @@ export default function SeriesEventsPage({ params }: SeriesEventsPageProps) {
         const seriesData = await getSeriesById(seriesId);
         setSeries(seriesData);
         
-        // Load events for this series
+        // Load events
         const seriesEvents = await getEventsBySeries(seriesId);
         setEvents(seriesEvents);
         
-        // Load all events to find available ones
-        const allEvents = await getAllEvents();
+        // Load available events
         const seriesEventIds = seriesEvents.map((e: any) => e.id);
-        const filteredEvents = allEvents.filter((e: any) => !seriesEventIds.includes(e.id));
-        setAvailableEvents(filteredEvents);
+        const allEvents = await getAllEvents();
+        const availableEventsData = allEvents.filter((e: any) => !seriesEventIds.includes(e.id));
+        setAvailableEvents(availableEventsData);
       } catch (err) {
-        console.error('Error loading series data:', err);
-        setError('Failed to load series data. Please try again later.');
+        console.error('Error loading data:', err);
+        setError('Failed to load data. Please try again later.');
       } finally {
         setLoading(false);
       }
@@ -92,59 +97,197 @@ export default function SeriesEventsPage({ params }: SeriesEventsPageProps) {
   }, [seriesId]);
 
   const handleAddEvent = async () => {
-    if (!selectedEvent) return;
+    if (!selectedEventId) return;
     
     try {
-      await addEventToSeries(seriesId, selectedEvent, eventOrder, pointsMultiplier);
+      setAddingEvent(true);
+      await addEventToSeries(seriesId, selectedEventId);
       
-      // Refresh the events list
+      // Reload events and available events
       const seriesEvents = await getEventsBySeries(seriesId);
       setEvents(seriesEvents);
       
-      // Update available events
-      const allEvents = await getAllEvents();
       const seriesEventIds = seriesEvents.map((e: any) => e.id);
-      const filteredEvents = allEvents.filter((e: any) => !seriesEventIds.includes(e.id));
-      setAvailableEvents(filteredEvents);
+      const allEvents = await getAllEvents();
+      const availableEventsData = allEvents.filter((e: any) => !seriesEventIds.includes(e.id));
+      setAvailableEvents(availableEventsData);
       
-      // Reset form and close dialog
-      setSelectedEvent('');
-      setEventOrder(events.length + 1);
-      setPointsMultiplier(1);
+      // Close dialog and reset form
       setAddDialogOpen(false);
+      setSelectedEventId('');
     } catch (err) {
-      console.error('Error adding event to series:', err);
-      setError('Failed to add event to series. Please try again later.');
+      console.error('Error adding event:', err);
+      setError('Failed to add event. Please try again later.');
+    } finally {
+      setAddingEvent(false);
     }
   };
 
-  const handleRemoveEvent = async () => {
-    if (!eventToRemove) return;
+  const handleDeleteClick = (eventId: string) => {
+    setEventToDelete(eventId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!eventToDelete) return;
     
     try {
-      await removeEventFromSeries(seriesId, eventToRemove);
+      setDeletingEvent(true);
+      await removeEventFromSeries(seriesId, eventToDelete);
       
-      // Refresh the events list
+      // Reload events and available events
       const seriesEvents = await getEventsBySeries(seriesId);
       setEvents(seriesEvents);
       
-      // Update available events
-      const allEvents = await getAllEvents();
       const seriesEventIds = seriesEvents.map((e: any) => e.id);
-      const filteredEvents = allEvents.filter((e: any) => !seriesEventIds.includes(e.id));
-      setAvailableEvents(filteredEvents);
+      const allEvents = await getAllEvents();
+      const availableEventsData = allEvents.filter((e: any) => !seriesEventIds.includes(e.id));
+      setAvailableEvents(availableEventsData);
       
-      // Reset and close dialog
-      setEventToRemove(null);
-      setRemoveDialogOpen(false);
+      // Close dialog
+      setDeleteDialogOpen(false);
+      setEventToDelete(null);
     } catch (err) {
-      console.error('Error removing event from series:', err);
-      setError('Failed to remove event from series. Please try again later.');
+      console.error('Error removing event:', err);
+      setError('Failed to remove event. Please try again later.');
+    } finally {
+      setDeletingEvent(false);
     }
   };
 
-  const formatEventFormat = (format: string) => {
-    return format.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+  const renderMobileView = () => {
+    return (
+      <Grid container spacing={2}>
+        {events.map((event) => (
+          <Grid item xs={12} key={event.id}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" component="div" gutterBottom>
+                  {event.name}
+                </Typography>
+                <Box sx={{ mb: 1 }}>
+                  <Chip
+                    label={event.status.charAt(0).toUpperCase() + event.status.slice(1)}
+                    color={
+                      event.status === 'upcoming'
+                        ? 'info'
+                        : event.status === 'active'
+                        ? 'success'
+                        : 'default'
+                    }
+                    size="small"
+                    sx={{ mr: 1 }}
+                  />
+                  <Chip
+                    label={format(new Date(event.event_date), 'MMM d, yyyy')}
+                    variant="outlined"
+                    size="small"
+                  />
+                </Box>
+                <Typography variant="body2" color="text.secondary">
+                  Format: {event.event_format}
+                </Typography>
+                {event.description && (
+                  <Typography variant="body2" sx={{ mt: 1 }}>
+                    {event.description}
+                  </Typography>
+                )}
+              </CardContent>
+              <CardActions sx={{ flexWrap: 'wrap', justifyContent: 'center', gap: 1, pb: 2 }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<PeopleIcon />}
+                  onClick={() => router.push(`/admin/events/${event.id}/participants`)}
+                >
+                  Participants
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<EditIcon />}
+                  onClick={() => router.push(`/admin/events/edit/${event.id}`)}
+                >
+                  Edit
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  color="error"
+                  startIcon={<DeleteIcon />}
+                  onClick={() => handleDeleteClick(event.id)}
+                >
+                  Remove
+                </Button>
+              </CardActions>
+            </Card>
+          </Grid>
+        ))}
+      </Grid>
+    );
+  };
+
+  const renderDesktopView = () => {
+    return (
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Name</TableCell>
+              <TableCell>Date</TableCell>
+              <TableCell>Format</TableCell>
+              <TableCell>Status</TableCell>
+              <TableCell align="right">Actions</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {events.map((event) => (
+              <TableRow key={event.id}>
+                <TableCell>{event.name}</TableCell>
+                <TableCell>{format(new Date(event.event_date), 'MMM d, yyyy')}</TableCell>
+                <TableCell>{event.event_format}</TableCell>
+                <TableCell>
+                  <Chip
+                    label={event.status.charAt(0).toUpperCase() + event.status.slice(1)}
+                    color={
+                      event.status === 'upcoming'
+                        ? 'info'
+                        : event.status === 'active'
+                        ? 'success'
+                        : 'default'
+                    }
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell align="right">
+                  <IconButton
+                    color="primary"
+                    onClick={() => router.push(`/admin/events/${event.id}/participants`)}
+                    title="Manage Participants"
+                  >
+                    <PeopleIcon />
+                  </IconButton>
+                  <IconButton
+                    color="primary"
+                    onClick={() => router.push(`/admin/events/edit/${event.id}`)}
+                    title="Edit Event"
+                  >
+                    <EditIcon />
+                  </IconButton>
+                  <IconButton
+                    color="error"
+                    onClick={() => handleDeleteClick(event.id)}
+                    title="Remove from Series"
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    );
   };
 
   if (loading) {
@@ -155,8 +298,23 @@ export default function SeriesEventsPage({ params }: SeriesEventsPageProps) {
     );
   }
 
+  if (!series) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <Alert severity="error">Series not found.</Alert>
+        <Button 
+          startIcon={<ArrowBackIcon />} 
+          onClick={() => router.push('/admin/series')}
+          sx={{ mt: 2 }}
+        >
+          Back to Series
+        </Button>
+      </Box>
+    );
+  }
+
   return (
-    <Box>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
       <Box sx={{ mb: 4 }}>
         <Breadcrumbs aria-label="breadcrumb">
           <Link href="/admin" passHref legacyBehavior>
@@ -169,45 +327,13 @@ export default function SeriesEventsPage({ params }: SeriesEventsPageProps) {
               Series
             </MuiLink>
           </Link>
+          <Link href={`/admin/series/${seriesId}`} passHref legacyBehavior>
+            <MuiLink underline="hover" color="inherit">
+              {series.name}
+            </MuiLink>
+          </Link>
           <Typography color="text.primary">Events</Typography>
         </Breadcrumbs>
-      </Box>
-
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          {series?.name} - Events
-        </Typography>
-        <Box>
-          <Button 
-            variant="outlined" 
-            startIcon={<ArrowBackIcon />}
-            onClick={() => router.push('/admin/series')}
-            sx={{ mr: 2 }}
-          >
-            Back to Series
-          </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            onClick={() => router.push(`/admin/series/${seriesId}/events/new`)}
-            sx={{ mr: 2 }}
-          >
-            Create New Event
-          </Button>
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<AddIcon />}
-            onClick={() => {
-              setEventOrder(events.length + 1);
-              setAddDialogOpen(true);
-            }}
-            disabled={availableEvents.length === 0}
-          >
-            Add Existing Event
-          </Button>
-        </Box>
       </Box>
 
       {error && (
@@ -216,23 +342,61 @@ export default function SeriesEventsPage({ params }: SeriesEventsPageProps) {
         </Alert>
       )}
 
+      <Box sx={{ 
+        display: 'flex', 
+        flexDirection: { xs: 'column', sm: 'row' }, 
+        justifyContent: 'space-between', 
+        alignItems: { xs: 'stretch', sm: 'center' }, 
+        mb: 3,
+        gap: 2
+      }}>
+        <Typography variant="h4" component="h1">
+          Events
+        </Typography>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', sm: 'row' }, 
+          gap: 2 
+        }}>
+          <Button
+            variant="outlined"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={() => router.push(`/admin/series/${seriesId}/events/new`)}
+            fullWidth={isMobile}
+          >
+            Create Event
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={() => setAddDialogOpen(true)}
+            disabled={availableEvents.length === 0}
+            fullWidth={isMobile}
+          >
+            Add Existing Event
+          </Button>
+        </Box>
+      </Box>
+
       {events.length === 0 ? (
         <Paper sx={{ p: 3, textAlign: 'center' }}>
           <Typography variant="body1" sx={{ mb: 2 }}>
-            No events have been added to this series yet.
+            No events found. Add events to get started.
           </Typography>
-          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
             <Button
-              variant="contained"
+              variant="outlined"
               color="primary"
               startIcon={<AddIcon />}
               onClick={() => router.push(`/admin/series/${seriesId}/events/new`)}
             >
-              Create New Event
+              Create Event
             </Button>
             <Button
-              variant="outlined"
-              color="secondary"
+              variant="contained"
+              color="primary"
               startIcon={<AddIcon />}
               onClick={() => setAddDialogOpen(true)}
               disabled={availableEvents.length === 0}
@@ -240,148 +404,64 @@ export default function SeriesEventsPage({ params }: SeriesEventsPageProps) {
               Add Existing Event
             </Button>
           </Box>
-          {availableEvents.length === 0 && (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
-              You need to create events before you can add them to this series.
-            </Typography>
-          )}
         </Paper>
       ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Order</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Date</TableCell>
-                <TableCell>Course</TableCell>
-                <TableCell>Format</TableCell>
-                <TableCell>Points Multiplier</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {events.map((event) => (
-                <TableRow key={event.id}>
-                  <TableCell>{event.event_order}</TableCell>
-                  <TableCell>{event.name}</TableCell>
-                  <TableCell>
-                    {format(new Date(event.event_date), 'MMM d, yyyy')}
-                  </TableCell>
-                  <TableCell>
-                    {event.courses?.name || 'Unknown Course'}
-                  </TableCell>
-                  <TableCell>
-                    {formatEventFormat(event.event_format)}
-                  </TableCell>
-                  <TableCell>{event.points_multiplier}x</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={event.status.charAt(0).toUpperCase() + event.status.slice(1).replace('_', ' ')}
-                      color={
-                        event.status === 'upcoming' ? 'info' :
-                        event.status === 'in_progress' ? 'warning' :
-                        event.status === 'completed' ? 'success' :
-                        'error'
-                      }
-                      size="small"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <IconButton
-                      color="primary"
-                      onClick={() => router.push(`/admin/events/${event.id}/edit`)}
-                      size="small"
-                      title="Edit Event"
-                    >
-                      <EditIcon />
-                    </IconButton>
-                    <IconButton
-                      color="error"
-                      onClick={() => {
-                        setEventToRemove(event.id);
-                        setRemoveDialogOpen(true);
-                      }}
-                      size="small"
-                      title="Remove from Series"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+        isMobile ? renderMobileView() : renderDesktopView()
       )}
 
       {/* Add Event Dialog */}
-      <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add Event to Series</DialogTitle>
-        <DialogContent>
-          <Box sx={{ pt: 1 }}>
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel>Event</InputLabel>
-              <Select
-                value={selectedEvent}
-                onChange={(e) => setSelectedEvent(e.target.value)}
-                label="Event"
-              >
-                {availableEvents.map((event) => (
-                  <MenuItem key={event.id} value={event.id}>
-                    {event.name} ({format(new Date(event.event_date), 'MMM d, yyyy')})
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            
-            <TextField
-              label="Event Order"
-              type="number"
-              fullWidth
-              value={eventOrder}
-              onChange={(e) => setEventOrder(parseInt(e.target.value) || 1)}
-              sx={{ mb: 2 }}
-              helperText="The order in which this event appears in the series"
-              inputProps={{ min: 1 }}
-            />
-            
-            <TextField
-              label="Points Multiplier"
-              type="number"
-              fullWidth
-              value={pointsMultiplier}
-              onChange={(e) => setPointsMultiplier(parseFloat(e.target.value) || 1)}
-              helperText="Multiplier for points earned in this event (e.g., 2x for a major)"
-              inputProps={{ min: 0.5, step: 0.5 }}
-            />
-          </Box>
+      <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)}>
+        <DialogTitle>Add Existing Event</DialogTitle>
+        <DialogContent sx={{ pt: 2 }}>
+          {availableEvents.length === 0 ? (
+            <Typography>No available events to add.</Typography>
+          ) : (
+            <Box sx={{ minWidth: 250 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Select an event to add to this series:
+              </Typography>
+              {availableEvents.map((event) => (
+                <Button
+                  key={event.id}
+                  variant={selectedEventId === event.id ? "contained" : "outlined"}
+                  color="primary"
+                  onClick={() => setSelectedEventId(event.id)}
+                  sx={{ mb: 1, display: 'block', width: '100%', textAlign: 'left' }}
+                >
+                  {event.name} - {format(new Date(event.event_date), 'MMM d, yyyy')}
+                </Button>
+              ))}
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setAddDialogOpen(false)}>Cancel</Button>
-          <Button 
-            onClick={handleAddEvent} 
-            color="primary" 
-            disabled={!selectedEvent}
+          <Button
+            onClick={handleAddEvent}
+            color="primary"
+            disabled={!selectedEventId || addingEvent}
           >
-            Add
+            {addingEvent ? <CircularProgress size={24} /> : 'Add to Series'}
           </Button>
         </DialogActions>
       </Dialog>
 
-      {/* Remove Event Dialog */}
-      <Dialog open={removeDialogOpen} onClose={() => setRemoveDialogOpen(false)}>
-        <DialogTitle>Remove Event from Series</DialogTitle>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
+        <DialogTitle>Remove Event</DialogTitle>
         <DialogContent>
-          <DialogContentText>
-            Are you sure you want to remove this event from the series? This will not delete the event itself, only its association with this series.
-          </DialogContentText>
+          <Typography>
+            Are you sure you want to remove this event from the series? The event itself will not be deleted.
+          </Typography>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setRemoveDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleRemoveEvent} color="error">
-            Remove
+          <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
+            disabled={deletingEvent}
+          >
+            {deletingEvent ? <CircularProgress size={24} /> : 'Remove'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -16,7 +16,9 @@ import {
   ListItemText,
   CircularProgress,
   Chip,
-  Alert
+  Alert,
+  alpha,
+  useTheme
 } from '@mui/material'
 import { useAuth } from '@/contexts/AuthContext'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
@@ -35,6 +37,7 @@ export default function DashboardPage() {
   const [userEvents, setUserEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const theme = useTheme()
 
   useEffect(() => {
     async function loadUserCompetitions() {
@@ -79,11 +82,29 @@ export default function DashboardPage() {
     }
   }
 
+  // Card header style
+  const cardHeaderStyle = {
+    display: 'flex', 
+    alignItems: 'center', 
+    mb: 2,
+    pb: 1,
+    borderBottom: `1px solid ${theme.palette.divider}`
+  }
+
+  // Icon style
+  const iconStyle = {
+    mr: 1.5,
+    p: 1,
+    borderRadius: '50%',
+    bgcolor: alpha(theme.palette.primary.main, 0.1),
+    color: theme.palette.primary.main
+  }
+
   return (
     <ProtectedRoute>
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4" component="h1">
+      <Container maxWidth="lg" sx={{ mt: 5, mb: 5 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 4 }}>
+          <Typography variant="h4" component="h1" fontWeight="600">
             Dashboard
           </Typography>
           <Button 
@@ -91,6 +112,11 @@ export default function DashboardPage() {
             href="/profile" 
             variant="outlined" 
             startIcon={<PersonIcon />}
+            sx={{ 
+              borderRadius: '8px',
+              px: 2.5,
+              py: 1
+            }}
           >
             My Profile
           </Button>
@@ -99,17 +125,37 @@ export default function DashboardPage() {
         <Grid container spacing={3}>
           {/* Welcome Card */}
           <Grid item xs={12}>
-            <Paper sx={{ p: 3, display: 'flex', flexDirection: 'column' }}>
-              <Typography variant="h5" gutterBottom>
+            <Paper 
+              sx={{ 
+                p: 4, 
+                display: 'flex', 
+                flexDirection: 'column',
+                backgroundImage: 'linear-gradient(to right, rgba(30, 86, 49, 0.05), rgba(30, 86, 49, 0.01))',
+                borderLeft: `4px solid ${theme.palette.primary.main}`,
+                borderRadius: '12px'
+              }}
+            >
+              <Typography variant="h5" gutterBottom fontWeight="600">
                 Welcome, {profile?.first_name || 'Golfer'}!
               </Typography>
-              <Typography variant="body1">
+              <Typography variant="body1" sx={{ mb: 1 }}>
                 This is your Golf Compete dashboard. Track your competitions, practice drills, and areas for improvement.
               </Typography>
               {profile?.handicap !== null && profile?.handicap !== undefined && (
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  Current Handicap: <strong>{profile.handicap}</strong>
-                </Typography>
+                <Box sx={{ 
+                  mt: 2, 
+                  display: 'inline-flex', 
+                  alignItems: 'center',
+                  bgcolor: alpha(theme.palette.primary.main, 0.1),
+                  px: 2,
+                  py: 1,
+                  borderRadius: '8px',
+                  width: 'fit-content'
+                }}>
+                  <Typography variant="body2" fontWeight="500">
+                    Current Handicap: <strong>{profile.handicap}</strong>
+                  </Typography>
+                </Box>
               )}
             </Paper>
           </Grid>
@@ -117,14 +163,15 @@ export default function DashboardPage() {
           {/* Competitions */}
           <Grid item xs={12} md={4}>
             <Card sx={{ height: '100%' }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <EmojiEventsIcon color="primary" sx={{ mr: 1 }} />
+              <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Box sx={cardHeaderStyle}>
+                  <Box sx={iconStyle}>
+                    <EmojiEventsIcon fontSize="small" />
+                  </Box>
                   <Typography variant="h6">
                     My Competitions
                   </Typography>
                 </Box>
-                <Divider sx={{ mb: 2 }} />
                 
                 {error && (
                   <Alert severity="error" sx={{ mb: 2 }}>
@@ -137,7 +184,7 @@ export default function DashboardPage() {
                     <CircularProgress size={24} />
                   </Box>
                 ) : (
-                  <>
+                  <Box sx={{ flexGrow: 1 }}>
                     {userSeries.length === 0 && userEvents.length === 0 ? (
                       <Typography variant="body2" sx={{ mb: 2 }}>
                         You are not currently participating in any competitions.
@@ -146,16 +193,16 @@ export default function DashboardPage() {
                       <>
                         {userSeries.length > 0 && (
                           <>
-                            <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
+                            <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontWeight: 600, color: theme.palette.text.secondary }}>
                               Series
                             </Typography>
-                            <List dense>
+                            <List dense sx={{ mb: 2 }}>
                               {userSeries.map((series) => (
-                                <ListItem key={series.id} disablePadding sx={{ mb: 1 }}>
+                                <ListItem key={series.id} disablePadding sx={{ mb: 1, px: 1, py: 0.75, borderRadius: '8px' }}>
                                   <ListItemText
                                     primary={
                                       <Link href={`/admin/series/${series.series_id}`} passHref style={{ textDecoration: 'none', color: 'inherit' }}>
-                                        <Typography variant="body2" component="span" sx={{ fontWeight: 'medium', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
+                                        <Typography variant="body2" component="span" sx={{ fontWeight: 'medium', cursor: 'pointer', '&:hover': { color: theme.palette.primary.main } }}>
                                           {series.name || 'Unnamed Series'}
                                         </Typography>
                                       </Link>
@@ -166,9 +213,9 @@ export default function DashboardPage() {
                                           label={series.status} 
                                           size="small" 
                                           color={getStatusColor(series.status) as any}
-                                          sx={{ height: 20, fontSize: '0.7rem' }}
+                                          sx={{ height: 20, fontSize: '0.7rem', fontWeight: 500 }}
                                         />
-                                        <Typography variant="caption" sx={{ ml: 1 }}>
+                                        <Typography variant="caption" sx={{ ml: 1, color: theme.palette.text.secondary }}>
                                           {series.role === 'admin' ? 'Admin' : 'Participant'}
                                         </Typography>
                                       </Box>
@@ -183,16 +230,16 @@ export default function DashboardPage() {
                         
                         {userEvents.length > 0 && (
                           <>
-                            <Typography variant="subtitle2" sx={{ mt: 2, mb: 1 }}>
+                            <Typography variant="subtitle2" sx={{ mt: 2, mb: 1, fontWeight: 600, color: theme.palette.text.secondary }}>
                               Events
                             </Typography>
-                            <List dense>
+                            <List dense sx={{ mb: 2 }}>
                               {userEvents.map((event) => (
-                                <ListItem key={event.id} disablePadding sx={{ mb: 1 }}>
+                                <ListItem key={event.id} disablePadding sx={{ mb: 1, px: 1, py: 0.75, borderRadius: '8px' }}>
                                   <ListItemText
                                     primary={
                                       <Link href={`/admin/events/${event.event_id}`} passHref style={{ textDecoration: 'none', color: 'inherit' }}>
-                                        <Typography variant="body2" component="span" sx={{ fontWeight: 'medium', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}>
+                                        <Typography variant="body2" component="span" sx={{ fontWeight: 'medium', cursor: 'pointer', '&:hover': { color: theme.palette.primary.main } }}>
                                           {event.name || 'Unnamed Event'}
                                         </Typography>
                                       </Link>
@@ -203,9 +250,9 @@ export default function DashboardPage() {
                                           label={event.status} 
                                           size="small" 
                                           color={getStatusColor(event.status) as any}
-                                          sx={{ height: 20, fontSize: '0.7rem' }}
+                                          sx={{ height: 20, fontSize: '0.7rem', fontWeight: 500 }}
                                         />
-                                        <Typography variant="caption" sx={{ ml: 1 }}>
+                                        <Typography variant="caption" sx={{ ml: 1, color: theme.palette.text.secondary }}>
                                           {event.event_date ? new Date(event.event_date).toLocaleDateString() : 'No date'}
                                         </Typography>
                                       </Box>
@@ -219,20 +266,20 @@ export default function DashboardPage() {
                         )}
                       </>
                     )}
-                    
-                    {profile?.is_admin && (
-                      <Button 
-                        component={Link} 
-                        href="/admin" 
-                        variant="outlined" 
-                        fullWidth
-                        sx={{ mt: 2 }}
-                        endIcon={<ArrowForwardIcon />}
-                      >
-                        Admin Dashboard
-                      </Button>
-                    )}
-                  </>
+                  </Box>
+                )}
+                
+                {profile?.is_admin && (
+                  <Button 
+                    component={Link} 
+                    href="/admin" 
+                    variant="outlined" 
+                    fullWidth
+                    sx={{ mt: 'auto', pt: 1.2, pb: 1.2 }}
+                    endIcon={<ArrowForwardIcon />}
+                  >
+                    Admin Dashboard
+                  </Button>
                 )}
               </CardContent>
             </Card>
@@ -241,43 +288,47 @@ export default function DashboardPage() {
           {/* Practice Drills */}
           <Grid item xs={12} md={4}>
             <Card sx={{ height: '100%' }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <FitnessCenterIcon color="primary" sx={{ mr: 1 }} />
+              <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Box sx={cardHeaderStyle}>
+                  <Box sx={iconStyle}>
+                    <FitnessCenterIcon fontSize="small" />
+                  </Box>
                   <Typography variant="h6">
                     Practice Drills
                   </Typography>
                 </Box>
-                <Divider sx={{ mb: 2 }} />
+                
                 <Typography variant="body2" paragraph>
                   Track your practice sessions and improvement over time.
                 </Typography>
-                <List dense>
-                  <ListItem>
+                
+                <List dense sx={{ mb: 2, flexGrow: 1 }}>
+                  <ListItem sx={{ px: 1, py: 0.75, borderRadius: '8px' }}>
                     <ListItemText 
-                      primary="Putting Practice" 
-                      secondary="Last session: Not started" 
+                      primary={<Typography variant="body2" fontWeight="medium">Putting Practice</Typography>} 
+                      secondary={<Typography variant="caption" color="text.secondary">Last session: Not started</Typography>} 
                     />
                   </ListItem>
-                  <ListItem>
+                  <ListItem sx={{ px: 1, py: 0.75, borderRadius: '8px' }}>
                     <ListItemText 
-                      primary="Driving Range" 
-                      secondary="Last session: Not started" 
+                      primary={<Typography variant="body2" fontWeight="medium">Driving Range</Typography>} 
+                      secondary={<Typography variant="caption" color="text.secondary">Last session: Not started</Typography>} 
                     />
                   </ListItem>
-                  <ListItem>
+                  <ListItem sx={{ px: 1, py: 0.75, borderRadius: '8px' }}>
                     <ListItemText 
-                      primary="Chipping Drill" 
-                      secondary="Last session: Not started" 
+                      primary={<Typography variant="body2" fontWeight="medium">Chipping Drill</Typography>} 
+                      secondary={<Typography variant="caption" color="text.secondary">Last session: Not started</Typography>} 
                     />
                   </ListItem>
                 </List>
+                
                 <Button 
                   component={Link} 
                   href="/drills" 
                   variant="outlined" 
                   fullWidth
-                  sx={{ mt: 2 }}
+                  sx={{ mt: 'auto', pt: 1.2, pb: 1.2 }}
                   endIcon={<ArrowForwardIcon />}
                 >
                   View All Drills
@@ -289,31 +340,35 @@ export default function DashboardPage() {
           {/* Areas for Improvement */}
           <Grid item xs={12} md={4}>
             <Card sx={{ height: '100%' }}>
-              <CardContent>
-                <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
-                  <BuildIcon color="primary" sx={{ mr: 1 }} />
+              <CardContent sx={{ p: 3, height: '100%', display: 'flex', flexDirection: 'column' }}>
+                <Box sx={cardHeaderStyle}>
+                  <Box sx={iconStyle}>
+                    <BuildIcon fontSize="small" />
+                  </Box>
                   <Typography variant="h6">
                     Areas for Improvement
                   </Typography>
                 </Box>
-                <Divider sx={{ mb: 2 }} />
+                
                 <Typography variant="body2" paragraph>
                   Track issues in your game that you&apos;re working to improve.
                 </Typography>
-                <List dense>
-                  <ListItem>
+                
+                <List dense sx={{ mb: 2, flexGrow: 1 }}>
+                  <ListItem sx={{ px: 1, py: 0.75, borderRadius: '8px' }}>
                     <ListItemText 
-                      primary="Add areas you&apos;re working on" 
-                      secondary="No issues added yet" 
+                      primary={<Typography variant="body2" fontWeight="medium">Add areas you&apos;re working on</Typography>} 
+                      secondary={<Typography variant="caption" color="text.secondary">No issues added yet</Typography>} 
                     />
                   </ListItem>
                 </List>
+                
                 <Button 
                   component={Link} 
                   href="/improvement" 
                   variant="outlined" 
                   fullWidth
-                  sx={{ mt: 2 }}
+                  sx={{ mt: 'auto', pt: 1.2, pb: 1.2 }}
                   endIcon={<ArrowForwardIcon />}
                 >
                   Manage Improvement Areas

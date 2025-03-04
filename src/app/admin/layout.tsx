@@ -1,170 +1,99 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { 
   Box, 
-  AppBar, 
-  Toolbar, 
-  IconButton, 
-  Typography, 
-  Container, 
-  Tooltip, 
-  Divider,
-  List,
-  ListItem,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  Avatar,
+  Container,
   CircularProgress,
-  Button
+  Button,
+  Tabs,
+  Tab,
+  Paper,
+  useMediaQuery,
+  useTheme,
+  Typography
 } from '@mui/material';
-import MenuIcon from '@mui/icons-material/Menu';
-import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-import DashboardIcon from '@mui/icons-material/Dashboard';
+
+// Icons
 import GolfCourseIcon from '@mui/icons-material/GolfCourse';
-import PeopleIcon from '@mui/icons-material/People';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
-import SettingsIcon from '@mui/icons-material/Settings';
-import LogoutIcon from '@mui/icons-material/Logout';
 import EventIcon from '@mui/icons-material/Event';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import PeopleIcon from '@mui/icons-material/People';
+
 import AdminThemeRegistry from '@/theme/AdminThemeRegistry';
-import { supabase } from '@/lib/supabase';
-import { User } from '@supabase/supabase-js';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function AdminLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [drawerOpen, setDrawerOpen] = useState(true);
-  const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState<User | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
   const router = useRouter();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { user, profile, isLoading, signOut } = useAuth();
 
+  // Auth check effect
   useEffect(() => {
-    // Check authentication status
-    const checkAuth = async () => {
-      try {
-        console.log('Checking auth in admin layout');
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (session) {
-          console.log('Session found in admin layout');
-          setUser(session.user);
-          
-          // Check if user is admin
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('is_admin')
-            .eq('id', session.user.id)
-            .single();
-            
-          if (profileData?.is_admin) {
-            console.log('User is admin');
-            setIsAdmin(true);
-          } else {
-            console.log('User is not admin');
-            if (window.location.pathname.startsWith('/admin')) {
-              // Only redirect if we're on an admin page and not admin
-              router.push('/');
-            }
-          }
-        } else {
-          console.log('No session found in admin layout');
-          if (window.location.pathname.startsWith('/admin')) {
-            // Only redirect if not authenticated and on admin page
-            router.push('/auth/login');
-          }
-        }
-      } catch (error) {
-        console.error('Error checking auth:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    checkAuth();
-    
-    // Set up auth state change listener
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth state changed:', event);
-        
-        if (session) {
-          // User is signed in
-          console.log('Session found in auth state change');
-          setUser(session.user);
-          
-          // Check if user is admin
-          try {
-            const { data: profileData, error: profileError } = await supabase
-              .from('profiles')
-              .select('is_admin')
-              .eq('id', session.user.id)
-              .single();
-              
-            if (profileData?.is_admin) {
-              console.log('User is admin in auth state change');
-              setIsAdmin(true);
-            } else {
-              console.log('User is not admin in auth state change');
-              if (window.location.pathname.startsWith('/admin')) {
-                // Only redirect if we're on an admin page and not admin
-                router.push('/');
-              }
-            }
-          } catch (error) {
-            console.error('Error checking admin status:', error);
-          }
-        } else {
-          // User is signed out
-          console.log('No session in auth state change');
-          setUser(null);
-          setIsAdmin(false);
-          
-          if (window.location.pathname.startsWith('/admin')) {
-            // Only redirect if on admin page
-            router.push('/auth/login');
-          }
-        }
-        
-        setLoading(false);
-      }
-    );
-    
-    return () => {
-      authListener?.subscription.unsubscribe();
-    };
-  }, [router]);
+    // If not loading and no user, redirect to login
+    if (!isLoading && !user) {
+      console.log('Admin layout - No user, redirecting to login');
+      router.push('/auth/login?redirect=/admin');
+      return;
+    }
 
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      router.push('/auth/login');
-    } catch (error) {
-      console.error('Error signing out:', error);
+    // If user exists but not admin, show access denied
+    if (!isLoading && user && profile && !profile.is_admin) {
+      console.log('Admin layout - User is not an admin');
+      // We'll handle this in the render below
+    }
+  }, [isLoading, user, profile, router]);
+
+  // Determine active tab based on current path
+  useEffect(() => {
+    const path = window.location.pathname;
+    if (path.includes('/admin/courses')) {
+      setActiveTab(0);
+    } else if (path.includes('/admin/series')) {
+      setActiveTab(1);
+    } else if (path.includes('/admin/events')) {
+      setActiveTab(2);
+    } else if (path.includes('/admin/users')) {
+      setActiveTab(3);
+    } else {
+      // Default to courses tab for the dashboard
+      setActiveTab(0);
+    }
+  }, []);
+
+  // Handle tab change
+  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+    
+    // Navigate based on tab index
+    switch(newValue) {
+      case 0:
+        router.push('/admin/courses');
+        break;
+      case 1:
+        router.push('/admin/series');
+        break;
+      case 2:
+        router.push('/admin/events');
+        break;
+      case 3:
+        router.push('/admin/users');
+        break;
+      default:
+        router.push('/admin/courses');
     }
   };
 
-  const toggleDrawer = () => {
-    setDrawerOpen(!drawerOpen);
-  };
-
-  const menuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, href: '/admin' },
-    { text: 'Courses', icon: <GolfCourseIcon />, href: '/admin/courses' },
-    { text: 'Series', icon: <EmojiEventsIcon />, href: '/admin/series' },
-    { text: 'Events', icon: <EventIcon />, href: '/admin/events' },
-    { text: 'Settings', icon: <SettingsIcon />, href: '/admin/settings' },
-  ];
-
   // Show loading state while checking authentication
-  if (loading) {
+  if (isLoading) {
     return (
       <AdminThemeRegistry>
         <Box 
@@ -182,7 +111,7 @@ export default function AdminLayout({
   }
 
   // If not admin and not loading, show access denied
-  if (!isAdmin && !loading) {
+  if (!isLoading && (!user || (profile && !profile.is_admin))) {
     return (
       <AdminThemeRegistry>
         <Box 
@@ -202,6 +131,10 @@ export default function AdminLayout({
           <Typography variant="body1" paragraph>
             You do not have permission to access the admin area.
           </Typography>
+          <Typography variant="body2" color="text.secondary" paragraph>
+            Debug info: User: {user ? 'Yes' : 'No'}, Profile: {profile ? 'Yes' : 'No'}, 
+            Admin: {profile?.is_admin ? 'Yes' : 'No'}
+          </Typography>
           <Button 
             variant="contained" 
             color="primary"
@@ -216,120 +149,85 @@ export default function AdminLayout({
 
   return (
     <AdminThemeRegistry>
-      <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', minHeight: '100vh' }}>
-        {/* Top Navigation Bar */}
-        <AppBar 
-          position="static" 
-          color="primary"
+      <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%', minHeight: '100vh', pb: '56px' }}>
+        {/* Main Content */}
+        <Box 
+          component="main" 
           sx={{ 
+            flexGrow: 1, 
+            p: { xs: 1, sm: 2, md: 3 },
+            bgcolor: 'background.default',
             width: '100%',
-            height: '64px',
-            boxShadow: 3
           }}
         >
-          <Toolbar sx={{ justifyContent: 'space-between' }}>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <IconButton
-                color="inherit"
-                aria-label="toggle drawer"
-                onClick={toggleDrawer}
-                edge="start"
-                sx={{ mr: 2 }}
-              >
-                {drawerOpen ? <ChevronLeftIcon /> : <MenuIcon />}
-              </IconButton>
-              <Typography variant="h6" noWrap component="div">
-                Golf Compete Admin
-              </Typography>
-            </Box>
-          </Toolbar>
-        </AppBar>
-        
-        {/* Content Area with Side Navigation */}
-        <Box sx={{ display: 'flex', flex: 1 }}>
-          {/* Side Navigation */}
-          <Box 
-            component="nav"
-            sx={{ 
-              width: drawerOpen ? '240px' : '64px', 
-              flexShrink: 0,
-              bgcolor: 'background.paper',
-              borderRight: '1px solid rgba(0, 0, 0, 0.12)',
-              transition: 'width 0.2s ease-in-out',
-              overflowX: 'hidden'
-            }}
-          >
-            <List>
-              {menuItems.map((item) => (
-                <ListItem key={item.text} disablePadding sx={{ display: 'block' }}>
-                  <Link href={item.href} style={{ textDecoration: 'none', color: 'inherit' }}>
-                    <ListItemButton
-                      sx={{
-                        minHeight: 48,
-                        justifyContent: drawerOpen ? 'initial' : 'center',
-                        px: 2.5,
-                      }}
-                    >
-                      <ListItemIcon
-                        sx={{
-                          minWidth: 0,
-                          mr: drawerOpen ? 3 : 'auto',
-                          justifyContent: 'center',
-                        }}
-                      >
-                        {item.icon}
-                      </ListItemIcon>
-                      <ListItemText 
-                        primary={item.text} 
-                        sx={{ opacity: drawerOpen ? 1 : 0 }} 
-                      />
-                    </ListItemButton>
-                  </Link>
-                </ListItem>
-              ))}
-              <Divider sx={{ my: 1 }} />
-              <ListItem disablePadding sx={{ display: 'block' }}>
-                <ListItemButton
-                  onClick={handleSignOut}
-                  sx={{
-                    minHeight: 48,
-                    justifyContent: drawerOpen ? 'initial' : 'center',
-                    px: 2.5,
-                  }}
-                >
-                  <ListItemIcon
-                    sx={{
-                      minWidth: 0,
-                      mr: drawerOpen ? 3 : 'auto',
-                      justifyContent: 'center',
-                    }}
-                  >
-                    <LogoutIcon />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="Sign Out" 
-                    sx={{ opacity: drawerOpen ? 1 : 0 }} 
-                  />
-                </ListItemButton>
-              </ListItem>
-            </List>
-          </Box>
-          
-          {/* Main Content */}
-          <Box 
-            component="main" 
-            sx={{ 
-              flexGrow: 1, 
-              p: 3,
-              bgcolor: 'background.default',
-              minHeight: 'calc(100vh - 64px)'
-            }}
-          >
-            <Container maxWidth="xl">
-              {children}
-            </Container>
-          </Box>
+          <Container maxWidth="xl" sx={{ px: { xs: 1, sm: 2, md: 3 } }}>
+            {children}
+          </Container>
         </Box>
+        
+        {/* Admin Navigation Tabs - positioned at the bottom and fixed */}
+        <Paper 
+          elevation={3}
+          sx={{ 
+            position: 'fixed',
+            bottom: 0,
+            left: 0,
+            right: 0,
+            zIndex: theme.zIndex.appBar,
+            borderRadius: 0
+          }}
+        >
+          <Tabs 
+            value={activeTab} 
+            onChange={handleTabChange}
+            variant={isMobile ? "fullWidth" : "standard"}
+            centered={!isMobile}
+            sx={{ 
+              bgcolor: 'background.paper',
+              '& .MuiTab-root': {
+                minHeight: '56px',
+                color: 'text.primary',
+              }
+            }}
+          >
+            <Tab 
+              icon={<GolfCourseIcon />} 
+              label={isMobile ? undefined : "Courses"} 
+              iconPosition="start"
+              sx={{ 
+                minWidth: isMobile ? 'auto' : '120px',
+                px: isMobile ? 1 : 2
+              }}
+            />
+            <Tab 
+              icon={<EmojiEventsIcon />} 
+              label={isMobile ? undefined : "Series"} 
+              iconPosition="start"
+              sx={{ 
+                minWidth: isMobile ? 'auto' : '120px',
+                px: isMobile ? 1 : 2
+              }}
+            />
+            <Tab 
+              icon={<EventIcon />} 
+              label={isMobile ? undefined : "Events"} 
+              iconPosition="start"
+              sx={{ 
+                minWidth: isMobile ? 'auto' : '120px',
+                px: isMobile ? 1 : 2
+              }}
+            />
+            <Tab 
+              icon={<PeopleIcon />} 
+              label={isMobile ? undefined : "Users"} 
+              iconPosition="start"
+              sx={{ 
+                minWidth: isMobile ? 'auto' : '120px',
+                px: isMobile ? 1 : 2
+              }}
+            />
+          </Tabs>
+        </Paper>
       </Box>
     </AdminThemeRegistry>
   );

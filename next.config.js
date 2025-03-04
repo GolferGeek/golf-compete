@@ -15,6 +15,12 @@ const nextConfig = {
     // Add an alias for the problematic import
     config.resolve.alias['date-fns/_lib/format/longFormatters'] = 'date-fns/format';
     
+    // Add fallback for process module
+    config.resolve.fallback = {
+      ...config.resolve.fallback,
+      process: require.resolve('process/browser'),
+    };
+    
     return config;
   },
   

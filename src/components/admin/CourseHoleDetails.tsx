@@ -19,6 +19,12 @@ export default function CourseHoleDetails({ courseId }: CourseHoleDetailsProps) 
   const [error, setError] = useState<string | null>(null);
   const [teeSets, setTeeSets] = useState<TeeSet[]>([]);
   const [holes, setHoles] = useState<HoleData[]>([]);
+  const [teeSetDistances, setTeeSetDistances] = useState<{
+    id?: string;
+    hole_id: string;
+    tee_set_id: string;
+    length: number;
+  }[]>([]);
 
   const fetchCourseDetails = useCallback(async () => {
     try {
@@ -65,7 +71,7 @@ export default function CourseHoleDetails({ courseId }: CourseHoleDetailsProps) 
       
       // Fetch all distances
       const { data: distanceData, error: distanceError } = await supabaseClient
-        .from('tee_set_distances')
+        .from('tee_set_lengths')
         .select('*')
         .in('hole_id', holeData?.map(h => h.id) || []);
 
@@ -82,7 +88,7 @@ export default function CourseHoleDetails({ courseId }: CourseHoleDetailsProps) 
       // Populate the distance map
       distanceData?.forEach(distance => {
         if (distanceMap[distance.hole_id]) {
-          distanceMap[distance.hole_id][distance.tee_set_id] = distance.distance;
+          distanceMap[distance.hole_id][distance.tee_set_id] = distance.length;
         }
       });
       
@@ -138,7 +144,7 @@ export default function CourseHoleDetails({ courseId }: CourseHoleDetailsProps) 
           
           // Check if the distance already exists
           const { data: existingDistance } = await supabaseClient
-            .from('tee_set_distances')
+            .from('tee_set_lengths')
             .select('*')
             .eq('hole_id', hole.id)
             .eq('tee_set_id', teeSetId)
@@ -147,17 +153,17 @@ export default function CourseHoleDetails({ courseId }: CourseHoleDetailsProps) 
           if (existingDistance) {
             // Update existing distance
             await supabaseClient
-              .from('tee_set_distances')
-              .update({ distance: distance })
+              .from('tee_set_lengths')
+              .update({ length: distance })
               .eq('id', existingDistance.id);
           } else {
             // Insert new distance
             await supabaseClient
-              .from('tee_set_distances')
+              .from('tee_set_lengths')
               .insert({
                 hole_id: hole.id,
                 tee_set_id: teeSetId,
-                distance: distance
+                length: distance
               });
           }
         }
@@ -168,6 +174,67 @@ export default function CourseHoleDetails({ courseId }: CourseHoleDetailsProps) 
     } catch (err) {
       console.error('Error saving scorecard:', err);
       throw err;
+    }
+  };
+
+  const fetchTeeSetDistances = async () => {
+    if (!courseId || !holes || holes.length === 0 || !teeSets || teeSets.length === 0) return;
+    
+    const { data, error } = await supabaseClient
+      .from('tee_set_lengths')
+      .select('*')
+      .in('hole_id', holes.map(hole => hole.id));
+    
+    if (error) {
+      console.error('Error fetching tee set distances:', error);
+      return;
+    }
+    
+    if (data) {
+      setTeeSetDistances(data);
+    }
+  };
+
+  const handleDistanceChange = async (holeId: string, teeSetId: string, newValue: number) => {
+    // Update the local state
+    setTeeSetDistances(prev => 
+      prev.map(dist => 
+        dist.hole_id === holeId && dist.tee_set_id === teeSetId 
+          ? { ...dist, length: newValue } 
+          : dist
+      )
+    );
+    
+    // Update in the database
+    const { error } = await supabaseClient
+      .from('tee_set_lengths')
+      .update({ length: newValue })
+      .match({ hole_id: holeId, tee_set_id: teeSetId });
+    
+    if (error) {
+      console.error('Error updating distance:', error);
+      // Revert the change in local state if there was an error
+      fetchTeeSetDistances();
+    }
+  };
+
+  const handleAddDistance = async (holeId: string, teeSetId: string, value: number) => {
+    const { data, error } = await supabaseClient
+      .from('tee_set_lengths')
+      .insert({
+        hole_id: holeId,
+        tee_set_id: teeSetId,
+        length: value
+      })
+      .select();
+    
+    if (error) {
+      console.error('Error adding distance:', error);
+      return;
+    }
+    
+    if (data) {
+      setTeeSetDistances(prev => [...prev, ...data]);
     }
   };
 

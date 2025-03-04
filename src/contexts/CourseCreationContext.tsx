@@ -273,7 +273,7 @@ export function CourseCreationProvider({ children }: { children: ReactNode }) {
               throw new Error('Supabase client not initialized');
             }
             const { data: insertedDistance, error: distanceError } = await supabase
-              .from('tee_set_distances')
+              .from('tee_set_lengths')
               .insert({
                 hole_id: insertedHole.id,
                 tee_set_id: teeSet.id,

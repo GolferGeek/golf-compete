@@ -10,7 +10,8 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   setProcessingImage,
   extractionStep,
   setExtractionStep,
-  onDataExtracted
+  onDataExtracted,
+  isMobile
 }) => {
   const [uploadedImage, setUploadedImage] = useState<File | null>(null);
   
@@ -83,8 +84,8 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
   };
   
   return (
-    <Paper sx={{ p: 3, mb: 4, border: '1px dashed #2196f3', bgcolor: 'rgba(33, 150, 243, 0.04)' }}>
-      <Typography variant="h6" gutterBottom>
+    <Paper sx={{ p: isMobile ? 2 : 3, mb: isMobile ? 3 : 4, border: '1px dashed #2196f3', bgcolor: 'rgba(33, 150, 243, 0.04)' }}>
+      <Typography variant={isMobile ? "subtitle1" : "h6"} gutterBottom>
         {step === 'course' 
           ? 'AI-Assisted Course Information' 
           : step === 'teeBoxes' 
@@ -98,12 +99,14 @@ const ImageUploader: React.FC<ImageUploaderProps> = ({
             ? 'Upload an image of the course scorecard or tee information, and our AI will identify the tee boxes for you.'
             : 'Upload an image of the scorecard, and our AI will extract the hole data for you.'}
       </Typography>
-      <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+      <Box sx={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 2, alignItems: isMobile ? 'flex-start' : 'center' }}>
         <Button
           variant="contained"
           component="label"
           startIcon={<AddIcon />}
           disabled={processingImage}
+          size={isMobile ? "small" : "medium"}
+          fullWidth={isMobile}
         >
           {processingImage && extractionStep === step ? 'Processing...' : 'Upload Image'}
           <input

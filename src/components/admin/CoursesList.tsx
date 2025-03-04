@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Table, 
   TableBody, 
@@ -14,24 +14,44 @@ import {
   CircularProgress,
   Box,
   Tooltip,
-  Chip
+  Chip,
+  Card,
+  CardContent,
+  Grid,
+  useMediaQuery,
+  useTheme,
+  Stack,
+  Divider,
+  TextField,
+  InputAdornment
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import SearchIcon from '@mui/icons-material/Search';
+import ClearIcon from '@mui/icons-material/Clear';
 import Link from 'next/link';
 import { supabase, refreshSchemaCache } from '@/lib/supabase';
 import { Course } from '@/types/golf';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
+import LocationOnIcon from '@mui/icons-material/LocationOn';
+import GolfCourseIcon from '@mui/icons-material/GolfCourse';
+import FlagIcon from '@mui/icons-material/Flag';
 
 export default function CoursesList() {
   const [courses, setCourses] = useState<Course[]>([]);
+  const [filteredCourses, setFilteredCourses] = useState<Course[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const [loading, setLoading] = useState(true);
   const [deleteLoading, setDeleteLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [shouldMaintainFocus, setShouldMaintainFocus] = useState(false);
   const { session } = useAuth();
   const router = useRouter();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
 
   useEffect(() => {
     async function fetchCourses() {
@@ -81,6 +101,7 @@ export default function CoursesList() {
                 is_active: true
               }));
               setCourses(coursesWithActive as unknown as Course[]);
+              setFilteredCourses(coursesWithActive as unknown as Course[]);
               setLoading(false);
               return;
             }
@@ -95,8 +116,10 @@ export default function CoursesList() {
         if (data) {
           // Convert to unknown first, then to Course[] to satisfy TypeScript
           setCourses(data as unknown as Course[]);
+          setFilteredCourses(data as unknown as Course[]);
         } else {
           setCourses([]);
+          setFilteredCourses([]);
         }
       } catch (err) {
         console.error('Error fetching courses:', err);
@@ -108,6 +131,42 @@ export default function CoursesList() {
 
     fetchCourses();
   }, [session]);
+
+  // Filter courses based on search query
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setFilteredCourses(courses);
+      return;
+    }
+
+    const query = searchQuery.toLowerCase().trim();
+    const filtered = courses.filter(course => 
+      (course.name && course.name.toLowerCase().includes(query)) || 
+      (course.location && course.location.toLowerCase().includes(query))
+    );
+    
+    setFilteredCourses(filtered);
+  }, [searchQuery, courses]);
+
+  // Maintain focus on search input after state updates
+  useEffect(() => {
+    if (shouldMaintainFocus) {
+      // Use a more direct approach to focus the input element
+      const focusInput = () => {
+        if (searchInputRef.current) {
+          searchInputRef.current.focus();
+        }
+      };
+      
+      // Only use a delayed focus to prevent infinite loops
+      // Remove the immediate focus call that might be causing issues
+      const timerId = setTimeout(focusInput, 50);
+      
+      // Reset the flag immediately to prevent infinite loops
+      setShouldMaintainFocus(false);
+      return () => clearTimeout(timerId);
+    }
+  }, [shouldMaintainFocus]);
 
   const handleDelete = async (id: string) => {
     // Ensure user is authenticated
@@ -173,6 +232,7 @@ export default function CoursesList() {
         
         // Remove the deleted course from state
         setCourses(courses.filter(course => course.id !== id));
+        setFilteredCourses(filteredCourses.filter(course => course.id !== id));
         setDeleteLoading(null);
       } catch (err) {
         console.error('Error deleting course:', err);
@@ -180,6 +240,23 @@ export default function CoursesList() {
         alert('An unexpected error occurred. Please try again.');
       }
     }
+  };
+
+  // Handle search input change
+  const handleSearchChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = event.target.value;
+    setSearchQuery(newValue);
+    
+    // Only set focus flag if we're actually changing the value
+    if (searchQuery !== newValue) {
+      setShouldMaintainFocus(true);
+    }
+  };
+
+  // Clear search
+  const handleClearSearch = () => {
+    setSearchQuery('');
+    setShouldMaintainFocus(true);
   };
 
   if (loading) {
@@ -198,6 +275,44 @@ export default function CoursesList() {
     );
   }
 
+  // Search bar component
+  const SearchBar = () => (
+    <Box sx={{ mb: 3, width: '100%' }}>
+      <TextField
+        fullWidth
+        variant="outlined"
+        placeholder="Search courses by name or location..."
+        value={searchQuery}
+        onChange={handleSearchChange}
+        inputRef={searchInputRef}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start">
+              <SearchIcon color="action" />
+            </InputAdornment>
+          ),
+          endAdornment: searchQuery ? (
+            <InputAdornment position="end">
+              <IconButton
+                aria-label="clear search"
+                onClick={handleClearSearch}
+                edge="end"
+                size="small"
+                onMouseDown={(e) => {
+                  // Prevent the TextField from losing focus
+                  e.preventDefault();
+                }}
+              >
+                <ClearIcon />
+              </IconButton>
+            </InputAdornment>
+          ) : null,
+          sx: { borderRadius: 2 }
+        }}
+      />
+    </Box>
+  );
+
   if (courses.length === 0) {
     return (
       <Box sx={{ p: 3 }}>
@@ -206,73 +321,203 @@ export default function CoursesList() {
     );
   }
 
+  // Mobile view - card-based layout
+  if (isMobile) {
+    return (
+      <Box sx={{ width: '100%' }}>
+        <SearchBar />
+        
+        {filteredCourses.length === 0 ? (
+          <Box sx={{ p: 2, textAlign: 'center' }}>
+            <Typography>No courses match your search. Try a different term.</Typography>
+          </Box>
+        ) : (
+          <Grid container spacing={2}>
+            {filteredCourses.map((course) => (
+              <Grid item xs={12} key={course.id}>
+                <Card sx={{ 
+                  width: '100%',
+                  position: 'relative',
+                  '&:hover': {
+                    boxShadow: 3
+                  }
+                }}>
+                  <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                      {/* Course Information */}
+                      <Box sx={{ flex: 1, pr: 1 }}>
+                        <Box sx={{ mb: 1 }}>
+                          <Typography variant="h6" component="div" sx={{ fontWeight: 500 }}>
+                            {course.name}
+                          </Typography>
+                          <Chip 
+                            label={course.is_active ? 'Active' : 'Inactive'} 
+                            color={course.is_active ? 'success' : 'default'} 
+                            size="small"
+                            sx={{ mt: 0.5 }}
+                          />
+                        </Box>
+                        
+                        <Stack spacing={0.5} sx={{ mb: 0 }}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <LocationOnIcon fontSize="small" color="action" />
+                            <Typography variant="body2" color="text.secondary" noWrap>
+                              {course.location || 'No location specified'}
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <GolfCourseIcon fontSize="small" color="action" />
+                            <Typography variant="body2" color="text.secondary">
+                              {course.holes || '18'} Holes
+                            </Typography>
+                          </Box>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <FlagIcon fontSize="small" color="action" />
+                            <Typography variant="body2" color="text.secondary">
+                              Par {course.par || '72'}
+                            </Typography>
+                          </Box>
+                        </Stack>
+                      </Box>
+                      
+                      {/* Action Buttons - Vertical on right side */}
+                      <Box sx={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        justifyContent: 'center',
+                        gap: 0.5,
+                        ml: 1,
+                        borderLeft: 1,
+                        borderColor: 'divider',
+                        pl: 1
+                      }}>
+                        <Tooltip title="View Course Details">
+                          <IconButton 
+                            component={Link} 
+                            href={`/admin/courses/${course.id}`}
+                            aria-label="view"
+                            size="small"
+                            color="primary"
+                          >
+                            <VisibilityIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Edit Course">
+                          <IconButton 
+                            component={Link} 
+                            href={`/admin/courses/edit/${course.id}`}
+                            aria-label="edit"
+                            size="small"
+                            color="primary"
+                          >
+                            <EditIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete Course">
+                          <IconButton 
+                            onClick={() => handleDelete(course.id)}
+                            aria-label="delete"
+                            disabled={deleteLoading === course.id}
+                            size="small"
+                            color="error"
+                          >
+                            {deleteLoading === course.id ? (
+                              <CircularProgress size={20} />
+                            ) : (
+                              <DeleteIcon />
+                            )}
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    </Box>
+                  </CardContent>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        )}
+      </Box>
+    );
+  }
+
+  // Desktop view - table layout
   return (
-    <TableContainer component={Paper}>
-      <Table sx={{ minWidth: 650 }} aria-label="courses table">
-        <TableHead>
-          <TableRow>
-            <TableCell>Name</TableCell>
-            <TableCell>Location</TableCell>
-            <TableCell>Holes</TableCell>
-            <TableCell>Par</TableCell>
-            <TableCell>Status</TableCell>
-            <TableCell align="right">Actions</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {courses.map((course) => (
-            <TableRow key={course.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
-              <TableCell component="th" scope="row">
-                {course.name}
-              </TableCell>
-              <TableCell>{course.location}</TableCell>
-              <TableCell>{course.holes}</TableCell>
-              <TableCell>{course.par}</TableCell>
-              <TableCell>
-                <Chip 
-                  label={course.is_active ? 'Active' : 'Inactive'} 
-                  color={course.is_active ? 'success' : 'default'} 
-                  size="small" 
-                />
-              </TableCell>
-              <TableCell align="right">
-                <Tooltip title="View Course Details">
-                  <IconButton 
-                    component={Link} 
-                    href={`/admin/courses/${course.id}`}
-                    aria-label="view"
-                    sx={{ mr: 1 }}
-                  >
-                    <VisibilityIcon />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Edit Course">
-                  <IconButton 
-                    component={Link} 
-                    href={`/admin/courses/edit/${course.id}`}
-                    aria-label="edit"
-                  >
-                    <EditIcon />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Delete Course">
-                  <IconButton 
-                    onClick={() => handleDelete(course.id)}
-                    aria-label="delete"
-                    disabled={deleteLoading === course.id}
-                  >
-                    {deleteLoading === course.id ? (
-                      <CircularProgress size={24} />
-                    ) : (
-                      <DeleteIcon />
-                    )}
-                  </IconButton>
-                </Tooltip>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <Box sx={{ width: '100%' }}>
+      <SearchBar />
+      
+      {filteredCourses.length === 0 ? (
+        <Box sx={{ p: 2, textAlign: 'center' }}>
+          <Typography>No courses match your search. Try a different term.</Typography>
+        </Box>
+      ) : (
+        <TableContainer>
+          <Table sx={{ minWidth: 650 }} aria-label="courses table">
+            <TableHead>
+              <TableRow>
+                <TableCell>Name</TableCell>
+                <TableCell>Location</TableCell>
+                <TableCell>Holes</TableCell>
+                <TableCell>Par</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell align="right">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {filteredCourses.map((course) => (
+                <TableRow key={course.id} sx={{ '&:last-child td, &:last-child th': { border: 0 } }}>
+                  <TableCell component="th" scope="row">
+                    {course.name}
+                  </TableCell>
+                  <TableCell>{course.location}</TableCell>
+                  <TableCell>{course.holes}</TableCell>
+                  <TableCell>{course.par}</TableCell>
+                  <TableCell>
+                    <Chip 
+                      label={course.is_active ? 'Active' : 'Inactive'} 
+                      color={course.is_active ? 'success' : 'default'} 
+                      size="small" 
+                    />
+                  </TableCell>
+                  <TableCell align="right">
+                    <Tooltip title="View Course Details">
+                      <IconButton 
+                        component={Link} 
+                        href={`/admin/courses/${course.id}`}
+                        aria-label="view"
+                        sx={{ mr: 1 }}
+                      >
+                        <VisibilityIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Edit Course">
+                      <IconButton 
+                        component={Link} 
+                        href={`/admin/courses/edit/${course.id}`}
+                        aria-label="edit"
+                      >
+                        <EditIcon />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete Course">
+                      <IconButton 
+                        onClick={() => handleDelete(course.id)}
+                        aria-label="delete"
+                        disabled={deleteLoading === course.id}
+                      >
+                        {deleteLoading === course.id ? (
+                          <CircularProgress size={24} />
+                        ) : (
+                          <DeleteIcon />
+                        )}
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      )}
+    </Box>
   );
 } 

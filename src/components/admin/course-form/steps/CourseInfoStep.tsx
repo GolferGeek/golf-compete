@@ -13,7 +13,8 @@ import {
   SelectChangeEvent, 
   Switch, 
   TextField, 
-  Typography 
+  Typography,
+  useTheme
 } from '@mui/material';
 import { CourseInfoStepProps } from '../types';
 import ImageUploader from '../components/ImageUploader';
@@ -29,8 +30,11 @@ const CourseInfoStep: React.FC<CourseInfoStepProps> = ({
   extractionStep,
   setExtractionStep,
   router,
-  courseId
+  courseId,
+  isMobile
 }) => {
+  const theme = useTheme();
+  
   // Handle text field changes
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -49,205 +53,215 @@ const CourseInfoStep: React.FC<CourseInfoStepProps> = ({
     });
   };
   
-  // Handle image extraction data
-  const handleCourseDataExtracted = (extractedData: any) => {
-    // Update course information without auto-submitting
+  // Handle switch changes
+  const handleSwitchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, checked } = e.target;
     setFormData({
       ...formData,
-      name: extractedData.name || formData.name,
-      location: extractedData.location || formData.location,
-      phoneNumber: extractedData.phoneNumber || formData.phoneNumber,
-      website: extractedData.website || formData.website,
-      // Keep other fields as they are
-      holes: formData.holes,
-      par: formData.par,
-      amenities: formData.amenities,
-      isActive: formData.isActive
+      [name]: checked
     });
-    
-    // Show success message for course info
-    console.log('Successfully extracted course data from image');
+  };
+  
+  // Handle course data extraction (if implemented)
+  const handleCourseDataExtracted = (extractedData: any) => {
+    if (extractedData && typeof extractedData === 'object') {
+      // Merge extracted data with existing form data
+      setFormData(prevData => ({
+        ...prevData,
+        ...extractedData
+      }));
+    }
   };
   
   return (
     <Box component="form" onSubmit={handleSubmit} noValidate>
-      {/* AI-Assisted Data Extraction Card */}
-      <ImageUploader
-        step="course"
-        processingImage={processingImage}
-        setProcessingImage={setProcessingImage}
-        extractionStep={extractionStep}
-        setExtractionStep={setExtractionStep}
-        onDataExtracted={handleCourseDataExtracted}
-      />
-
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <Typography variant="h6">Basic Information</Typography>
-          <Divider sx={{ mb: 2 }} />
-        </Grid>
+      <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Extract Course Information
+        </Typography>
+        <Divider sx={{ mb: 3 }} />
         
-        <Grid item xs={12} md={6}>
-          <TextField
-            required
-            fullWidth
-            label="Course Name"
-            name="name"
-            value={formData.name}
-            onChange={handleTextChange}
-            disabled={loading}
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="body2" color="text.secondary" gutterBottom>
+            Upload an image of the course information or scorecard to automatically extract details.
+          </Typography>
+        </Box>
+        
+        {processingImage !== undefined && setProcessingImage && extractionStep !== undefined && setExtractionStep ? (
+          <ImageUploader
+            step="course"
+            processingImage={processingImage}
+            setProcessingImage={setProcessingImage}
+            extractionStep={extractionStep}
+            setExtractionStep={setExtractionStep}
+            onDataExtracted={handleCourseDataExtracted}
+            isMobile={isMobile}
           />
-        </Grid>
-        
-        <Grid item xs={12} md={6}>
-          <TextField
-            required
-            fullWidth
-            label="Location"
-            name="location"
-            value={formData.location}
-            onChange={handleTextChange}
-            disabled={loading}
-            helperText="City, State or full address"
-          />
-        </Grid>
-        
-        <Grid item xs={12} md={3}>
-          <FormControl fullWidth>
-            <InputLabel id="holes-label">Holes</InputLabel>
-            <Select
-              labelId="holes-label"
-              id="holes"
-              name="holes"
-              value={formData.holes.toString()}
-              label="Holes"
-              onChange={handleSelectChange}
-              disabled={loading}
-            >
-              <MenuItem value={9}>9</MenuItem>
-              <MenuItem value={18}>18</MenuItem>
-              <MenuItem value={27}>27</MenuItem>
-              <MenuItem value={36}>36</MenuItem>
-            </Select>
-          </FormControl>
-        </Grid>
-        
-        <Grid item xs={12} md={3}>
-          <FormControl fullWidth>
-            <InputLabel id="par-label">Par</InputLabel>
-            <Select
-              labelId="par-label"
-              id="par"
-              name="par"
-              value={formData.par.toString()}
-              label="Par"
-              onChange={handleSelectChange}
-              disabled={loading}
-            >
-              {[...Array(20)].map((_, i) => (
-                <MenuItem key={i + 60} value={i + 60}>
-                  {i + 60}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        </Grid>
-        
-        <Grid item xs={12} md={6}>
-          <TextField
-            fullWidth
-            label="Amenities"
-            name="amenities"
-            value={formData.amenities}
-            onChange={handleTextChange}
-            disabled={loading}
-            helperText="Comma-separated list of amenities (e.g. Pro Shop, Restaurant, Driving Range)"
-          />
-        </Grid>
-        
-        <Grid item xs={12} md={6}>
-          <TextField
-            fullWidth
-            label="Website"
-            name="website"
-            value={formData.website}
-            onChange={handleTextChange}
-            disabled={loading}
-          />
-        </Grid>
-        
-        <Grid item xs={12} md={6}>
-          <TextField
-            fullWidth
-            label="Phone Number"
-            name="phoneNumber"
-            value={formData.phoneNumber}
-            onChange={handleTextChange}
-            disabled={loading}
-          />
-        </Grid>
-        
-        <Grid item xs={12}>
-          <Box sx={{ 
-            p: 2, 
-            border: '1px solid #e0e0e0', 
-            borderRadius: 1,
-            backgroundColor: formData.isActive ? '#e8f5e9' : '#ffebee'
-          }}>
-            <Typography variant="subtitle1" gutterBottom>
-              Course Visibility
+        ) : (
+          <Box sx={{ p: 2, textAlign: 'center' }}>
+            <Typography variant="body2" color="text.secondary">
+              Image upload functionality is currently unavailable.
             </Typography>
+          </Box>
+        )}
+      </Paper>
+      
+      <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Basic Information
+        </Typography>
+        <Divider sx={{ mb: 3 }} />
+        
+        <Grid container spacing={isMobile ? 2 : 3}>
+          <Grid item xs={12}>
+            <TextField
+              required
+              fullWidth
+              id="name"
+              name="name"
+              label="Course Name"
+              value={formData.name}
+              onChange={handleTextChange}
+              disabled={loading}
+              size={isMobile ? "small" : "medium"}
+            />
+          </Grid>
+          
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              id="location"
+              name="location"
+              label="Location"
+              value={formData.location}
+              onChange={handleTextChange}
+              disabled={loading}
+              size={isMobile ? "small" : "medium"}
+              placeholder="City, State"
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel id="holes-label">Number of Holes</InputLabel>
+              <Select
+                labelId="holes-label"
+                id="holes"
+                name="holes"
+                value={formData.holes.toString()}
+                label="Number of Holes"
+                onChange={handleSelectChange}
+                disabled={loading}
+                size={isMobile ? "small" : "medium"}
+              >
+                <MenuItem value="9">9</MenuItem>
+                <MenuItem value="18">18</MenuItem>
+                <MenuItem value="27">27</MenuItem>
+                <MenuItem value="36">36</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth>
+              <InputLabel id="par-label">Par</InputLabel>
+              <Select
+                labelId="par-label"
+                id="par"
+                name="par"
+                value={formData.par.toString()}
+                label="Par"
+                onChange={handleSelectChange}
+                disabled={loading}
+                size={isMobile ? "small" : "medium"}
+              >
+                {Array.from({ length: 15 }, (_, i) => i + 66).map(par => (
+                  <MenuItem key={par} value={par.toString()}>{par}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+        </Grid>
+      </Paper>
+      
+      <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          Additional Information
+        </Typography>
+        <Divider sx={{ mb: 3 }} />
+        
+        <Grid container spacing={isMobile ? 2 : 3}>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              id="amenities"
+              name="amenities"
+              label="Amenities"
+              value={formData.amenities}
+              onChange={handleTextChange}
+              disabled={loading}
+              multiline
+              rows={2}
+              size={isMobile ? "small" : "medium"}
+              placeholder="Pro shop, restaurant, practice facilities, etc."
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              id="website"
+              name="website"
+              label="Website"
+              value={formData.website}
+              onChange={handleTextChange}
+              disabled={loading}
+              size={isMobile ? "small" : "medium"}
+              placeholder="https://www.example.com"
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              id="phoneNumber"
+              name="phoneNumber"
+              label="Phone Number"
+              value={formData.phoneNumber}
+              onChange={handleTextChange}
+              disabled={loading}
+              size={isMobile ? "small" : "medium"}
+              placeholder="(555) 555-5555"
+            />
+          </Grid>
+          
+          <Grid item xs={12}>
             <FormControlLabel
               control={
                 <Switch
                   checked={formData.isActive}
-                  onChange={(e) => setFormData({...formData, isActive: e.target.checked})}
-                  color="primary"
+                  onChange={handleSwitchChange}
+                  name="isActive"
+                  disabled={loading}
                 />
               }
-              label={<Typography fontWeight="bold">{formData.isActive ? "Course is active" : "Course is inactive"}</Typography>}
+              label="Active Course"
             />
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              {formData.isActive 
-                ? "This course will be visible when creating events." 
-                : "This course will NOT be visible when creating events. Activate it to use in events."}
-            </Typography>
-          </Box>
+          </Grid>
         </Grid>
-        
-        <Grid item xs={12} sx={{ mt: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-            <Button
-              variant="outlined"
-              onClick={() => router.push('/admin/courses')}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-            <Box>
-              {isEditMode && courseId && (
-                <Button
-                  variant="outlined"
-                  color="secondary"
-                  onClick={() => router.push(`/admin/courses/${courseId}/tee-boxes`)}
-                  sx={{ mr: 1 }}
-                  disabled={loading}
-                >
-                  Skip to Tee Boxes
-                </Button>
-              )}
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                disabled={loading}
-              >
-                {loading ? 'Saving...' : isEditMode ? 'Save & Continue' : 'Save and Continue'}
-              </Button>
-            </Box>
-          </Box>
-        </Grid>
-      </Grid>
+      </Paper>
+      
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
+        <Button
+          type="submit"
+          variant="contained"
+          color="primary"
+          disabled={loading || !formData.name}
+          sx={{ minWidth: isMobile ? '100%' : 'auto' }}
+        >
+          {isEditMode ? 'Update Course' : 'Save and Continue'}
+        </Button>
+      </Box>
     </Box>
   );
 };

@@ -34,7 +34,6 @@ export async function POST(request: NextRequest) {
         color: teeSet.color,
         rating: teeSet.rating,
         slope: teeSet.slope,
-        par: data.courseSubmitData.par,
         distance: teeSet.distance || 0,
         imageUrl: data.teeSetImageUrl || data.courseInfoImageUrl
       };
@@ -118,7 +117,7 @@ export async function POST(request: NextRequest) {
         distanceInsertPromises.push(
           Promise.resolve(
             supabase
-              .from('tee_set_distances')
+              .from('tee_set_lengths')
               .insert(distanceData)
               .select()
               .single()

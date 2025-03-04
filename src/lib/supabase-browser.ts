@@ -12,14 +12,13 @@ export const createBrowserClient = () => {
   }
 
   try {
-    console.log('Creating browser Supabase client');
     return createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
         flowType: 'pkce',
-        debug: true, // Enable debug mode for auth
+        debug: false, // Disable debug mode for auth to prevent verbose console logs
       },
     });
   } catch (error) {
