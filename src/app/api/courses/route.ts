@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
         course_id: insertedCourse.id,
         hole_number: hole.number,
         par: hole.par,
-        handicapIndex: hole.handicapIndex || hole.number,
+        handicap_index: hole.handicapIndex || hole.number,
         imageUrl: data.scorecardImageUrl || data.teeSetImageUrl || data.courseInfoImageUrl
       };
       
@@ -96,7 +96,7 @@ export async function POST(request: NextRequest) {
     console.log('Holes inserted successfully:', insertedHoles);
     
     // Insert tee set distances
-    const distanceInsertPromises = [];
+    const distanceInsertPromises: Promise<any>[] = [];
     
     for (let holeIndex = 0; holeIndex < insertedHoles.length; holeIndex++) {
       const hole = insertedHoles[holeIndex];
@@ -110,28 +110,33 @@ export async function POST(request: NextRequest) {
         const distanceData = {
           hole_id: hole.id,
           tee_set_id: teeSet.id,
-          distance: distance
+          length: distance
         };
         
         console.log('Inserting tee set distance:', distanceData);
         
         distanceInsertPromises.push(
-          supabase
-            .from('tee_set_distances')
-            .insert(distanceData)
-            .select()
-            .single()
+          Promise.resolve(
+            supabase
+              .from('tee_set_distances')
+              .insert(distanceData)
+              .select()
+              .single()
+          )
+          .then(result => result)
+          .catch(error => ({ error }))
         );
       }
     }
     
     const distanceResults = await Promise.all(distanceInsertPromises);
-    const distanceErrors = distanceResults.filter(result => result.error);
+    const distanceErrors = distanceResults.filter(result => 'error' in result && result.error);
     
     if (distanceErrors.length > 0) {
-      console.error('Failed to insert tee set distances:', distanceErrors[0].error);
+      const firstError = distanceErrors[0].error;
+      console.error('Failed to insert tee set distances:', firstError);
       return NextResponse.json(
-        { error: 'Failed to insert tee set distances: ' + distanceErrors[0].error.message },
+        { error: 'Failed to insert tee set distances: ' + (firstError.message || 'Unknown error') },
         { status: 500 }
       );
     }
@@ -146,8 +151,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Error creating course:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: 'Failed to create course: ' + (error.message || 'Unknown error') },
+      { error: 'Failed to create course: ' + errorMessage },
       { status: 500 }
     );
   }

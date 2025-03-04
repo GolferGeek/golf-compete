@@ -924,19 +924,19 @@ export type Database = {
       }
       tee_set_distances: {
         Row: {
-          distance: number
+          length: number
           hole_id: string
           id: string
           tee_set_id: string
         }
         Insert: {
-          distance: number
+          length: number
           hole_id: string
           id?: string
           tee_set_id: string
         }
         Update: {
-          distance?: number
+          length?: number
           hole_id?: string
           id?: string
           tee_set_id?: string

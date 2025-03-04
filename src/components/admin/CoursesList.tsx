@@ -13,7 +13,8 @@ import {
   Typography,
   CircularProgress,
   Box,
-  Tooltip
+  Tooltip,
+  Chip
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -65,7 +66,7 @@ export default function CoursesList() {
             // Try again without relying on is_active
             const { data: fallbackData, error: fallbackError } = await supabase
               .from('courses')
-              .select('id, name, location, holes, par, rating, slope, amenities, website, phone_number');
+              .select('id, name, location, holes, par, amenities, website, phone_number');
               
             if (fallbackError) {
               console.error('Error in fallback fetch:', fallbackError);
@@ -214,7 +215,6 @@ export default function CoursesList() {
             <TableCell>Location</TableCell>
             <TableCell>Holes</TableCell>
             <TableCell>Par</TableCell>
-            <TableCell>Rating/Slope</TableCell>
             <TableCell>Status</TableCell>
             <TableCell align="right">Actions</TableCell>
           </TableRow>
@@ -228,9 +228,12 @@ export default function CoursesList() {
               <TableCell>{course.location}</TableCell>
               <TableCell>{course.holes}</TableCell>
               <TableCell>{course.par}</TableCell>
-              <TableCell>{course.rating} / {course.slope}</TableCell>
               <TableCell>
-                {course.is_active !== false ? 'Active' : 'Inactive'}
+                <Chip 
+                  label={course.is_active ? 'Active' : 'Inactive'} 
+                  color={course.is_active ? 'success' : 'default'} 
+                  size="small" 
+                />
               </TableCell>
               <TableCell align="right">
                 <Tooltip title="View Course Details">

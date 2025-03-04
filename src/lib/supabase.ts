@@ -324,11 +324,36 @@ export const refreshSchemaCache = async () => {
       }
     });
     
-    if (response.ok) {
-      console.log('Schema cache refresh request successful');
+    // Also make a specific request to the courses table to ensure its schema is cached
+    const coursesResponse = await fetch(`${supabaseUrl}/rest/v1/courses?select=id,name&limit=1`, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'count=exact'
+      }
+    });
+    
+    // Make a direct query to the database using Supabase client as well
+    const { data, error } = await supabase
+      .from('courses')
+      .select('id, name')
+      .limit(1);
+      
+    if (error) {
+      console.error('Error querying courses table:', error);
+    } else {
+      console.log('Successfully queried courses table, schema should be cached');
+    }
+    
+    if (response.ok && coursesResponse.ok) {
+      console.log('Schema cache refresh requests successful');
       return true;
     } else {
-      console.error('Failed to refresh schema cache:', response.statusText);
+      console.error('Failed to refresh schema cache:', 
+        response.ok ? '' : response.statusText, 
+        coursesResponse.ok ? '' : coursesResponse.statusText);
       return false;
     }
   } catch (error) {

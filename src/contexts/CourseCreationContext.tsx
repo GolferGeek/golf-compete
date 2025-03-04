@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { getBrowserClient } from '@/lib/supabase-browser';
 import { createClient } from '@supabase/supabase-js';
@@ -72,6 +72,16 @@ export function CourseCreationProvider({ children }: { children: ReactNode }) {
   // Get auth context
   const { user, profile } = useAuth();
   
+  // Initialize Supabase client
+  const [supabase, setSupabase] = useState(getBrowserClient());
+  
+  useEffect(() => {
+    // Ensure supabase client is initialized
+    if (!supabase) {
+      setSupabase(getBrowserClient());
+    }
+  }, [supabase]);
+  
   // Step management
   const [currentStep, setCurrentStep] = useState(0);
   
@@ -127,11 +137,10 @@ export function CourseCreationProvider({ children }: { children: ReactNode }) {
     setIsSubmitting(true);
     setSubmitError(null);
     
+    let courseId: string | null = null;
+    
     try {
       console.log('Starting course submission process...');
-      
-      // Get the browser client for consistent auth handling
-      const supabase = getBrowserClient();
       
       // Check for active session
       const { data: { session } } = await supabase.auth.getSession();
@@ -153,6 +162,9 @@ export function CourseCreationProvider({ children }: { children: ReactNode }) {
       
       // Insert course
       console.log('Inserting course record...');
+      if (!supabase) {
+        throw new Error('Supabase client not initialized');
+      }
       const { data: insertedCourse, error: courseError } = await supabase
         .from('courses')
         .insert({
@@ -177,151 +189,160 @@ export function CourseCreationProvider({ children }: { children: ReactNode }) {
       console.log('Course inserted successfully:', insertedCourse);
       
       // Store the course ID for later use
-      const courseId = insertedCourse.id;
+      courseId = insertedCourse.id;
       
       // Insert tee sets
       console.log('Inserting tee sets...');
-      try {
-        const teeSetPromises = teeSets.map(async (teeSet, index) => {
-          console.log(`Inserting tee set ${index + 1}:`, teeSet);
-          try {
-            const { data: insertedTeeSet, error: teeSetError } = await supabase
-              .from('tee_sets')
+      const teeSetPromises = teeSets.map(async (teeSet, index) => {
+        console.log(`Inserting tee set ${index + 1}:`, teeSet);
+        try {
+          if (!supabase) {
+            throw new Error('Supabase client not initialized');
+          }
+          const { data: insertedTeeSet, error: teeSetError } = await supabase
+            .from('tee_sets')
+            .insert({
+              course_id: courseId,
+              name: teeSet.name,
+              color: teeSet.color,
+              rating: teeSet.rating,
+              slope: teeSet.slope,
+              par: coursePar, // Use the course par for the tee set par
+              distance: 0 // Add default distance to satisfy not-null constraint if it exists
+            })
+            .select()
+            .single();
+          
+          if (teeSetError) {
+            console.error(`Error inserting tee set ${index + 1}:`, teeSetError);
+            throw teeSetError;
+          }
+          
+          console.log(`Tee set ${index + 1} inserted successfully:`, insertedTeeSet);
+          return insertedTeeSet;
+        } catch (teeSetErr) {
+          console.error(`Error processing tee set ${index + 1}:`, teeSetErr);
+          throw teeSetErr;
+        }
+      });
+      
+      // Wait for all tee sets to be inserted
+      const insertedTeeSets = await Promise.all(teeSetPromises);
+      console.log('All tee sets inserted successfully:', insertedTeeSets);
+      
+      // Insert holes and distances
+      console.log('Inserting holes and distances...');
+      const holePromises = holes.map(async (hole, index) => {
+        console.log(`Inserting hole ${hole.number}:`, hole);
+        try {
+          // Create a base hole record
+          if (!supabase) {
+            throw new Error('Supabase client not initialized');
+          }
+          const { data: insertedHole, error: holeError } = await supabase
+            .from('holes')
+            .insert({
+              course_id: courseId,
+              hole_number: hole.number,
+              par: hole.par,
+              handicap_index: hole.handicapIndex
+            })
+            .select()
+            .single();
+          
+          if (holeError) {
+            console.error(`Error inserting hole ${hole.number}:`, holeError);
+            throw holeError;
+          }
+          
+          console.log(`Hole ${hole.number} inserted successfully:`, insertedHole);
+          
+          // Insert distances for each tee set
+          const distancePromises = Object.entries(hole.distances).map(async ([teeColor, distance]) => {
+            // Find the tee set ID by color
+            const teeSet = insertedTeeSets.find(ts => ts.color.toLowerCase() === teeColor.toLowerCase());
+            
+            if (!teeSet) {
+              console.warn(`Could not find tee set with color ${teeColor} for distance insertion`);
+              return null;
+            }
+            
+            console.log(`Inserting distance for hole ${hole.number}, tee ${teeColor}: ${distance}`);
+            
+            if (!supabase) {
+              throw new Error('Supabase client not initialized');
+            }
+            const { data: insertedDistance, error: distanceError } = await supabase
+              .from('tee_set_distances')
               .insert({
-                course_id: courseId,
-                name: teeSet.name,
-                color: teeSet.color,
-                rating: teeSet.rating,
-                slope: teeSet.slope,
-                par: coursePar, // Use the course par for the tee set par
-                distance: 0 // Add default distance to satisfy not-null constraint if it exists
+                hole_id: insertedHole.id,
+                tee_set_id: teeSet.id,
+                length: distance  // Changed from 'distance' to 'length'
               })
               .select()
               .single();
             
-            if (teeSetError) {
-              console.error(`Error inserting tee set ${index + 1}:`, teeSetError);
-              throw teeSetError;
+            if (distanceError) {
+              console.error(`Error inserting distance for hole ${hole.number}, tee ${teeColor}:`, distanceError);
+              throw distanceError;
             }
             
-            console.log(`Tee set ${index + 1} inserted successfully:`, insertedTeeSet);
-            return insertedTeeSet;
-          } catch (teeSetErr) {
-            console.error(`Error processing tee set ${index + 1}:`, teeSetErr);
-            throw teeSetErr;
-          }
-        });
-        
-        // Wait for all tee sets to be inserted
-        const insertedTeeSets = await Promise.all(teeSetPromises);
-        console.log('All tee sets inserted successfully:', insertedTeeSets);
-        
-        // Insert holes
-        console.log('Inserting holes...');
-        const holePromises = holes.map(async (hole, index) => {
-          console.log(`Inserting hole ${hole.number}:`, hole);
-          try {
-            // Create a base hole record
-            const { data: insertedHole, error: holeError } = await supabase
-              .from('holes')
-              .insert({
-                course_id: courseId,
-                hole_number: hole.number,
-                par: hole.par,
-                handicap_index: hole.handicapIndex
-              })
-              .select()
-              .single();
-            
-            if (holeError) {
-              console.error(`Error inserting hole ${hole.number}:`, holeError);
-              throw holeError;
-            }
-            
-            console.log(`Hole ${hole.number} inserted successfully:`, insertedHole);
-            
-            // Insert distances for each tee set
-            const distancePromises = Object.entries(hole.distances).map(async ([teeColor, distance]) => {
-              // Find the tee set ID by color
-              const teeSet = insertedTeeSets.find(ts => ts.color.toLowerCase() === teeColor.toLowerCase());
-              
-              if (!teeSet) {
-                console.warn(`Could not find tee set with color ${teeColor} for distance insertion`);
-                return null;
-              }
-              
-              console.log(`Inserting distance for hole ${hole.number}, tee ${teeColor}: ${distance}`);
-              
-              const { data: insertedDistance, error: distanceError } = await supabase
-                .from('tee_set_distances')
-                .insert({
-                  hole_id: insertedHole.id,
-                  tee_set_id: teeSet.id,
-                  distance: distance
-                })
-                .select()
-                .single();
-              
-              if (distanceError) {
-                console.error(`Error inserting distance for hole ${hole.number}, tee ${teeColor}:`, distanceError);
-                throw distanceError;
-              }
-              
-              return insertedDistance;
-            });
-            
-            const insertedDistances = await Promise.all(distancePromises);
-            console.log(`All distances for hole ${hole.number} inserted successfully:`, insertedDistances);
-            
-            return {
-              hole: insertedHole,
-              distances: insertedDistances.filter(Boolean)
-            };
-          } catch (holeErr) {
-            console.error(`Error processing hole ${hole.number}:`, holeErr);
-            throw holeErr;
-          }
-        });
-        
-        // Wait for all holes to be inserted
-        const insertedHoles = await Promise.all(holePromises);
-        console.log('All holes inserted successfully:', insertedHoles);
-        
-        // Everything was successful
-        console.log('Course creation completed successfully!');
-        setCurrentStep(0);
-        setCourse({
-          name: '',
-          location: '',
-          phoneNumber: '',
-          email: '',
-          website: '',
-          amenities: []
-        });
-        setTeeSets([]);
-        setHoles([]);
-        setTeeSetImageState(null);
-        setScorecardImageState(null);
-        
-        // Show success message
-        alert('Course created successfully!');
-        
-      } catch (detailsError) {
-        console.error('Error inserting course details:', detailsError);
-        setSubmitError(`Failed to insert course details: ${detailsError instanceof Error ? detailsError.message : String(detailsError)}`);
-        
-        // Try to clean up the partial course
+            return insertedDistance;
+          });
+          
+          const insertedDistances = await Promise.all(distancePromises);
+          console.log(`All distances for hole ${hole.number} inserted successfully:`, insertedDistances);
+          
+          return {
+            hole: insertedHole,
+            distances: insertedDistances.filter(Boolean)
+          };
+        } catch (holeErr) {
+          console.error(`Error processing hole ${hole.number}:`, holeErr);
+          throw holeErr;
+        }
+      });
+      
+      // Wait for all holes to be inserted
+      const insertedHoles = await Promise.all(holePromises);
+      console.log('All holes inserted successfully:', insertedHoles);
+      
+      // Everything was successful
+      console.log('Course creation completed successfully!');
+      setCurrentStep(0);
+      setCourse({
+        name: '',
+        location: '',
+        phoneNumber: '',
+        email: '',
+        website: '',
+        amenities: []
+      });
+      setTeeSets([]);
+      setHoles([]);
+      setTeeSetImageState(null);
+      setScorecardImageState(null);
+      
+      // Show success message
+      alert('Course created successfully!');
+      
+    } catch (detailsError) {
+      console.error('Error inserting course details:', detailsError);
+      setSubmitError(`Failed to insert course details: ${detailsError instanceof Error ? detailsError.message : String(detailsError)}`);
+      
+      // Clean up any partial data if we have a course ID
+      if (courseId) {
         try {
           console.log('Attempting to clean up partial course data...');
+          if (!supabase) {
+            throw new Error('Supabase client not initialized');
+          }
           await supabase.from('courses').delete().eq('id', courseId);
           console.log('Partial course data cleaned up');
         } catch (cleanupError) {
           console.error('Error cleaning up partial course data:', cleanupError);
         }
       }
-    } catch (error) {
-      console.error('Error in course submission:', error);
-      setSubmitError(`Failed to submit course: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setIsSubmitting(false);
     }

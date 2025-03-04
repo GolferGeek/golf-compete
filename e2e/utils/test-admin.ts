@@ -11,6 +11,9 @@ export class TestAdmin {
     // Navigate to courses page
     await page.goto('/admin/courses');
     
+    // Verify we're on the courses page
+    await expect(page.getByRole('heading', { name: 'Courses Management' })).toBeVisible();
+    
     // Click on Add Course button
     await page.getByRole('button', { name: 'Add Course' }).click();
     
@@ -62,7 +65,10 @@ export class TestAdmin {
     // Navigate to series page
     await page.goto('/admin/series');
     
-    // Click on Add Series button
+    // Verify we're on the series page
+    await expect(page.getByRole('heading', { name: 'Series Management' })).toBeVisible();
+    
+    // Click on Add Series button (using the button with the AddIcon)
     await page.getByRole('button', { name: 'Add Series' }).click();
     
     // Fill in series details
@@ -96,7 +102,7 @@ export class TestAdmin {
     
     // Select a user from the dropdown
     await page.getByLabel('User').click();
-    await page.getByRole('option', { name: userName }).click();
+    await page.getByText(userName).click();
     
     await page.getByRole('button', { name: 'Add' }).click();
     
@@ -111,7 +117,10 @@ export class TestAdmin {
     // Navigate to events page
     await page.goto('/admin/events');
     
-    // Click on Add Event button
+    // Verify we're on the events page
+    await expect(page.getByRole('heading', { name: 'Events Management' })).toBeVisible();
+    
+    // Click on Add Event button (using the button with the AddIcon)
     await page.getByRole('button', { name: 'Add Event' }).click();
     
     // Fill in event details
@@ -120,11 +129,11 @@ export class TestAdmin {
     
     // Select the series
     await page.getByLabel('Series').click();
-    await page.getByRole('option', { name: seriesName }).click();
+    await page.getByText(seriesName).click();
     
     // Select the course
     await page.getByLabel('Course').click();
-    await page.getByRole('option', { name: courseName }).click();
+    await page.getByText(courseName).click();
     
     // Save the event
     await page.getByRole('button', { name: 'Save' }).click();
@@ -151,7 +160,7 @@ export class TestAdmin {
     
     // Select a user from the dropdown
     await page.getByLabel('User').click();
-    await page.getByRole('option', { name: userName }).click();
+    await page.getByText(userName).click();
     
     await page.getByRole('button', { name: 'Add' }).click();
     
@@ -182,7 +191,7 @@ export class TestAdmin {
     await page.goto(`/admin/series/${seriesId}`);
     
     // Delete the series
-    await page.getByRole('button', { name: 'Delete Series' }).click();
+    await page.getByRole('button', { name: 'Delete' }).click();
     await page.getByRole('button', { name: 'Confirm' }).click();
     
     // Wait for redirect to series list
@@ -197,7 +206,7 @@ export class TestAdmin {
     await page.goto(`/admin/events/${eventId}`);
     
     // Delete the event
-    await page.getByRole('button', { name: 'Delete Event' }).click();
+    await page.getByRole('button', { name: 'Delete' }).click();
     await page.getByRole('button', { name: 'Confirm' }).click();
     
     // Wait for redirect to events list

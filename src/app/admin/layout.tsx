@@ -33,6 +33,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import AdminThemeRegistry from '@/theme/AdminThemeRegistry';
 import { supabase } from '@/lib/supabase';
+import { User } from '@supabase/supabase-js';
 
 export default function AdminLayout({
   children,
@@ -41,7 +42,7 @@ export default function AdminLayout({
 }) {
   const [drawerOpen, setDrawerOpen] = useState(true);
   const [loading, setLoading] = useState(true);
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState<User | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const router = useRouter();
 
@@ -240,15 +241,6 @@ export default function AdminLayout({
               <Typography variant="h6" noWrap component="div">
                 Golf Compete Admin
               </Typography>
-            </Box>
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <Tooltip title="Profile">
-                <IconButton color="inherit">
-                  <Avatar sx={{ width: 32, height: 32, bgcolor: 'secondary.main' }}>
-                    <AccountCircleIcon />
-                  </Avatar>
-                </IconButton>
-              </Tooltip>
             </Box>
           </Toolbar>
         </AppBar>

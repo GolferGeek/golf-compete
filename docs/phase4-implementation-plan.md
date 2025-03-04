@@ -126,6 +126,42 @@ Phase 4 focuses on implementing a comprehensive invitation and participation man
 - Design tests that follow real user journeys
 - Add comprehensive cleanup procedures
 
+### 6. Mobile-First Design Implementation
+
+#### Tasks:
+- Adopt a mobile-first development approach
+  - Establish mobile-first design principles for all new components
+  - Prioritize mobile user experience in all design decisions
+  - Create mobile design guidelines for developers
+- Audit existing components for mobile usability
+  - Identify components with poor mobile experience
+  - Prioritize high-traffic screens (course details, scorecard editor)
+  - Document mobile-specific interaction requirements
+- Implement mobile-optimized layouts for course management screens
+  - Redesign course detail screen with mobile as primary target
+  - Optimize scorecard editor specifically for phone screens
+  - Ensure proper touch interactions and appropriate tap targets
+- Update core components for mobile-first behavior
+  - Replace fixed-width tables with mobile-friendly alternatives
+  - Implement touch-friendly navigation patterns
+  - Design collapsible sections for dense information
+- Create mobile-first design system
+  - Define breakpoints starting from mobile and scaling up
+  - Implement responsive typography optimized for small screens
+  - Create reusable mobile-friendly container components
+- Test on actual mobile devices
+  - Prioritize testing on various phone sizes and orientations
+  - Verify touch interactions and gestures
+  - Ensure performance optimization for mobile networks
+
+#### Technical Considerations:
+- Use Material UI's responsive utilities with mobile-first approach
+- Implement touch-friendly UI elements with appropriate sizing
+- Prioritize content hierarchy for small screens
+- Optimize performance for mobile devices and networks
+- Test with real mobile devices throughout development
+- Consider offline capabilities for unreliable mobile connections
+
 ## Deliverables
 
 1. **Invitation System**
@@ -158,6 +194,13 @@ Phase 4 focuses on implementing a comprehensive invitation and participation man
    - User guide for participation management
    - Admin documentation for invitation tools
 
+6. **Mobile-First Design System**
+   - Mobile-first course detail and scorecard screens
+   - Touch-optimized admin interfaces for phone usage
+   - Mobile-first component library and design system
+   - Performance optimizations for mobile devices and networks
+   - Mobile design documentation and guidelines
+
 ## Dependencies
 
 - Completion of Phase 3 (Core Admin Setup)
@@ -177,6 +220,10 @@ Phase 4 focuses on implementing a comprehensive invitation and participation man
 | Notification overload | Low | Add user preferences, group similar notifications, prioritize important ones |
 | Test data pollution | Medium | Implement robust cleanup procedures, use unique identifiers for test entities |
 | Email spam filters | Medium | Follow email best practices, use proper authentication (SPF, DKIM) |
+| Inconsistent responsive behavior | Medium | Establish design system with consistent breakpoints and patterns |
+| Performance issues on mobile devices | High | Optimize asset loading, implement code splitting, reduce bundle size |
+| Touch target accessibility problems | Medium | Follow WCAG guidelines for minimum touch target sizes and spacing |
+| Complex UI elements on small screens | Medium | Design simplified alternatives for complex components on mobile |
 
 ## Success Criteria
 
@@ -186,6 +233,11 @@ Phase 4 focuses on implementing a comprehensive invitation and participation man
 - Users receive timely notifications about invitations and status changes
 - All E2E tests pass consistently
 - The system handles edge cases gracefully (expired invitations, duplicate requests, etc.)
+- All key screens are optimized for mobile devices as the primary use case
+- Course detail and scorecard screens provide excellent user experience on phones
+- Touch interactions are intuitive and reliable on mobile devices
+- UI is designed for mobile first, with appropriate adaptations for larger screens
+- Application performs well on mobile networks and devices
 
 ## Next Steps After Completion
 

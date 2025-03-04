@@ -1,19 +1,18 @@
-import React from 'react';
-import { Typography, Box, Paper } from '@mui/material';
-import CourseForm from '@/components/admin/CourseForm';
+'use client';
 
-export default function AddCoursePage() {
+import React from 'react';
+import { Typography, Box, Container } from '@mui/material';
+import CourseFormContainer from '@/components/admin/course-form/CourseFormContainer';
+
+export default function NewCoursePage() {
   return (
-    <div>
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h4" component="h1">
-          Add New Course
+    <Container maxWidth="lg">
+      <Box sx={{ my: 4 }}>
+        <Typography variant="h4" component="h1" gutterBottom>
+          Create New Course
         </Typography>
+        <CourseFormContainer />
       </Box>
-      
-      <Paper sx={{ p: 3 }}>
-        <CourseForm />
-      </Paper>
-    </div>
+    </Container>
   );
 } 

@@ -1,7 +1,6 @@
 import React from 'react';
 import { Typography, Button, Box, Paper } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
-import FileUploadIcon from '@mui/icons-material/FileUpload';
 import Link from 'next/link';
 import CoursesList from '@/components/admin/CoursesList';
 
@@ -13,16 +12,6 @@ export default function CoursesManagement() {
           Courses Management
         </Typography>
         <Box>
-          <Button 
-            variant="outlined" 
-            color="primary" 
-            startIcon={<FileUploadIcon />}
-            component={Link}
-            href="/admin/courses/import"
-            sx={{ mr: 2 }}
-          >
-            Import from Scorecard
-          </Button>
           <Button 
             variant="contained" 
             color="primary" 
