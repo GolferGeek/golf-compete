@@ -347,7 +347,12 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
     const currentCourseId = courseIdRef.current;
     console.log('saveScorecard called with courseIdRef:', currentCourseId);
     console.log('Current holes state:', holes);
-    console.log('Checking for notes in holes data:', holes.map(hole => ({ number: hole.number, notes: hole.notes })));
+    console.log('Checking handicap_index values in saveScorecard:', holes.map(hole => ({ 
+      number: hole.number, 
+      handicap_index: hole.handicap_index,
+      par: hole.par,
+      notes: hole.notes
+    })));
     
     if (!currentCourseId) {
       console.error('No courseId available in saveScorecard');

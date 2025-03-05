@@ -45,7 +45,7 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
   const isSmallScreen = isMobile || useMediaQuery(theme.breakpoints.down('md'));
   const [editingCell, setEditingCell] = useState<{
     holeIndex: number;
-    field: 'par' | 'handicap' | 'notes';
+    field: 'par' | 'handicap_index' | 'notes';
     teeColor?: string;
   } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
@@ -90,19 +90,18 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
   };
   
   // Start editing a cell
-  const startEditing = (holeIndex: number, field: 'par' | 'handicap' | 'notes', teeColor?: string) => {
+  const startEditing = (holeIndex: number, field: 'par' | 'handicap_index' | 'notes', teeColor?: string) => {
     let value = '';
     
     const hole = holes[holeIndex];
     
     if (field === 'par') {
       value = hole.par.toString();
-    } else if (field === 'handicap') {
+    } else if (field === 'handicap_index') {
       value = hole.handicap_index.toString();
     } else if (field === 'notes') {
       value = hole.notes || '';
     }
-    // We no longer handle distances as the tee_set_lengths table has been removed
     
     console.log(`Starting editing for hole ${hole.number}, field: ${field}, current value: ${value}`);
     
@@ -119,11 +118,11 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
     // Parse the value, handling non-numeric input gracefully
     let newValue: number | string;
     
-    if (field === 'par' || field === 'handicap') {
+    if (field === 'par' || field === 'handicap_index') {
       newValue = parseInt(editValue) || 0;
       if (newValue < 0) newValue = 0;
       if (field === 'par' && newValue > 10) newValue = 10;
-      if (field === 'handicap' && newValue > 18) newValue = 18;
+      if (field === 'handicap_index' && newValue > 18) newValue = 18;
     } else {
       // For notes or other text fields
       newValue = editValue;
@@ -141,12 +140,15 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
       
       setHoles(updatedHoles);
       setUnsavedChanges(true);
-    } else if (field === 'handicap') {
+    } else if (field === 'handicap_index') {
       const updatedHoles = [...holes];
       updatedHoles[holeIndex] = {
         ...updatedHoles[holeIndex],
         handicap_index: newValue as number
       };
+      
+      console.log(`Updated handicap_index for hole ${updatedHoles[holeIndex].number} to ${newValue}`);
+      console.log('Updated hole object:', updatedHoles[holeIndex]);
       
       setHoles(updatedHoles);
       setUnsavedChanges(true);
@@ -160,7 +162,6 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
       setHoles(updatedHoles);
       setUnsavedChanges(true);
     }
-    // We no longer handle distances as the tee_set_lengths table has been removed
     
     setEditingCell(null);
   };
@@ -184,7 +185,7 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
       
       // Determine next field to edit based on shift key (backward or forward)
       let nextHoleIndex = holeIndex;
-      let nextField: 'par' | 'handicap' | 'notes' = field;
+      let nextField: 'par' | 'handicap_index' | 'notes' = field;
       let nextTeeColor = teeColor;
       
       if (e.shiftKey) {
@@ -200,8 +201,8 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
           
           nextField = 'notes';
           nextTeeColor = teeBoxes[teeBoxes.length - 1]?.color;
-        } else if (field === 'handicap') {
-          // Move from handicap to par of the same hole
+        } else if (field === 'handicap_index') {
+          // Move from handicap_index to par of the same hole
           nextField = 'par';
         } else if (field === 'notes') {
           // Find current tee box index
@@ -211,18 +212,18 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
             // Move to previous tee box distance for the same hole
             nextTeeColor = teeBoxes[currentTeeIndex - 1].color;
           } else {
-            // Move to handicap of the same hole
-            nextField = 'handicap';
+            // Move to handicap_index of the same hole
+            nextField = 'handicap_index';
             nextTeeColor = undefined;
           }
         }
       } else {
         // FORWARD NAVIGATION (TAB)
         if (field === 'par') {
-          // Move from par to handicap
-          nextField = 'handicap';
-        } else if (field === 'handicap') {
-          // Move from handicap to first tee box distance
+          // Move from par to handicap_index
+          nextField = 'handicap_index';
+        } else if (field === 'handicap_index') {
+          // Move from handicap_index to first tee box distance
           nextField = 'notes';
           nextTeeColor = teeBoxes[0]?.color;
         } else if (field === 'notes') {
@@ -266,15 +267,30 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
   const saveHoleChanges = async () => {
     if (!courseId) return;
     
+    console.log('saveHoleChanges called - Attempting to save hole changes');
+    console.log('Current holes data:', holes);
+    
+    if (!unsavedChanges) {
+      console.log('No unsaved changes detected, skipping save');
+      return;
+    }
+    
     try {
+      console.log('Proceeding with save');
+      
       // Call the parent component's save function if available
       if (typeof handleSubmit === 'function') {
+        console.log('Calling parent handleSubmit function');
         await handleSubmit({} as any);
+        console.log('Parent handleSubmit function completed');
+      } else {
+        console.log('No parent handleSubmit function available');
       }
       
+      console.log('Scorecard saved successfully');
       setUnsavedChanges(false);
     } catch (error) {
-      console.error('Error saving hole changes:', error);
+      console.error('Error saving scorecard:', error);
     }
   };
 
@@ -351,14 +367,14 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
                 </TableCell>
                 <TableCell 
                   align="center"
-                  onClick={() => startEditing(holeStart - 1 + index, 'handicap')}
+                  onClick={() => startEditing(holeStart - 1 + index, 'handicap_index')}
                   sx={{ 
                     cursor: 'pointer', 
                     backgroundColor: editingCell?.holeIndex === (holeStart - 1 + index) && 
-                                   editingCell?.field === 'handicap' ? '#f5f5f5' : 'inherit'
+                                   editingCell?.field === 'handicap_index' ? '#f5f5f5' : 'inherit'
                   }}
                 >
-                  {editingCell?.holeIndex === (holeStart - 1 + index) && editingCell?.field === 'handicap' ? (
+                  {editingCell?.holeIndex === (holeStart - 1 + index) && editingCell?.field === 'handicap_index' ? (
                     <TextField
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
