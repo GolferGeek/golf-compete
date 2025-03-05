@@ -283,7 +283,7 @@ const TeeBoxesStep: React.FC<TeeBoxesStepProps> = ({
               fullWidth={isSmallScreen}
               sx={{ mb: isSmallScreen ? 1 : 0 }}
             >
-              Back
+              Previous
             </Button>
             <Box sx={{ 
               display: 'flex', 

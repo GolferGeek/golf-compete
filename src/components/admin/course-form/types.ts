@@ -18,7 +18,6 @@ export interface TeeSet {
   rating: number;
   slope: number;
   length?: number;
-  [key: string]: any; // For other dynamic properties
 }
 
 // Hole type
@@ -28,7 +27,7 @@ export interface Hole {
   number: number;
   par: number;
   handicap_index: number;
-  [key: string]: any; // For dynamic properties like length_${teeSetId}
+  notes?: string;
 }
 
 // Image extraction types
