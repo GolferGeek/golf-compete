@@ -7,7 +7,7 @@ import { Inter } from 'next/font/google';
 import { PaletteMode } from '@mui/material';
 import Box from '@mui/material/Box';
 import Navbar from '../components/layout/Navbar';
-import Footer from '../components/layout/Footer';
+// import Footer from '../components/layout/Footer'; // Kept for future reference if needed
 
 // Define the Inter font with specific subsets
 const inter = Inter({
@@ -215,7 +215,7 @@ export default function ThemeRegistry({ children }: { children: React.ReactNode 
         <Box component="main" sx={{ flexGrow: 1 }}>
           {children}
         </Box>
-        <Footer />
+        {/* <Footer /> */}
       </Box>
     </ThemeProvider>
   );

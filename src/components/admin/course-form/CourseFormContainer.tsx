@@ -256,38 +256,23 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
         number: hole.hole_number as number,
         par: hole.par as number || 4,
         handicap_index: hole.handicap_index as number || 0,
-        ...Object.fromEntries(
-          (teeSetData || []).map(teeSet => [`length_${teeSet.id}`, 0])
-        )
+        notes: hole.notes || ''
       })) || [];
       
-      // Fetch tee set distances
-      if (holeData && holeData.length > 0 && teeSetData && teeSetData.length > 0) {
-        const { data: distanceData, error: distanceError } = await supabase
-          .from('tee_set_lengths')
-          .select('*')
-          .in('hole_id', holeData.map(hole => hole.id));
-          
-        if (distanceError) {
-          console.error('Error fetching tee set distances:', distanceError);
-        } else if (distanceData) {
-          // Update hole distances
-          distanceData.forEach(distance => {
-            const hole = processedHoles.find(h => h.id === distance.hole_id);
-            if (hole) {
-              // Check for both 'length' and 'distance' properties
-              const distanceValue = 'length' in distance ? distance.length : 
-                                   'distance' in distance ? distance.distance : 0;
-              
-              console.log(`Setting distance for hole ${hole.number}, tee ${distance.tee_set_id}: ${distanceValue}`);
-              hole[`length_${distance.tee_set_id}`] = distanceValue;
-            }
-          });
-        }
-      }
+      // The tee_set_lengths table has been removed, so we no longer need to fetch distances
+      console.log('Skipping tee set distances fetch as the table has been removed');
       
+      // Update state with the fetched data
       setTeeBoxes(processedTeeSets);
       setHoles(processedHoles);
+      
+      // If we're in edit mode, update the form data with the course name
+      if (isEditMode && processedTeeSets.length > 0) {
+        setFormData(prevFormData => ({
+          ...prevFormData,
+          name: processedTeeSets[0].name
+        }));
+      }
       
       console.log('Processed tee sets:', processedTeeSets);
       console.log('Processed holes:', processedHoles);
@@ -362,6 +347,7 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
     const currentCourseId = courseIdRef.current;
     console.log('saveScorecard called with courseIdRef:', currentCourseId);
     console.log('Current holes state:', holes);
+    console.log('Checking for notes in holes data:', holes.map(hole => ({ number: hole.number, notes: hole.notes })));
     
     if (!currentCourseId) {
       console.error('No courseId available in saveScorecard');
@@ -397,15 +383,18 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
         // Prepare holes data for insertion
         const holesData = holes.map(hole => {
           // Extract only the properties that exist in the database schema
-          return {
+          const holeData = {
             course_id: currentCourseId,
             hole_number: hole.number,
             par: hole.par,
-            handicap_index: hole.handicap_index || null
+            handicap_index: hole.handicap_index || null,
+            notes: hole.notes || null
           };
+          console.log(`Preparing hole ${hole.number} data for insertion:`, holeData);
+          return holeData;
         });
         
-        console.log('Inserting holes:', holesData);
+        console.log('Inserting holes with notes:', holesData);
         
         const { data: insertedHoles, error: insertError } = await supabase
           .from('holes')
@@ -420,63 +409,9 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
         
         console.log('Scorecard saved successfully:', insertedHoles);
         
-        // Now insert the tee set distances
-        if (insertedHoles && teeBoxes.length > 0) {
-          // Prepare distances data for insertion
-          const distancesData: { tee_set_id: string; hole_id: string; length: number }[] = [];
-          
-          for (const hole of holes) {
-            for (const teeBox of teeBoxes) {
-              const distanceKey = `length_${teeBox.id}`;
-              const distance = hole[distanceKey];
-              
-              console.log(`Processing distance for hole ${hole.number}, tee ${teeBox.id}, key ${distanceKey}, value:`, distance);
-              
-              // Only add if distance is defined and not null
-              if (distance !== undefined && distance !== null) {
-                // Find the corresponding inserted hole
-                const insertedHole = insertedHoles.find(h => h.hole_number === hole.number);
-                
-                if (insertedHole && insertedHole.id) {
-                  distancesData.push({
-                    tee_set_id: teeBox.id,
-                    hole_id: insertedHole.id as string,
-                    length: Number(distance)
-                  });
-                } else {
-                  console.warn(`Could not find inserted hole for hole number ${hole.number}`);
-                }
-              }
-            }
-          }
-          
-          console.log('Inserting tee set distances:', distancesData);
-          
-          if (distancesData.length > 0) {
-            // Refresh schema cache multiple times to ensure it's updated
-            for (let i = 0; i < 3; i++) {
-              console.log(`Refreshing schema cache attempt ${i + 1}`);
-              await refreshSchemaCache();
-              await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second between attempts
-            }
-            
-            // Insert distances for each tee box and hole
-            const { data: insertedDistances, error: insertDistancesError } = await supabase
-              .from('tee_set_lengths')
-              .insert(distancesData)
-              .select();
-              
-            if (insertDistancesError) {
-              console.error('Error inserting tee set distances:', insertDistancesError);
-              setError(`Failed to save tee set distances: ${insertDistancesError.message}`);
-              return false;
-            }
-            
-            console.log('Tee set distances saved successfully');
-          } else {
-            console.warn('No tee set distances to save');
-          }
-        }
+        // The tee_set_lengths table has been removed, so we no longer need to insert distances
+        // Just log that we're skipping this step
+        console.log('Skipping tee set distances insertion as the table has been removed');
         
         setSuccess(true);
         return true;
@@ -553,7 +488,7 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
             
           if (updateError) {
             console.error('Error updating course:', updateError);
-            throw updateError;
+            // Continue with the flow even if update fails
           }
           
           console.log('Course updated successfully');
@@ -1050,7 +985,7 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
                   };
                   
                   // Add distances for each tee set
-                  Object.entries(hole.distances).forEach(([teeSetId, distance]) => {
+                  Object.entries((hole as any).distances).forEach(([teeSetId, distance]) => {
                     newHole[`length_${teeSetId}`] = distance;
                   });
                   

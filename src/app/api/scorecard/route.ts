@@ -120,40 +120,33 @@ Your response must be ONLY valid JSON in the following format:
         systemMessage = `You are a golf course data extraction assistant. Extract the hole-by-hole information from the scorecard image.
 Your task is to analyze the golf scorecard image and extract structured data for each hole.
 
-IMPORTANT: Focus ONLY on extracting the hole numbers, pars, handicap indices, and distances for each tee color.
+IMPORTANT: Focus ONLY on extracting the hole numbers, pars, handicap indices, and any notes for each hole.
 
 Your response must be ONLY valid JSON in the following format:
-[
-  {
-    "number": 1,
-    "par": 4,
-    "handicapIndex": 5,  // if available
-    "distances": {
-      "Blue": 425,
-      "White": 410,
-      "Red": 380
+{
+  "holes": [
+    {
+      "number": 1,
+      "par": 4,
+      "handicapIndex": 5,  // if available
+      "notes": ""  // if available
+    },
+    {
+      "number": 2,
+      "par": 3,
+      "handicapIndex": 17,  // if available
+      "notes": "Dogleg right"  // if available
     }
-  },
-  {
-    "number": 2,
-    "par": 3,
-    "handicapIndex": 17,  // if available
-    "distances": {
-      "Blue": 185,
-      "White": 165,
-      "Red": 145
-    }
-  }
-]
+  ]
+}
 
 Guidelines:
 1. Extract data for ALL holes visible in the scorecard (typically 9 or 18 holes)
-2. For each hole, include number, par, handicap index (if available), and distances for each tee color
+2. For each hole, include number, par, handicap index (if available), and any notes if visible
 3. If you can't determine a specific value, use a reasonable default (par 4 for missing pars)
 4. Convert all text-based numbers to numeric values
-5. Ensure the "distances" object contains entries for ALL tee colors visible in the scorecard
-6. If the scorecard has front/back 9 layout, combine them into a single array of 18 holes
-7. Return ONLY the JSON array, nothing else`;
+5. If the scorecard has front/back 9 layout, combine them into a single array of 18 holes
+6. Return ONLY the JSON object, nothing else`;
         userMessage = `${teeColorsText}Extract the hole-by-hole information from this golf scorecard.`;
       } 
       else {
@@ -235,64 +228,81 @@ Your response must be ONLY valid JSON in the following format:
         let jsonString = '';
         
         // Try to find JSON in code blocks
-        const jsonBlockMatch = responseText.match(/```(?:json)?\n([\s\S]*?)\n```/);
-        if (jsonBlockMatch && jsonBlockMatch[1]) {
-          console.log('Found JSON in code block');
-          jsonString = jsonBlockMatch[1];
-        } 
-        // If not in code blocks, try to find the first { or [ to the last } or ]
-        else {
-          const firstBrace = responseText.indexOf('{');
-          const firstBracket = responseText.indexOf('[');
-          
-          if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
-            // JSON object
-            const lastBrace = responseText.lastIndexOf('}');
-            if (lastBrace !== -1 && lastBrace > firstBrace) {
-              jsonString = responseText.substring(firstBrace, lastBrace + 1);
-              console.log('Found JSON object');
+        if (responseText) {
+          const jsonBlockMatch = responseText.match(/```(?:json)?\n([\s\S]*?)\n```/);
+          if (jsonBlockMatch && jsonBlockMatch[1]) {
+            console.log('Found JSON in code block');
+            jsonString = jsonBlockMatch[1];
+          } 
+          // If not in code blocks, try to find the first { or [ to the last } or ]
+          else {
+            const firstBrace = responseText.indexOf('{');
+            const firstBracket = responseText.indexOf('[');
+            
+            if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+              // JSON object
+              const lastBrace = responseText.lastIndexOf('}');
+              if (lastBrace !== -1 && lastBrace > firstBrace) {
+                jsonString = responseText.substring(firstBrace, lastBrace + 1);
+                console.log('Found JSON object');
+              }
+            } else if (firstBracket !== -1) {
+              // JSON array
+              const lastBracket = responseText.lastIndexOf(']');
+              if (lastBracket !== -1 && lastBracket > firstBracket) {
+                jsonString = responseText.substring(firstBracket, lastBracket + 1);
+                console.log('Found JSON array');
+              }
             }
-          } else if (firstBracket !== -1) {
-            // JSON array
-            const lastBracket = responseText.lastIndexOf(']');
-            if (lastBracket !== -1 && lastBracket > firstBracket) {
-              jsonString = responseText.substring(firstBracket, lastBracket + 1);
-              console.log('Found JSON array');
+            
+            // If still no JSON found, use the entire response
+            if (!jsonString) {
+              console.log('No JSON format detected, using entire response');
+              jsonString = responseText;
             }
           }
           
-          // If still no JSON found, use the entire response
-          if (!jsonString) {
-            console.log('No JSON format detected, using entire response');
-            jsonString = responseText;
+          console.log('Extracted JSON string:', jsonString);
+          
+          // Clean up the string before parsing
+          jsonString = jsonString.trim();
+          
+          try {
+            // Parse the JSON
+            extractedData = JSON.parse(jsonString);
+            console.log('Parsed data:', extractedData);
+          } catch (parseError: unknown) {
+            console.error('JSON parse error:', parseError);
+            console.error('Failed to parse JSON string:', jsonString);
+            const errorMessage = parseError instanceof Error ? parseError.message : 'Unknown parsing error';
+            return NextResponse.json({
+              success: false,
+              error: `Failed to parse extracted data from the image. The AI response could not be converted to valid JSON. ${errorMessage}`
+            }, { status: 422 });
           }
-        }
-        
-        console.log('Extracted JSON string:', jsonString);
-        
-        // Clean up the string before parsing
-        jsonString = jsonString.trim();
-        
-        try {
-          // Parse the JSON
-          extractedData = JSON.parse(jsonString);
-          console.log('Parsed data:', extractedData);
-        } catch (parseError) {
-          console.error('JSON parse error:', parseError);
-          console.error('Failed to parse JSON string:', jsonString);
+        } else {
           return NextResponse.json({
             success: false,
-            error: `Failed to parse extracted data from the image. The AI response could not be converted to valid JSON. ${parseError.message}`
+            error: 'No response text received from the AI'
           }, { status: 422 });
         }
         
-        // Post-process the data to standardize tee color keys if it's an array of holes
-        if (Array.isArray(extractedData) && extractType === 'scorecard') {
-          console.log('Post-processing scorecard data to standardize tee colors');
+        // Post-process the data to ensure it has the expected structure
+        if (extractType === 'scorecard') {
+          console.log('Post-processing scorecard data');
+          
+          // Check if the data has the expected structure
+          if (!extractedData || !extractedData.holes || !Array.isArray(extractedData.holes)) {
+            console.error('Extracted data does not have the expected structure:', extractedData);
+            return NextResponse.json({
+              success: false,
+              error: 'The extracted data does not have the expected structure. Please try with a clearer image or manually enter the data.'
+            }, { status: 422 });
+          }
           
           // Validate that we have proper hole data
-          if (extractedData.length === 0) {
-            console.error('Extracted data is an empty array');
+          if (extractedData.holes.length === 0) {
+            console.error('Extracted data has an empty holes array');
             return NextResponse.json({
               success: false,
               error: 'The AI could not identify any holes in the scorecard image. Please try with a clearer image or manually enter the data.'
@@ -300,57 +310,14 @@ Your response must be ONLY valid JSON in the following format:
           }
           
           // Check if the first item has the expected structure
-          const firstHole = extractedData[0];
-          if (!firstHole.number || !firstHole.par || !firstHole.distances) {
+          const firstHole = extractedData.holes[0];
+          if (!firstHole.number || !firstHole.par) {
             console.error('Extracted data does not match expected hole format:', firstHole);
             return NextResponse.json({
               success: false,
               error: 'The extracted data does not match the expected hole format. Please try with a clearer image or manually enter the data.'
             }, { status: 422 });
           }
-          
-          // Get the provided tee colors if any
-          let providedTeeColors: string[] = [];
-          if (teeColors.length > 0) {
-            console.log('Using provided tee colors for standardization:', teeColors);
-            providedTeeColors = teeColors;
-          }
-          
-          // Standardize each hole's distances
-          extractedData = extractedData.map((hole: any) => {
-            if (hole.distances) {
-              const standardizedDistances: Record<string, number> = {};
-              const distanceKeys = Object.keys(hole.distances);
-              
-              // If we have provided tee colors, try to match them
-              if (providedTeeColors.length > 0) {
-                providedTeeColors.forEach(teeColor => {
-                  // Find a matching key regardless of case
-                  const matchingKey = distanceKeys.find(
-                    key => key.toLowerCase() === teeColor.toLowerCase()
-                  );
-                  
-                  if (matchingKey) {
-                    standardizedDistances[teeColor] = parseInt(hole.distances[matchingKey]) || 0;
-                  } else {
-                    // If no match, still include the tee color with 0 distance
-                    standardizedDistances[teeColor] = 0;
-                  }
-                });
-              } else {
-                // If no provided tee colors, just use the keys as they are
-                Object.entries(hole.distances).forEach(([key, value]) => {
-                  standardizedDistances[key] = parseInt(value as string) || 0;
-                });
-              }
-              
-              hole.distances = standardizedDistances;
-            }
-            
-            return hole;
-          });
-          
-          console.log('Post-processed data:', extractedData);
         }
         
       } catch (jsonError) {
@@ -367,17 +334,19 @@ Your response must be ONLY valid JSON in the following format:
         success: true,
         data: extractedData
       });
-    } catch (openaiError) {
+    } catch (openaiError: unknown) {
       console.error('OpenAI API error:', openaiError);
+      const errorMessage = openaiError instanceof Error ? openaiError.message : 'Unknown OpenAI API error';
       return NextResponse.json({
-        error: 'Error calling OpenAI API: ' + openaiError.message,
+        error: 'Error calling OpenAI API: ' + errorMessage,
       }, { status: 500 });
     }
     
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Error processing scorecard:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return NextResponse.json(
-      { error: error.message || 'Failed to process scorecard' },
+      { error: errorMessage || 'Failed to process scorecard' },
       { status: 500 }
     );
   }

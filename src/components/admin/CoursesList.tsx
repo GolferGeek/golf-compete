@@ -391,17 +391,6 @@ export default function CoursesList() {
                         borderColor: 'divider',
                         pl: 1
                       }}>
-                        <Tooltip title="View Course Details">
-                          <IconButton 
-                            component={Link} 
-                            href={`/admin/courses/${course.id}`}
-                            aria-label="view"
-                            size="small"
-                            color="primary"
-                          >
-                            <VisibilityIcon />
-                          </IconButton>
-                        </Tooltip>
                         <Tooltip title="Edit Course">
                           <IconButton 
                             component={Link} 
@@ -479,16 +468,6 @@ export default function CoursesList() {
                     />
                   </TableCell>
                   <TableCell align="right">
-                    <Tooltip title="View Course Details">
-                      <IconButton 
-                        component={Link} 
-                        href={`/admin/courses/${course.id}`}
-                        aria-label="view"
-                        sx={{ mr: 1 }}
-                      >
-                        <VisibilityIcon />
-                      </IconButton>
-                    </Tooltip>
                     <Tooltip title="Edit Course">
                       <IconButton 
                         component={Link} 

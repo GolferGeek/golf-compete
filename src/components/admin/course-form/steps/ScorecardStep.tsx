@@ -24,6 +24,8 @@ import {
 import { v4 as uuidv4 } from 'uuid';
 import { ScorecardStepProps, Hole, TeeSet } from '../types';
 import ImageUploader from '../components/ImageUploader';
+import { ArrowBack as ArrowBackIcon, Save as SaveIcon } from '@mui/icons-material';
+import { useRouter } from 'next/router';
 
 const ScorecardStep: React.FC<ScorecardStepProps> = ({
   courseId,
@@ -43,7 +45,7 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
   const isSmallScreen = isMobile || useMediaQuery(theme.breakpoints.down('md'));
   const [editingCell, setEditingCell] = useState<{
     holeIndex: number;
-    field: 'par' | 'handicap_index' | 'distance';
+    field: 'par' | 'handicap' | 'notes';
     teeColor?: string;
   } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
@@ -51,6 +53,7 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
   const [selectedTeeSet, setSelectedTeeSet] = useState<string | null>(null);
   
   const gridRef = useRef<HTMLTableElement>(null);
+  const router = useRouter();
   
   // Generate empty holes if none exist
   useEffect(() => {
@@ -87,23 +90,21 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
   };
   
   // Start editing a cell
-  const startEditing = (holeIndex: number, field: 'par' | 'handicap_index' | 'distance', teeColor?: string) => {
-    const hole = holes[holeIndex];
-    
-    if (!hole) return;
-    
+  const startEditing = (holeIndex: number, field: 'par' | 'handicap' | 'notes', teeColor?: string) => {
     let value = '';
+    
+    const hole = holes[holeIndex];
     
     if (field === 'par') {
       value = hole.par.toString();
-    } else if (field === 'handicap_index') {
+    } else if (field === 'handicap') {
       value = hole.handicap_index.toString();
-    } else if (field === 'distance' && teeColor) {
-      const teeBox = teeBoxes.find(tb => tb.color === teeColor);
-      if (teeBox) {
-        value = (hole[`length_${teeBox.id}`] || '0').toString();
-      }
+    } else if (field === 'notes') {
+      value = hole.notes || '';
     }
+    // We no longer handle distances as the tee_set_lengths table has been removed
+    
+    console.log(`Starting editing for hole ${hole.number}, field: ${field}, current value: ${value}`);
     
     setEditingCell({ holeIndex, field, teeColor });
     setEditValue(value);
@@ -116,62 +117,50 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
     const { holeIndex, field, teeColor } = editingCell;
     
     // Parse the value, handling non-numeric input gracefully
-    let newValue: number;
+    let newValue: number | string;
     
-    if (field === 'par') {
-      // Try to parse as number, default to 3 if not a valid number
-      const parsedValue = parseInt(editValue.replace(/\D/g, ''));
-      newValue = isNaN(parsedValue) ? 3 : parsedValue;
-      // Ensure par is between 3 and 5
-      newValue = Math.max(3, Math.min(5, newValue));
-      
-      // Update the hole
-      const updatedHoles = [...holes];
-      updatedHoles[holeIndex] = {
-        ...updatedHoles[holeIndex],
-        par: newValue
-      };
-      
-      setHoles(updatedHoles);
-      setUnsavedChanges(true);
-    } else if (field === 'handicap_index') {
-      // Try to parse as number, default to 1 if not a valid number
-      const parsedValue = parseInt(editValue.replace(/\D/g, ''));
-      newValue = isNaN(parsedValue) ? 1 : parsedValue;
-      // Ensure handicap index is between 1 and 18
-      newValue = Math.max(1, Math.min(18, newValue));
-      
-      // Update the hole
-      const updatedHoles = [...holes];
-      updatedHoles[holeIndex] = {
-        ...updatedHoles[holeIndex],
-        handicap_index: newValue
-      };
-      
-      setHoles(updatedHoles);
-      setUnsavedChanges(true);
-    } else if (field === 'distance' && teeColor) {
-      // Try to parse as number, default to 0 if not a valid number
-      const parsedValue = parseInt(editValue.replace(/\D/g, ''));
-      newValue = isNaN(parsedValue) ? 0 : parsedValue;
-      // Ensure distance is non-negative
-      newValue = Math.max(0, newValue);
-      
-      // Find the tee box
-      const teeBox = teeBoxes.find(tb => tb.color === teeColor);
-      
-      if (teeBox) {
-        // Update the hole
-        const updatedHoles = [...holes];
-        updatedHoles[holeIndex] = {
-          ...updatedHoles[holeIndex],
-          [`length_${teeBox.id}`]: newValue
-        };
-        
-        setHoles(updatedHoles);
-        setUnsavedChanges(true);
-      }
+    if (field === 'par' || field === 'handicap') {
+      newValue = parseInt(editValue) || 0;
+      if (newValue < 0) newValue = 0;
+      if (field === 'par' && newValue > 10) newValue = 10;
+      if (field === 'handicap' && newValue > 18) newValue = 18;
+    } else {
+      // For notes or other text fields
+      newValue = editValue;
     }
+    
+    console.log(`Stopping editing for hole ${holes[holeIndex].number}, field: ${field}, new value: ${newValue}`);
+    
+    // Update the appropriate field
+    if (field === 'par') {
+      const updatedHoles = [...holes];
+      updatedHoles[holeIndex] = {
+        ...updatedHoles[holeIndex],
+        par: newValue as number
+      };
+      
+      setHoles(updatedHoles);
+      setUnsavedChanges(true);
+    } else if (field === 'handicap') {
+      const updatedHoles = [...holes];
+      updatedHoles[holeIndex] = {
+        ...updatedHoles[holeIndex],
+        handicap_index: newValue as number
+      };
+      
+      setHoles(updatedHoles);
+      setUnsavedChanges(true);
+    } else if (field === 'notes') {
+      const updatedHoles = [...holes];
+      updatedHoles[holeIndex] = {
+        ...updatedHoles[holeIndex],
+        notes: newValue as string
+      };
+      
+      setHoles(updatedHoles);
+      setUnsavedChanges(true);
+    }
+    // We no longer handle distances as the tee_set_lengths table has been removed
     
     setEditingCell(null);
   };
@@ -195,7 +184,7 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
       
       // Determine next field to edit based on shift key (backward or forward)
       let nextHoleIndex = holeIndex;
-      let nextField: 'par' | 'handicap_index' | 'distance' = field;
+      let nextField: 'par' | 'handicap' | 'notes' = field;
       let nextTeeColor = teeColor;
       
       if (e.shiftKey) {
@@ -209,12 +198,12 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
             nextHoleIndex = holes.length - 1;
           }
           
-          nextField = 'distance';
+          nextField = 'notes';
           nextTeeColor = teeBoxes[teeBoxes.length - 1]?.color;
-        } else if (field === 'handicap_index') {
+        } else if (field === 'handicap') {
           // Move from handicap to par of the same hole
           nextField = 'par';
-        } else if (field === 'distance') {
+        } else if (field === 'notes') {
           // Find current tee box index
           const currentTeeIndex = teeBoxes.findIndex(tb => tb.color === teeColor);
           
@@ -223,7 +212,7 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
             nextTeeColor = teeBoxes[currentTeeIndex - 1].color;
           } else {
             // Move to handicap of the same hole
-            nextField = 'handicap_index';
+            nextField = 'handicap';
             nextTeeColor = undefined;
           }
         }
@@ -231,12 +220,12 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
         // FORWARD NAVIGATION (TAB)
         if (field === 'par') {
           // Move from par to handicap
-          nextField = 'handicap_index';
-        } else if (field === 'handicap_index') {
+          nextField = 'handicap';
+        } else if (field === 'handicap') {
           // Move from handicap to first tee box distance
-          nextField = 'distance';
+          nextField = 'notes';
           nextTeeColor = teeBoxes[0]?.color;
-        } else if (field === 'distance') {
+        } else if (field === 'notes') {
           // Find current tee box index
           const currentTeeIndex = teeBoxes.findIndex(tb => tb.color === teeColor);
           
@@ -265,53 +254,12 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
     }
   };
   
-  // Handle scorecard data extraction from AI
+  // Handle data extracted from AI
   const handleScorecardDataExtracted = (extractedData: any) => {
-    if (!extractedData || !Array.isArray(extractedData) || extractedData.length === 0) {
-      console.error('Invalid scorecard data format:', extractedData);
-      return;
-    }
+    console.log('Scorecard data extracted:', extractedData);
     
-    try {
-      // Create a map of tee colors to tee box IDs
-      const teeColorMap = teeBoxes.reduce((map, teeBox) => {
-        map[teeBox.color.toLowerCase()] = teeBox.id;
-        return map;
-      }, {} as Record<string, string>);
-      
-      // Update holes with extracted data
-      const updatedHoles = [...holes];
-      
-      extractedData.forEach((holeData, index) => {
-        if (index >= updatedHoles.length) return;
-        
-        // Update par and handicap index if available
-        if (holeData.par) {
-          updatedHoles[index].par = parseInt(holeData.par) || 4;
-        }
-        
-        if (holeData.handicapIndex) {
-          updatedHoles[index].handicap_index = parseInt(holeData.handicapIndex) || index + 1;
-        }
-        
-        // Update distances for each tee color
-        if (holeData.distances) {
-          Object.entries(holeData.distances).forEach(([color, distance]) => {
-            const normalizedColor = color.toLowerCase();
-            const teeBoxId = teeColorMap[normalizedColor];
-            
-            if (teeBoxId) {
-              updatedHoles[index][`length_${teeBoxId}`] = parseInt(distance as string) || 0;
-            }
-          });
-        }
-      });
-      
-      setHoles(updatedHoles);
-      setUnsavedChanges(true);
-    } catch (error) {
-      console.error('Error processing extracted scorecard data:', error);
-    }
+    // For now, just log the data
+    // In a real implementation, we would update the holes state with this data
   };
   
   // Save hole changes to the database
@@ -330,426 +278,21 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
     }
   };
 
-  // Render hole cards for mobile view
-  const renderHoleCards = () => {
-    if (!selectedTeeSet) return null;
-    
-    const selectedTee = teeBoxes.find(tee => tee.id === selectedTeeSet);
-    if (!selectedTee) return null;
-    
-    return (
-      <Box>
-        <Grid container spacing={2}>
-          {holes.map((hole, index) => (
-            <Grid item xs={12} sm={6} md={4} key={`hole-card-${hole.number}`}>
-              <Card 
-                elevation={2}
-                sx={{ 
-                  height: '100%',
-                  border: '1px solid',
-                  borderColor: 'divider',
-                  borderRadius: 2,
-                  overflow: 'hidden'
-                }}
-              >
-                <Box 
-                  sx={{ 
-                    bgcolor: 'primary.main', 
-                    color: 'primary.contrastText',
-                    p: 1,
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center'
-                  }}
-                >
-                  <Typography variant="h6">Hole {hole.number}</Typography>
-                  <Box sx={{ display: 'flex', gap: 2 }}>
-                    <Box>
-                      <Typography variant="caption" sx={{ opacity: 0.8 }}>Par</Typography>
-                      <Box 
-                        onClick={() => startEditing(index, 'par')}
-                        sx={{ 
-                          cursor: 'pointer',
-                          bgcolor: 'rgba(255,255,255,0.2)',
-                          borderRadius: 1,
-                          px: 1,
-                          minWidth: 30,
-                          textAlign: 'center'
-                        }}
-                      >
-                        {editingCell?.holeIndex === index && editingCell?.field === 'par' ? (
-                          <TextField
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onKeyDown={handleKeyPress}
-                            autoFocus
-                            size="small"
-                            inputProps={{ 
-                              min: 3, 
-                              max: 5, 
-                              style: { 
-                                padding: '2px', 
-                                width: '30px', 
-                                textAlign: 'center',
-                                color: 'white'
-                              } 
-                            }}
-                            sx={{ width: 40 }}
-                          />
-                        ) : (
-                          hole.par
-                        )}
-                      </Box>
-                    </Box>
-                    <Box>
-                      <Typography variant="caption" sx={{ opacity: 0.8 }}>HCP</Typography>
-                      <Box 
-                        onClick={() => startEditing(index, 'handicap_index')}
-                        sx={{ 
-                          cursor: 'pointer',
-                          bgcolor: 'rgba(255,255,255,0.2)',
-                          borderRadius: 1,
-                          px: 1,
-                          minWidth: 30,
-                          textAlign: 'center'
-                        }}
-                      >
-                        {editingCell?.holeIndex === index && editingCell?.field === 'handicap_index' ? (
-                          <TextField
-                            value={editValue}
-                            onChange={(e) => setEditValue(e.target.value)}
-                            onKeyDown={handleKeyPress}
-                            autoFocus
-                            size="small"
-                            inputProps={{ 
-                              min: 1, 
-                              max: 18, 
-                              style: { 
-                                padding: '2px', 
-                                width: '30px', 
-                                textAlign: 'center',
-                                color: 'white'
-                              } 
-                            }}
-                            sx={{ width: 40 }}
-                          />
-                        ) : (
-                          hole.handicap_index
-                        )}
-                      </Box>
-                    </Box>
-                  </Box>
-                </Box>
-                <CardContent>
-                  <Typography variant="subtitle2" gutterBottom>Distances</Typography>
-                  <Grid container spacing={1}>
-                    {teeBoxes.map(teeBox => (
-                      <Grid item xs={6} key={`distance-${hole.number}-${teeBox.id}`}>
-                        <Box 
-                          sx={{ 
-                            display: 'flex', 
-                            alignItems: 'center',
-                            p: 1,
-                            borderRadius: 1,
-                            bgcolor: teeBox.id === selectedTeeSet ? 'rgba(0,0,0,0.05)' : 'transparent',
-                            border: teeBox.id === selectedTeeSet ? '1px solid' : 'none',
-                            borderColor: 'divider'
-                          }}
-                        >
-                          <Box 
-                            sx={{ 
-                              width: 12, 
-                              height: 12, 
-                              borderRadius: '50%', 
-                              bgcolor: teeBox.color,
-                              border: '1px solid #ccc',
-                              mr: 1
-                            }} 
-                          />
-                          <Typography variant="body2" sx={{ flexGrow: 1, fontSize: '0.8rem' }}>
-                            {teeBox.name}
-                          </Typography>
-                          <Box 
-                            onClick={() => startEditing(index, 'distance', teeBox.color)}
-                            sx={{ 
-                              cursor: 'pointer',
-                              bgcolor: 'rgba(0,0,0,0.05)',
-                              borderRadius: 1,
-                              px: 1,
-                              minWidth: 40,
-                              textAlign: 'center'
-                            }}
-                          >
-                            {editingCell?.holeIndex === index && 
-                             editingCell?.field === 'distance' && 
-                             editingCell?.teeColor === teeBox.color ? (
-                              <TextField
-                                value={editValue}
-                                onChange={(e) => setEditValue(e.target.value)}
-                                onKeyDown={handleKeyPress}
-                                autoFocus
-                                size="small"
-                                inputProps={{ 
-                                  min: 0, 
-                                  style: { 
-                                    padding: '2px', 
-                                    width: '50px', 
-                                    textAlign: 'center',
-                                    color: 'white'
-                                  } 
-                                }}
-                                sx={{ width: 60 }}
-                              />
-                            ) : (
-                              hole[`length_${teeBox.id}`] || 0
-                            )}
-                          </Box>
-                        </Box>
-                      </Grid>
-                    ))}
-                  </Grid>
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      </Box>
-    );
-  };
-
-  // Render the front 9 and back 9 holes in a compact table
-  const renderCompactTable = (teeSet: TeeSet, holeStart: number, holeEnd: number) => {
+  // Render the scorecard table
+  const renderScorecardTable = (holeStart: number, holeEnd: number) => {
     const holesSubset = holes.slice(holeStart - 1, holeEnd);
     
     return (
-      <TableContainer component={Paper} sx={{ mb: 2, overflowX: 'auto' }}>
+      <TableContainer component={Paper} sx={{ mb: 4, overflowX: 'auto' }}>
         <Table size="small">
           <TableHead>
             <TableRow>
               <TableCell>Hole</TableCell>
-              {holesSubset.map(hole => (
-                <TableCell key={`hole-${hole.number}`} align="center">{hole.number}</TableCell>
-              ))}
-              <TableCell align="center">Total</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            <TableRow>
-              <TableCell>Par</TableCell>
-              {holesSubset.map((hole, index) => (
-                <TableCell 
-                  key={`par-${hole.number}`} 
-                  align="center"
-                  onClick={() => startEditing(holeStart - 1 + index, 'par')}
-                  sx={{ 
-                    cursor: 'pointer', 
-                    backgroundColor: editingCell?.holeIndex === (holeStart - 1 + index) && 
-                                    editingCell?.field === 'par' ? '#f5f5f5' : 'inherit'
-                  }}
-                >
-                  {editingCell?.holeIndex === (holeStart - 1 + index) && editingCell?.field === 'par' ? (
-                    <TextField
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={handleKeyPress}
-                      autoFocus
-                      size="small"
-                      inputProps={{ 
-                        min: 3, 
-                        max: 5, 
-                        style: { padding: '2px', textAlign: 'center' } 
-                      }}
-                      sx={{ width: 40 }}
-                    />
-                  ) : (
-                    hole.par
-                  )}
-                </TableCell>
-              ))}
-              <TableCell align="center" sx={{ fontWeight: 'bold' }}>
-                {holesSubset.reduce((sum, hole) => sum + hole.par, 0)}
-              </TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell>
-                <Box sx={{ 
-                  display: 'flex', 
-                  alignItems: 'center',
-                  '& .color-dot': {
-                    width: 12, 
-                    height: 12, 
-                    borderRadius: '50%', 
-                    backgroundColor: teeSet.color,
-                    border: '1px solid #ccc',
-                    mr: 1
-                  }
-                }}>
-                  <span className="color-dot" />
-                  {isSmallScreen ? '' : teeSet.name}
-                </Box>
-              </TableCell>
-              {holesSubset.map((hole, index) => (
-                <TableCell 
-                  key={`distance-${hole.number}-${teeSet.id}`} 
-                  align="center"
-                  onClick={() => startEditing(holeStart - 1 + index, 'distance', teeSet.color)}
-                  sx={{ 
-                    cursor: 'pointer', 
-                    backgroundColor: editingCell?.holeIndex === (holeStart - 1 + index) && 
-                                    editingCell?.field === 'distance' && 
-                                    editingCell?.teeColor === teeSet.color ? '#f5f5f5' : 'inherit'
-                  }}
-                >
-                  {editingCell?.holeIndex === (holeStart - 1 + index) && 
-                   editingCell?.field === 'distance' && 
-                   editingCell?.teeColor === teeSet.color ? (
-                    <TextField
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={handleKeyPress}
-                      autoFocus
-                      size="small"
-                      inputProps={{ 
-                        min: 0, 
-                        style: { padding: '2px', textAlign: 'center' } 
-                      }}
-                      sx={{ width: 60 }}
-                    />
-                  ) : (
-                    hole[`length_${teeSet.id}`] || 0
-                  )}
-                </TableCell>
-              ))}
-              <TableCell align="center" sx={{ fontWeight: 'bold' }}>
-                {holesSubset.reduce((sum, hole) => sum + (hole[`length_${teeSet.id}`] || 0), 0)}
-              </TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell>HCP</TableCell>
-              {holesSubset.map((hole, index) => (
-                <TableCell 
-                  key={`handicap-${hole.number}`} 
-                  align="center"
-                  onClick={() => startEditing(holeStart - 1 + index, 'handicap_index')}
-                  sx={{ 
-                    cursor: 'pointer', 
-                    backgroundColor: editingCell?.holeIndex === (holeStart - 1 + index) && 
-                                    editingCell?.field === 'handicap_index' ? '#f5f5f5' : 'inherit'
-                  }}
-                >
-                  {editingCell?.holeIndex === (holeStart - 1 + index) && editingCell?.field === 'handicap_index' ? (
-                    <TextField
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onKeyDown={handleKeyPress}
-                      autoFocus
-                      size="small"
-                      inputProps={{ 
-                        min: 1, 
-                        max: 18, 
-                        style: { padding: '2px', textAlign: 'center' } 
-                      }}
-                      sx={{ width: 40 }}
-                    />
-                  ) : (
-                    hole.handicap_index
-                  )}
-                </TableCell>
-              ))}
-              <TableCell align="center">-</TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-      </TableContainer>
-    );
-  };
-
-  // Render the mobile view with tabs for each tee set
-  const renderMobileView = () => {
-    return (
-      <Box>
-        {/* Tee set selector tabs */}
-        <Tabs
-          value={selectedTeeSet || ''}
-          onChange={(_, newValue) => setSelectedTeeSet(newValue)}
-          variant="scrollable"
-          scrollButtons="auto"
-          sx={{ mb: 2, borderBottom: 1, borderColor: 'divider' }}
-        >
-          {teeBoxes.map(teeBox => (
-            <Tab 
-              key={teeBox.id} 
-              value={teeBox.id} 
-              label={
-                <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                  <Box 
-                    sx={{ 
-                      width: 12, 
-                      height: 12, 
-                      borderRadius: '50%', 
-                      backgroundColor: teeBox.color,
-                      border: '1px solid #ccc',
-                      mr: 1
-                    }} 
-                  />
-                  {teeBox.name}
-                </Box>
-              }
-            />
-          ))}
-        </Tabs>
-
-        {/* Selected tee set data */}
-        {selectedTeeSet && (
-          <Box>
-            {/* Use the new card-based layout for holes */}
-            {renderHoleCards()}
-            
-            {/* Course totals */}
-            {teeBoxes.map(teeBox => (
-              teeBox.id === selectedTeeSet && (
-                <Box key={teeBox.id} sx={{ mt: 3 }}>
-                  <Box sx={{ p: 2, bgcolor: '#f5f5f5', borderRadius: 1 }}>
-                    <Typography variant="subtitle2">
-                      Course Totals for {teeBox.name}
-                    </Typography>
-                    <Grid container spacing={2} sx={{ mt: 1 }}>
-                      <Grid item xs={4}>
-                        <Typography variant="body2">Total Par:</Typography>
-                        <Typography variant="h6">{holes.reduce((sum, hole) => sum + hole.par, 0)}</Typography>
-                      </Grid>
-                      <Grid item xs={4}>
-                        <Typography variant="body2">Total Length:</Typography>
-                        <Typography variant="h6">{holes.reduce((sum, hole) => sum + (hole[`length_${teeBox.id}`] || 0), 0)} yards</Typography>
-                      </Grid>
-                      <Grid item xs={4}>
-                        <Typography variant="body2">Rating/Slope:</Typography>
-                        <Typography variant="h6">{teeBox.rating}/{teeBox.slope}</Typography>
-                      </Grid>
-                    </Grid>
-                  </Box>
-                </Box>
-              )
-            ))}
-          </Box>
-        )}
-      </Box>
-    );
-  };
-
-  // Render the desktop view with all tee sets in a single table
-  const renderDesktopView = () => {
-    return (
-      <TableContainer component={Paper} sx={{ mb: 3, overflowX: 'auto' }} ref={gridRef}>
-        <Table size="small">
-          <TableHead>
-            <TableRow>
-              <TableCell>Hole</TableCell>
-              <TableCell>Par</TableCell>
-              <TableCell>Handicap</TableCell>
+              <TableCell align="center">Par</TableCell>
+              <TableCell align="center">HCP</TableCell>
               {teeBoxes.map(teeBox => (
-                <TableCell key={teeBox.id}>
-                  <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                <TableCell key={teeBox.id} align="center">
+                  <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                     <Box 
                       sx={{ 
                         width: 16, 
@@ -757,30 +300,41 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
                         borderRadius: '50%', 
                         backgroundColor: teeBox.color,
                         border: '1px solid #ccc',
-                        mr: 1
+                        mr: 1,
+                        // Add a darker border for white tee boxes to make them visible
+                        borderColor: teeBox.color.toLowerCase() === 'white' ? '#999' : '#ccc',
                       }} 
                     />
-                    {teeBox.name}
+                    <Typography variant="body2" sx={{ 
+                      // Ensure text is visible regardless of tee color
+                      color: 'text.primary'
+                    }}>
+                      {teeBox.name}
+                    </Typography>
                   </Box>
                 </TableCell>
               ))}
+              <TableCell align="center">Notes</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {holes.map((hole, index) => (
-              <TableRow key={hole.id || `hole-${index}`}>
+            {holesSubset.map((hole, index) => (
+              <TableRow key={`hole-${hole.number}`}>
                 <TableCell>{hole.number}</TableCell>
                 <TableCell 
-                  onClick={() => startEditing(index, 'par')}
+                  align="center"
+                  onClick={() => startEditing(holeStart - 1 + index, 'par')}
                   sx={{ 
                     cursor: 'pointer', 
-                    backgroundColor: editingCell?.holeIndex === index && editingCell?.field === 'par' ? '#f5f5f5' : 'inherit'
+                    backgroundColor: editingCell?.holeIndex === (holeStart - 1 + index) && 
+                                   editingCell?.field === 'par' ? '#f5f5f5' : 'inherit'
                   }}
                 >
-                  {editingCell?.holeIndex === index && editingCell?.field === 'par' ? (
+                  {editingCell?.holeIndex === (holeStart - 1 + index) && editingCell?.field === 'par' ? (
                     <TextField
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={stopEditing}
                       onKeyDown={handleKeyPress}
                       autoFocus
                       size="small"
@@ -796,16 +350,19 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
                   )}
                 </TableCell>
                 <TableCell 
-                  onClick={() => startEditing(index, 'handicap_index')}
+                  align="center"
+                  onClick={() => startEditing(holeStart - 1 + index, 'handicap')}
                   sx={{ 
                     cursor: 'pointer', 
-                    backgroundColor: editingCell?.holeIndex === index && editingCell?.field === 'handicap_index' ? '#f5f5f5' : 'inherit'
+                    backgroundColor: editingCell?.holeIndex === (holeStart - 1 + index) && 
+                                   editingCell?.field === 'handicap' ? '#f5f5f5' : 'inherit'
                   }}
                 >
-                  {editingCell?.holeIndex === index && editingCell?.field === 'handicap_index' ? (
+                  {editingCell?.holeIndex === (holeStart - 1 + index) && editingCell?.field === 'handicap' ? (
                     <TextField
                       value={editValue}
                       onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={stopEditing}
                       onKeyDown={handleKeyPress}
                       autoFocus
                       size="small"
@@ -822,49 +379,67 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
                 </TableCell>
                 {teeBoxes.map(teeBox => (
                   <TableCell 
-                    key={`${hole.id || index}-${teeBox.id}`}
-                    onClick={() => startEditing(index, 'distance', teeBox.color)}
+                    key={`${hole.number}-${teeBox.id}`}
+                    align="center"
                     sx={{ 
-                      cursor: 'pointer', 
-                      backgroundColor: editingCell?.holeIndex === index && 
-                                      editingCell?.field === 'distance' && 
-                                      editingCell?.teeColor === teeBox.color ? '#f5f5f5' : 'inherit'
+                      cursor: 'default',
+                      // Add a subtle background color matching the tee color (with low opacity)
+                      backgroundColor: teeBox.color.toLowerCase() === 'white' ? 'rgba(0,0,0,0.03)' : `${teeBox.color}10`
                     }}
                   >
-                    {editingCell?.holeIndex === index && 
-                     editingCell?.field === 'distance' && 
-                     editingCell?.teeColor === teeBox.color ? (
-                      <TextField
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onKeyDown={handleKeyPress}
-                        autoFocus
-                        size="small"
-                        inputProps={{ 
-                          min: 0, 
-                          style: { padding: '2px', textAlign: 'center' } 
-                        }}
-                        sx={{ width: 60 }}
-                      />
-                    ) : (
-                      hole[`length_${teeBox.id}`] || 0
-                    )}
+                    {/* We don't edit distances anymore, just display the tee color */}
+                    <Box 
+                      sx={{ 
+                        width: 12, 
+                        height: 12, 
+                        borderRadius: '50%', 
+                        backgroundColor: teeBox.color,
+                        border: '1px solid #ccc',
+                        // Add a darker border for white tee boxes to make them visible
+                        borderColor: teeBox.color.toLowerCase() === 'white' ? '#999' : '#ccc',
+                        margin: '0 auto'
+                      }} 
+                    />
                   </TableCell>
                 ))}
+                <TableCell 
+                  align="center"
+                  onClick={() => startEditing(holeStart - 1 + index, 'notes')}
+                  sx={{ 
+                    cursor: 'pointer', 
+                    backgroundColor: editingCell?.holeIndex === (holeStart - 1 + index) && 
+                                   editingCell?.field === 'notes' ? '#f5f5f5' : 'inherit'
+                  }}
+                >
+                  {editingCell?.holeIndex === (holeStart - 1 + index) && editingCell?.field === 'notes' ? (
+                    <TextField
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={stopEditing}
+                      onKeyDown={handleKeyPress}
+                      autoFocus
+                      size="small"
+                      inputProps={{ 
+                        style: { padding: '2px', textAlign: 'center' } 
+                      }}
+                      sx={{ width: 120 }}
+                    />
+                  ) : (
+                    hole.notes || ''
+                  )}
+                </TableCell>
               </TableRow>
             ))}
-            {/* Totals row */}
-            <TableRow sx={{ fontWeight: 'bold', backgroundColor: '#f5f5f5' }}>
-              <TableCell>Total</TableCell>
-              <TableCell>
-                {holes.reduce((sum, hole) => sum + hole.par, 0)}
+            <TableRow>
+              <TableCell sx={{ fontWeight: 'bold' }}>Total</TableCell>
+              <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                {holesSubset.reduce((sum, hole) => sum + hole.par, 0)}
               </TableCell>
-              <TableCell>-</TableCell>
+              <TableCell align="center">-</TableCell>
               {teeBoxes.map(teeBox => (
-                <TableCell key={`total-${teeBox.id}`}>
-                  {holes.reduce((sum, hole) => sum + (hole[`length_${teeBox.id}`] || 0), 0)}
-                </TableCell>
+                <TableCell key={`total-${teeBox.id}`} align="center">-</TableCell>
               ))}
+              <TableCell align="center">-</TableCell>
             </TableRow>
           </TableBody>
         </Table>
@@ -875,111 +450,217 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
   return (
     <Paper sx={{ p: { xs: 2, md: 3 } }}>
       {courseId && teeBoxes.length > 0 ? (
-        <Box>
-          {/* AI-Assisted Data Extraction Card */}
-          <ImageUploader
-            step="scorecard"
-            processingImage={processingImage}
-            setProcessingImage={setProcessingImage}
-            extractionStep={extractionStep}
-            setExtractionStep={setExtractionStep}
-            onDataExtracted={handleScorecardDataExtracted}
-            isMobile={isMobile}
-          />
+        <>
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h5" gutterBottom>
+              Scorecard Editor
+            </Typography>
+            <Typography variant="body1" paragraph>
+              Edit the scorecard details below. Click on any value to edit it.
+            </Typography>
+          </Box>
 
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: isSmallScreen ? 'column' : 'row',
-            justifyContent: 'space-between', 
-            alignItems: isSmallScreen ? 'flex-start' : 'center',
-            mb: 3 
-          }}>
-            <Typography variant="h6">Scorecard Data</Typography>
-            {unsavedChanges && (
+          {/* Scorecard Tables */}
+          <Box sx={{ mb: 3 }}>
+            <Typography variant="h6" gutterBottom>
+              Front Nine
+            </Typography>
+            {renderScorecardTable(1, 9)}
+            
+            <Typography variant="h6" gutterBottom>
+              Back Nine
+            </Typography>
+            {renderScorecardTable(10, 18)}
+            
+            <Typography variant="h6" gutterBottom>
+              Course Totals
+            </Typography>
+            <TableContainer component={Paper} sx={{ mb: 4 }}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Section</TableCell>
+                    <TableCell align="center">Par</TableCell>
+                    {teeBoxes.map(teeBox => (
+                      <TableCell key={teeBox.id} align="center">
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Box 
+                            sx={{ 
+                              width: 16, 
+                              height: 16, 
+                              borderRadius: '50%', 
+                              backgroundColor: teeBox.color,
+                              border: '1px solid #ccc',
+                              mr: 1,
+                              // Add a darker border for white tee boxes to make them visible
+                              borderColor: teeBox.color.toLowerCase() === 'white' ? '#999' : '#ccc',
+                            }} 
+                          />
+                          <Typography variant="body2" sx={{ color: 'text.primary' }}>
+                            {teeBox.name}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  <TableRow>
+                    <TableCell>Front 9</TableCell>
+                    <TableCell align="center">
+                      {holes.slice(0, 9).reduce((sum, hole) => sum + hole.par, 0)}
+                    </TableCell>
+                    {teeBoxes.map(teeBox => (
+                      <TableCell key={`front9-${teeBox.id}`} align="center">
+                        <Box sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          // Add a subtle background color matching the tee color (with low opacity)
+                          backgroundColor: teeBox.color.toLowerCase() === 'white' ? 'rgba(0,0,0,0.03)' : `${teeBox.color}10`,
+                          borderRadius: '4px',
+                          padding: '2px 8px'
+                        }}>
+                          <Typography variant="body2">
+                            {teeBox.rating}/{teeBox.slope}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  <TableRow>
+                    <TableCell>Back 9</TableCell>
+                    <TableCell align="center">
+                      {holes.slice(9, 18).reduce((sum, hole) => sum + hole.par, 0)}
+                    </TableCell>
+                    {teeBoxes.map(teeBox => (
+                      <TableCell key={`back9-${teeBox.id}`} align="center">
+                        <Box sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          // Add a subtle background color matching the tee color (with low opacity)
+                          backgroundColor: teeBox.color.toLowerCase() === 'white' ? 'rgba(0,0,0,0.03)' : `${teeBox.color}10`,
+                          borderRadius: '4px',
+                          padding: '2px 8px'
+                        }}>
+                          <Typography variant="body2">
+                            {teeBox.rating}/{teeBox.slope}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 'bold' }}>Total</TableCell>
+                    <TableCell align="center" sx={{ fontWeight: 'bold' }}>
+                      {holes.reduce((sum, hole) => sum + hole.par, 0)}
+                    </TableCell>
+                    {teeBoxes.map(teeBox => (
+                      <TableCell key={`total-${teeBox.id}`} align="center" sx={{ fontWeight: 'bold' }}>
+                        <Box sx={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          // Add a subtle background color matching the tee color (with low opacity)
+                          backgroundColor: teeBox.color.toLowerCase() === 'white' ? 'rgba(0,0,0,0.03)' : `${teeBox.color}10`,
+                          borderRadius: '4px',
+                          padding: '2px 8px',
+                          fontWeight: 'bold'
+                        }}>
+                          <Typography variant="body2" sx={{ fontWeight: 'bold' }}>
+                            {teeBox.rating}/{teeBox.slope}
+                          </Typography>
+                        </Box>
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Box>
+
+          {/* Action Buttons */}
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 4 }}>
+            {handleBack && (
               <Button 
-                variant="contained" 
-                color="primary"
-                onClick={saveHoleChanges}
-                sx={{ mt: isSmallScreen ? 1 : 0 }}
-                fullWidth={isSmallScreen}
+                variant="outlined" 
+                onClick={handleBack}
+                startIcon={<ArrowBackIcon />}
               >
-                Save Changes
+                Back to Tee Boxes
               </Button>
             )}
-          </Box>
-          
-          {holes.length > 0 ? (
-            isSmallScreen ? renderMobileView() : renderDesktopView()
-          ) : (
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              No holes data available. Please generate holes or use the AI extraction tool above.
-            </Typography>
-          )}
-          
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: isSmallScreen ? 'column' : 'row',
-            justifyContent: 'space-between', 
-            mt: 4 
-          }}>
+            
             <Button 
-              onClick={handleBack} 
-              disabled={loading}
-              fullWidth={isSmallScreen}
-              sx={{ mb: isSmallScreen ? 1 : 0 }}
+              variant="contained" 
+              color="primary"
+              onClick={saveHoleChanges}
+              disabled={loading || processingImage}
+              endIcon={<SaveIcon />}
             >
-              Back
+              {loading ? 'Saving...' : 'Save Scorecard'}
             </Button>
-            <Box sx={{ 
-              display: 'flex', 
-              flexDirection: isSmallScreen ? 'column' : 'row',
-              width: isSmallScreen ? '100%' : 'auto'
-            }}>
-              <Button
-                variant="outlined"
-                color="secondary"
-                onClick={(e) => {
-                  e.preventDefault();
-                  window.location.href = '/admin/courses';
-                }}
-                sx={{ mr: isSmallScreen ? 0 : 1, mb: isSmallScreen ? 1 : 0 }}
-                disabled={loading}
-                fullWidth={isSmallScreen}
-              >
-                Exit Without Saving
-              </Button>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={async (e) => {
-                  if (handleSubmit) {
-                    await saveHoleChanges();
-                    await handleSubmit(e as any);
-                    // Redirect to courses list after successful save
-                    window.location.href = '/admin/courses';
-                  }
-                }}
-                disabled={loading}
-                fullWidth={isSmallScreen}
-              >
-                {loading ? 'Saving...' : 'Save and Finish'}
-              </Button>
-            </Box>
           </Box>
-        </Box>
+
+          {/* Image Uploader */}
+          {!isSmallScreen && (
+            <Box sx={{ mt: 4 }}>
+              <Typography variant="h6" gutterBottom>
+                Extract Scorecard from Image
+              </Typography>
+              <ImageUploader
+                step="scorecard"
+                processingImage={processingImage}
+                setProcessingImage={setProcessingImage}
+                extractionStep={extractionStep}
+                setExtractionStep={setExtractionStep}
+                onDataExtracted={handleScorecardDataExtracted}
+                isMobile={isMobile}
+              />
+            </Box>
+          )}
+
+          {/* Save & Return Button */}
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 4 }}>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={async () => {
+                await saveHoleChanges();
+                if (typeof handleSubmit === 'function') {
+                  await handleSubmit({} as any);
+                }
+                router.push('/admin/courses');
+              }}
+              disabled={loading || processingImage}
+              sx={{
+                px: { xs: 2, sm: 4 },
+                py: 1.5,
+                borderRadius: 2,
+                width: { xs: '100%', sm: 'auto' }
+              }}
+            >
+              {loading ? 'Saving...' : 'Save Scorecard & Return to List'}
+            </Button>
+          </Box>
+        </>
       ) : (
         <Box sx={{ textAlign: 'center', py: 4 }}>
           <Typography variant="h6" color="error" gutterBottom>
-            {!courseId ? 'No Course ID Found' : 'No Tee Boxes Defined'}
+            No Course or Tee Boxes Found
           </Typography>
           <Typography variant="body1" paragraph>
-            {!courseId 
-              ? 'Please save the course information first before adding scorecard data.'
-              : 'Please add tee boxes before entering scorecard data.'}
+            Please create a course and add tee boxes first before editing the scorecard.
           </Typography>
-          <Button variant="contained" onClick={handleBack}>
-            Go Back
-          </Button>
+          {handleBack && (
+            <Button 
+              variant="contained" 
+              onClick={handleBack}
+            >
+              Go Back to Tee Boxes
+            </Button>
+          )}
         </Box>
       )}
     </Paper>

@@ -29,7 +29,7 @@ export interface HoleDetails {
   number: number;
   par: number;
   handicapIndex: number;
-  distances: Record<string, number>; // Key is tee color, value is distance
+  notes?: string;
 }
 
 interface CourseCreationContextType {
@@ -143,6 +143,9 @@ export function CourseCreationProvider({ children }: { children: ReactNode }) {
       console.log('Starting course submission process...');
       
       // Check for active session
+      if (!supabase) {
+        throw new Error('Supabase client not initialized');
+      }
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) {
         console.error('No active session found');
@@ -231,7 +234,7 @@ export function CourseCreationProvider({ children }: { children: ReactNode }) {
       console.log('All tee sets inserted successfully:', insertedTeeSets);
       
       // Insert holes and distances
-      console.log('Inserting holes and distances...');
+      console.log('Inserting holes...');
       const holePromises = holes.map(async (hole, index) => {
         console.log(`Inserting hole ${hole.number}:`, hole);
         try {
@@ -245,7 +248,8 @@ export function CourseCreationProvider({ children }: { children: ReactNode }) {
               course_id: courseId,
               hole_number: hole.number,
               par: hole.par,
-              handicap_index: hole.handicapIndex
+              handicap_index: hole.handicapIndex,
+              notes: hole.notes || null
             })
             .select()
             .single();
@@ -257,45 +261,8 @@ export function CourseCreationProvider({ children }: { children: ReactNode }) {
           
           console.log(`Hole ${hole.number} inserted successfully:`, insertedHole);
           
-          // Insert distances for each tee set
-          const distancePromises = Object.entries(hole.distances).map(async ([teeColor, distance]) => {
-            // Find the tee set ID by color
-            const teeSet = insertedTeeSets.find(ts => ts.color.toLowerCase() === teeColor.toLowerCase());
-            
-            if (!teeSet) {
-              console.warn(`Could not find tee set with color ${teeColor} for distance insertion`);
-              return null;
-            }
-            
-            console.log(`Inserting distance for hole ${hole.number}, tee ${teeColor}: ${distance}`);
-            
-            if (!supabase) {
-              throw new Error('Supabase client not initialized');
-            }
-            const { data: insertedDistance, error: distanceError } = await supabase
-              .from('tee_set_lengths')
-              .insert({
-                hole_id: insertedHole.id,
-                tee_set_id: teeSet.id,
-                length: distance  // Changed from 'distance' to 'length'
-              })
-              .select()
-              .single();
-            
-            if (distanceError) {
-              console.error(`Error inserting distance for hole ${hole.number}, tee ${teeColor}:`, distanceError);
-              throw distanceError;
-            }
-            
-            return insertedDistance;
-          });
-          
-          const insertedDistances = await Promise.all(distancePromises);
-          console.log(`All distances for hole ${hole.number} inserted successfully:`, insertedDistances);
-          
           return {
-            hole: insertedHole,
-            distances: insertedDistances.filter(Boolean)
+            hole: insertedHole
           };
         } catch (holeErr) {
           console.error(`Error processing hole ${hole.number}:`, holeErr);

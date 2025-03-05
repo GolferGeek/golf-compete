@@ -6,7 +6,9 @@ import {
   Grid, 
   CircularProgress, 
   Paper,
-  Alert
+  Alert,
+  useTheme,
+  useMediaQuery
 } from '@mui/material';
 import { useCourseCreationContext } from '@/contexts/CourseCreationContext';
 import ScorecardReader from '../ScorecardReader';
@@ -16,7 +18,6 @@ export default function ScorecardStep() {
   const { 
     holes, 
     setHoles, 
-    teeSets, 
     scorecardImage, 
     setScorecardImage, 
     nextStep, 
@@ -25,6 +26,8 @@ export default function ScorecardStep() {
     isSubmitting 
   } = useCourseCreationContext();
   
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -71,12 +74,6 @@ export default function ScorecardStep() {
       formData.append('file', scorecardImage);
       formData.append('extractType', 'scorecard');
       
-      // Add tee colors if available
-      if (teeSets.length > 0) {
-        const teeColors = teeSets.map(tee => tee.color);
-        formData.append('teeColors', JSON.stringify(teeColors));
-      }
-      
       // Call the API
       const response = await fetch('/api/scorecard', {
         method: 'POST',
@@ -98,21 +95,11 @@ export default function ScorecardStep() {
         const extractedHoles = result.data.map((hole: any) => {
           console.log('Processing hole:', hole);
           
-          // IMPORTANT: Process the distances object to ensure all values are integers
-          const rawDistances = hole.distances || {};
-          const distances: Record<string, number> = {};
-          
-          // Convert each distance to a number and ensure all tee sets have a value
-          teeSets.forEach(teeSet => {
-            const rawValue = rawDistances[teeSet.color];
-            distances[teeSet.color] = typeof rawValue === 'number' ? rawValue : 0;
-          });
-          
           return {
             number: hole.number,
             par: typeof hole.par === 'number' ? hole.par : 4,
             handicapIndex: typeof hole.handicapIndex === 'number' ? hole.handicapIndex : hole.number,
-            distances: distances
+            notes: ''
           };
         });
         
@@ -148,15 +135,6 @@ export default function ScorecardStep() {
       setError(err instanceof Error ? err.message : 'Failed to submit course');
     }
   };
-
-  // Format tee sets for the ScorecardEditor component
-  const formattedTeeSets = teeSets.map(teeSet => ({
-    id: teeSet.color, // In the wizard, we use color as the ID
-    name: teeSet.name,
-    color: teeSet.color,
-    rating: teeSet.rating,
-    slope: teeSet.slope
-  }));
 
   return (
     <Box sx={{ p: 2 }}>
@@ -230,28 +208,20 @@ export default function ScorecardStep() {
       {/* Scorecard Editor */}
       <ScorecardEditor
         courseId="temp-wizard-id" // Temporary ID for the wizard
-        teeSets={formattedTeeSets}
+        teeSets={[]} // Empty array since we don't need tee sets in this step
         holes={holes}
         onSave={handleSaveScorecard}
         loading={loading}
       />
       
-      <Box sx={{ mt: 4, display: 'flex', justifyContent: 'space-between' }}>
-        <Button 
-          variant="outlined" 
-          onClick={prevStep}
-          disabled={isSubmitting}
-        >
-          Back to Tee Boxes
-        </Button>
-        
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
         <Button 
           variant="contained" 
           color="primary" 
           onClick={handleSubmit}
           disabled={isSubmitting}
         >
-          {isSubmitting ? <CircularProgress size={24} /> : 'Save and Finish'}
+          {isSubmitting ? <CircularProgress size={24} /> : 'Save Course'}
         </Button>
       </Box>
     </Box>

@@ -94,60 +94,16 @@ export async function POST(request: NextRequest) {
     const insertedHoles = holeResults.map(result => result.data);
     console.log('Holes inserted successfully:', insertedHoles);
     
-    // Insert tee set distances
-    const distanceInsertPromises: Promise<any>[] = [];
+    // No distance results to check since we're not inserting distances anymore
     
-    for (let holeIndex = 0; holeIndex < insertedHoles.length; holeIndex++) {
-      const hole = insertedHoles[holeIndex];
-      const holeData = data.holes[holeIndex];
-      
-      for (let teeSetIndex = 0; teeSetIndex < insertedTeeSets.length; teeSetIndex++) {
-        const teeSet = insertedTeeSets[teeSetIndex];
-        const teeColor = data.teeSets[teeSetIndex].color;
-        const distance = holeData.distances[teeColor] || 0;
-        
-        const distanceData = {
-          hole_id: hole.id,
-          tee_set_id: teeSet.id,
-          length: distance
-        };
-        
-        console.log('Inserting tee set distance:', distanceData);
-        
-        distanceInsertPromises.push(
-          Promise.resolve(
-            supabase
-              .from('tee_set_lengths')
-              .insert(distanceData)
-              .select()
-              .single()
-          )
-          .then(result => result)
-          .catch(error => ({ error }))
-        );
-      }
-    }
-    
-    const distanceResults = await Promise.all(distanceInsertPromises);
-    const distanceErrors = distanceResults.filter(result => 'error' in result && result.error);
-    
-    if (distanceErrors.length > 0) {
-      const firstError = distanceErrors[0].error;
-      console.error('Failed to insert tee set distances:', firstError);
-      return NextResponse.json(
-        { error: 'Failed to insert tee set distances: ' + (firstError.message || 'Unknown error') },
-        { status: 500 }
-      );
-    }
-    
-    console.log('Tee set distances inserted successfully');
-    
-    // Return success
-    return NextResponse.json({ 
-      success: true, 
-      courseId: insertedCourse.id,
-      message: 'Course created successfully'
-    });
+    return NextResponse.json(
+      { 
+        course: insertedCourse, 
+        teeSets: insertedTeeSets, 
+        holes: insertedHoles 
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error('Error creating course:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

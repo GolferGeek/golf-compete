@@ -15,8 +15,14 @@ import {
   Button,
   CircularProgress,
   Alert,
-  Grid
+  Grid,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  IconButton
 } from '@mui/material';
+import EditIcon from '@mui/icons-material/Edit';
 
 export interface TeeSet {
   id: string;
@@ -31,7 +37,7 @@ export interface HoleData {
   number: number;
   par: number;
   handicapIndex: number;
-  distances: Record<string, number>;
+  notes?: string;
 }
 
 export interface ScorecardEditorProps {
@@ -62,10 +68,14 @@ export default function ScorecardEditor({
   const [editMode, setEditMode] = useState(startInEditMode);
   const [editingCell, setEditingCell] = useState<{
     holeIndex: number;
-    field: 'par' | 'handicapIndex' | 'distance';
-    teeColor?: string;
+    field: 'par' | 'handicapIndex' | 'notes';
   } | null>(null);
   const [editValue, setEditValue] = useState<string>('');
+
+  // State for notes modal
+  const [notesModalOpen, setNotesModalOpen] = useState(false);
+  const [currentHoleIndex, setCurrentHoleIndex] = useState<number | null>(null);
+  const [currentNotes, setCurrentNotes] = useState('');
 
   // Initialize local holes from props
   useEffect(() => {
@@ -74,25 +84,17 @@ export default function ScorecardEditor({
     } else {
       // Create default 18 holes if none provided
       const defaultHoles = Array.from({ length: 18 }, (_, i) => {
-        // Create distances object with explicit values for each tee set
-        const distances: Record<string, number> = {};
-        
-        // Add each tee set with a default distance of 0
-        teeSets.forEach(teeSet => {
-          distances[teeSet.id] = 0;
-        });
-        
         return {
           number: i + 1,
           par: 4,
           handicapIndex: i + 1,
-          distances: distances
+          notes: ''
         };
       });
       
       setLocalHoles(defaultHoles);
     }
-  }, [holes, teeSets]);
+  }, [holes]);
 
   const handleParChange = (index: number, value: string) => {
     // Only allow digits
@@ -152,44 +154,56 @@ export default function ScorecardEditor({
     }
   };
 
-  const handleDistanceChange = (holeIndex: number, teeSetId: string, value: string) => {
-    // Only allow digits
-    if (value !== '' && !/^\d+$/.test(value)) return;
-    
-    const numValue = value === '' ? 0 : parseInt(value, 10);
-    
-    // Validate range
-    if (numValue >= 0) {
-      setLocalHoles(prev => {
-        const newHoles = [...prev];
-        newHoles[holeIndex] = {
-          ...newHoles[holeIndex],
-          distances: {
-            ...newHoles[holeIndex].distances,
-            [teeSetId]: numValue
-          }
-        };
-        return newHoles;
-      });
-    }
+  const handleNotesChange = (index: number, value: string) => {
+    console.log(`Changing notes for hole index ${index} to:`, value);
+    setLocalHoles(prev => {
+      const newHoles = [...prev];
+      newHoles[index] = {
+        ...newHoles[index],
+        notes: value
+      };
+      console.log(`Updated hole ${newHoles[index].number} with notes:`, newHoles[index].notes);
+      return newHoles;
+    });
   };
 
   const handleSave = async () => {
-    try {
+    if (onSave) {
       setSaving(true);
       setError(null);
+      setSuccess(false);
       
-      await onSave(localHoles);
+      console.log('Saving holes with notes:', localHoles.map(hole => ({ number: hole.number, notes: hole.notes })));
       
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 3000);
-      setEditMode(false);
-    } catch (err) {
-      console.error('Error saving scorecard:', err);
-      setError('Failed to save changes. Please try again.');
-    } finally {
-      setSaving(false);
+      try {
+        await onSave(localHoles);
+        setSuccess(true);
+        setEditMode(false);
+      } catch (err) {
+        setError('Failed to save scorecard data');
+        console.error('Error saving scorecard:', err);
+      } finally {
+        setSaving(false);
+      }
     }
+  };
+
+  // Open notes modal for a specific hole
+  const openNotesModal = (index: number) => {
+    setCurrentHoleIndex(index);
+    const currentNoteValue = localHoles[index]?.notes || '';
+    console.log(`Opening notes modal for hole index ${index}, current notes:`, currentNoteValue);
+    setCurrentNotes(currentNoteValue);
+    setNotesModalOpen(true);
+  };
+  
+  // Save notes from modal
+  const saveNotes = () => {
+    if (currentHoleIndex !== null) {
+      console.log(`Saving notes from modal for hole index ${currentHoleIndex}:`, currentNotes);
+      handleNotesChange(currentHoleIndex, currentNotes);
+    }
+    setNotesModalOpen(false);
   };
 
   if (loading) {
@@ -213,28 +227,14 @@ export default function ScorecardEditor({
             Edit Scorecard
           </Button>
         ) : !readOnly && (
-          <Box>
-            <Button 
-              variant="outlined" 
-              color="secondary" 
-              onClick={() => {
-                setEditMode(false);
-                setLocalHoles([...holes]); // Reset to original data
-              }}
-              sx={{ mr: 1 }}
-              disabled={saving}
-            >
-              Cancel
-            </Button>
-            <Button 
-              variant="contained" 
-              color="primary" 
-              onClick={handleSave}
-              disabled={saving}
-            >
-              {saving ? <CircularProgress size={24} /> : 'Save Changes'}
-            </Button>
-          </Box>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={handleSave}
+            disabled={saving}
+          >
+            {saving ? <CircularProgress size={24} /> : 'Save Changes'}
+          </Button>
         )}
       </Box>
 
@@ -251,25 +251,6 @@ export default function ScorecardEditor({
       )}
 
       <Box sx={{ maxWidth: '1200px', margin: '0 auto' }}>
-        {/* Course Info */}
-        {teeSets.length > 0 && (
-          <Box sx={{ mb: 3, display: 'flex', flexWrap: 'wrap', gap: 3, justifyContent: 'center' }}>
-            {teeSets.map(teeSet => (
-              <Paper key={teeSet.id} sx={{ p: 2, minWidth: '200px', textAlign: 'center' }}>
-                <Typography variant="subtitle1" sx={{ fontWeight: 'bold', color: teeSet.color || 'inherit' }}>
-                  {teeSet.name} Tees
-                </Typography>
-                <Typography variant="body2">
-                  Rating: {teeSet.rating || 'N/A'}
-                </Typography>
-                <Typography variant="body2">
-                  Slope: {teeSet.slope || 'N/A'}
-                </Typography>
-              </Paper>
-            ))}
-          </Box>
-        )}
-
         {/* Scorecard - Vertical Layout with Holes in Rows */}
         <Grid container spacing={3}>
           {/* Front Nine */}
@@ -287,19 +268,7 @@ export default function ScorecardEditor({
                     <TableCell sx={{ fontWeight: 'bold', width: '60px' }}>Hole</TableCell>
                     <TableCell sx={{ fontWeight: 'bold', width: '60px' }}>Par</TableCell>
                     <TableCell sx={{ fontWeight: 'bold', width: '100px' }}>Handicap</TableCell>
-                    {teeSets.map(teeSet => (
-                      <TableCell 
-                        key={teeSet.id} 
-                        align="center" 
-                        sx={{ 
-                          fontWeight: 'bold', 
-                          color: teeSet.color || 'inherit',
-                          width: '80px'
-                        }}
-                      >
-                        {teeSet.name}
-                      </TableCell>
-                    ))}
+                    <TableCell sx={{ fontWeight: 'bold' }}>Notes</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -338,36 +307,39 @@ export default function ScorecardEditor({
                           hole.handicapIndex || '-'
                         )}
                       </TableCell>
-                      {teeSets.map(teeSet => (
-                        <TableCell key={`dist-${teeSet.id}-${hole.id || hole.number}`} align="center">
-                          {editMode ? (
-                            <TextField
-                              value={hole.distances[teeSet.id] || ''}
-                              onChange={(e) => handleDistanceChange(index, teeSet.id, e.target.value)}
-                              InputProps={{ 
-                                inputProps: { min: 100, max: 999 },
-                                sx: { textAlign: 'center' }
-                              }}
-                              size="small"
-                              sx={{ width: 70 }}
-                            />
-                          ) : (
-                            hole.distances[teeSet.id] || '-'
-                          )}
-                        </TableCell>
-                      ))}
+                      <TableCell>
+                        {editMode ? (
+                          <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={() => openNotesModal(index)}
+                            sx={{ minWidth: '100px' }}
+                          >
+                            {hole.notes ? 'Edit Notes' : 'Add Notes'}
+                          </Button>
+                        ) : (
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            {hole.notes ? (
+                              <>
+                                <Typography variant="body2" noWrap sx={{ maxWidth: 150, mr: 1 }}>
+                                  {hole.notes}
+                                </Typography>
+                                <IconButton 
+                                  size="small" 
+                                  onClick={() => openNotesModal(index)}
+                                  disabled={!editMode}
+                                >
+                                  <EditIcon fontSize="small" />
+                                </IconButton>
+                              </>
+                            ) : (
+                              '-'
+                            )}
+                          </Box>
+                        )}
+                      </TableCell>
                     </TableRow>
                   ))}
-                  {/* Totals row */}
-                  <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
-                    <TableCell colSpan={2} sx={{ fontWeight: 'bold' }}>Out</TableCell>
-                    <TableCell>-</TableCell>
-                    {teeSets.map(teeSet => (
-                      <TableCell key={`total-${teeSet.id}`} align="center" sx={{ fontWeight: 'bold' }}>
-                        {localHoles.slice(0, 9).reduce((sum, hole) => sum + (hole.distances[teeSet.id] || 0), 0)}
-                      </TableCell>
-                    ))}
-                  </TableRow>
                 </TableBody>
               </Table>
             </TableContainer>
@@ -389,19 +361,7 @@ export default function ScorecardEditor({
                       <TableCell sx={{ fontWeight: 'bold', width: '60px' }}>Hole</TableCell>
                       <TableCell sx={{ fontWeight: 'bold', width: '60px' }}>Par</TableCell>
                       <TableCell sx={{ fontWeight: 'bold', width: '100px' }}>Handicap</TableCell>
-                      {teeSets.map(teeSet => (
-                        <TableCell 
-                          key={teeSet.id} 
-                          align="center" 
-                          sx={{ 
-                            fontWeight: 'bold', 
-                            color: teeSet.color || 'inherit',
-                            width: '80px'
-                          }}
-                        >
-                          {teeSet.name}
-                        </TableCell>
-                      ))}
+                      <TableCell sx={{ fontWeight: 'bold' }}>Notes</TableCell>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -440,45 +400,39 @@ export default function ScorecardEditor({
                             hole.handicapIndex || '-'
                           )}
                         </TableCell>
-                        {teeSets.map(teeSet => (
-                          <TableCell key={`dist-${teeSet.id}-${hole.id || hole.number}`} align="center">
-                            {editMode ? (
-                              <TextField
-                                value={hole.distances[teeSet.id] || ''}
-                                onChange={(e) => handleDistanceChange(index + 9, teeSet.id, e.target.value)}
-                                InputProps={{ 
-                                  inputProps: { min: 100, max: 999 },
-                                  sx: { textAlign: 'center' }
-                                }}
-                                size="small"
-                                sx={{ width: 70 }}
-                              />
-                            ) : (
-                              hole.distances[teeSet.id] || '-'
-                            )}
-                          </TableCell>
-                        ))}
+                        <TableCell>
+                          {editMode ? (
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              onClick={() => openNotesModal(index + 9)}
+                              sx={{ minWidth: '100px' }}
+                            >
+                              {hole.notes ? 'Edit Notes' : 'Add Notes'}
+                            </Button>
+                          ) : (
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              {hole.notes ? (
+                                <>
+                                  <Typography variant="body2" noWrap sx={{ maxWidth: 150, mr: 1 }}>
+                                    {hole.notes}
+                                  </Typography>
+                                  <IconButton 
+                                    size="small" 
+                                    onClick={() => openNotesModal(index + 9)}
+                                    disabled={!editMode}
+                                  >
+                                    <EditIcon fontSize="small" />
+                                  </IconButton>
+                                </>
+                              ) : (
+                                '-'
+                              )}
+                            </Box>
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
-                    {/* Totals rows */}
-                    <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
-                      <TableCell colSpan={2} sx={{ fontWeight: 'bold' }}>In</TableCell>
-                      <TableCell>-</TableCell>
-                      {teeSets.map(teeSet => (
-                        <TableCell key={`in-${teeSet.id}`} align="center" sx={{ fontWeight: 'bold' }}>
-                          {localHoles.slice(9, 18).reduce((sum, hole) => sum + (hole.distances[teeSet.id] || 0), 0)}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                    <TableRow sx={{ backgroundColor: 'rgba(0, 0, 0, 0.04)' }}>
-                      <TableCell colSpan={2} sx={{ fontWeight: 'bold' }}>Total</TableCell>
-                      <TableCell>-</TableCell>
-                      {teeSets.map(teeSet => (
-                        <TableCell key={`total-${teeSet.id}`} align="center" sx={{ fontWeight: 'bold' }}>
-                          {localHoles.reduce((sum, hole) => sum + (hole.distances[teeSet.id] || 0), 0)}
-                        </TableCell>
-                      ))}
-                    </TableRow>
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -486,6 +440,53 @@ export default function ScorecardEditor({
           )}
         </Grid>
       </Box>
+      
+      {/* Add a centered save button at the bottom */}
+      {!readOnly && (
+        <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
+          <Button 
+            variant="contained" 
+            color="primary" 
+            onClick={editMode ? handleSave : () => setEditMode(true)}
+            disabled={saving}
+            size="large"
+            sx={{ minWidth: 200 }}
+          >
+            {saving ? <CircularProgress size={24} /> : editMode ? 'Save Changes' : 'Edit Scorecard'}
+          </Button>
+        </Box>
+      )}
+      
+      {/* Notes Modal */}
+      <Dialog 
+        open={notesModalOpen} 
+        onClose={() => setNotesModalOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>
+          {currentHoleIndex !== null && `Hole ${localHoles[currentHoleIndex]?.number} Notes`}
+        </DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Notes"
+            fullWidth
+            multiline
+            rows={4}
+            value={currentNotes}
+            onChange={(e) => setCurrentNotes(e.target.value)}
+            placeholder="Enter notes about this hole (e.g., hazards, strategy, etc.)"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setNotesModalOpen(false)}>Cancel</Button>
+          <Button onClick={saveNotes} variant="contained" color="primary">
+            Save Notes
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 } 
