@@ -1,0 +1,85 @@
+---
+description: My Technical Stack for this project
+globs: 
+alwaysApply: false
+---
+# Technical Stack Rules for Golf-Compete
+
+## Frontend Framework
+- Use Next.js App Router for all new page development
+- Implement server components where possible to reduce client-side JavaScript
+- Use client components only when necessary (for interactivity, state management, or browser APIs)
+- Follow the Next.js recommended patterns for data fetching and caching
+
+## React & Components
+- Use React 19 features appropriately, including hooks and functional components
+- Avoid class components
+- Keep components focused on a single responsibility
+- Use proper React state management (useState, useReducer) for component state
+- Implement proper error boundaries for component errSor handling
+- Use React.memo() for performance optimization only when necessary
+
+## TypeScript
+- Maintain strict TypeScript typing (noImplicitAny: false is set, but prefer explicit types)
+- Create proper interfaces and types for all data structures
+- Use type guards when narrowing types
+- Avoid using 'any' type unless absolutely necessary
+- Use generics appropriately to create reusable components and functions
+
+## Styling & UI
+- Use Material UI (MUI) components consistently
+- Follow the established theme configuration
+- Implement responsive design using MUI's Grid and Box components
+- Use CSS-in-JS with emotion for custom styling when needed
+- Maintain accessibility standards (WCAG) in all UI components
+
+## State Management
+- Use React's built-in state management for component-level state
+- For complex state, consider using React Context API with reducers
+- Avoid introducing additional state management libraries unless necessary
+
+## API & Data Fetching
+- Use Supabase client for database operations
+- Implement proper error handling for all API calls
+- Use Next.js data fetching patterns (Server Components, getServerSideProps, etc.)
+- Cache API responses appropriately to minimize redundant requests
+- Implement proper loading and error states for all data fetching operations
+
+## Database (Supabase)
+- Follow the established database schema design
+- Use Row Level Security (RLS) policies for data access control
+- Write efficient SQL queries to minimize database load
+- Implement proper database migrations for schema changes
+- Use Supabase's built-in authentication system
+
+## Testing
+- Write Playwright E2E tests for critical user flows
+- Implement component tests for complex UI components
+- Follow the testing patterns established in the codebase
+- Ensure tests are maintainable and not brittle
+
+## Performance
+- Optimize images and assets for web delivery
+- Implement proper code splitting and lazy loading
+- Monitor and optimize bundle sizes
+- Use performance measurement tools to identify bottlenecks
+
+## Security
+- Follow OWASP security best practices
+- Implement proper authentication and authorization
+- Sanitize all user inputs
+- Use environment variables for sensitive configuration
+- Never commit secrets or API keys to the repository
+
+## Deployment
+- Follow the established CI/CD pipeline with GitHub Actions
+- Ensure builds pass all checks before deployment
+- Use environment-specific configurations (.env files)
+- Test deployments in staging environments before production
+
+## Code Quality
+- Follow ESLint rules configured in the project
+- Use consistent code formatting
+- Write meaningful comments and documentation
+- Implement proper error handling throughout the application
+- Use meaningful variable and function names
