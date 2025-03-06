@@ -33,34 +33,71 @@ import ListItemIcon from '@mui/material/ListItemIcon';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { supabase } from '@/lib/supabase';
 
 // TypeScript interfaces
-interface Club {
+type BagRow = {
   id: string;
-  name: string;
-  brand: string;
-  type: string;
-  loft?: string;
-  notes?: string;
-  dateAdded: string;
-}
-
-interface Bag {
-  id: string;
+  user_id: string;
   name: string;
   description: string;
-  isDefault: boolean;
-  clubIds: string[];
-  handicap?: number | null;
-  dateAdded: string;
+  is_default: boolean;
+  club_ids?: string[];
+  bag_clubs?: {
+    club_id: string;
+  }[];
+};
+
+interface Bag extends BagRow {
+  club_ids: string[];
 }
+
+type Database = {
+  public: {
+    Tables: {
+      bags: {
+        Row: {
+          id: string;
+          user_id: string;
+          name: string;
+          description: string;
+          is_default: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+      };
+      bag_clubs: {
+        Row: {
+          id: string;
+          bag_id: string;
+          club_id: string;
+          created_at: string;
+        };
+      };
+    };
+  };
+};
+
+type ClubRow = {
+  id: string;
+  user_id: string;
+  name: string;
+  brand: string;
+  model: string;
+  type: string;
+  loft: number | null;
+  shaft: string | null;
+  flex: string | null;
+  notes: string | null;
+};
+
+interface Club extends ClubRow {}
 
 interface FormData {
   name: string;
   description: string;
-  isDefault: boolean;
-  clubIds: string[];
-  handicap: string;
+  is_default: boolean;
+  selectedClubs: string[];
 }
 
 interface SnackbarState {
@@ -74,51 +111,85 @@ export default function BagsPage() {
   const [bags, setBags] = useState<Bag[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
   const [open, setOpen] = useState(false);
-  const [editingBag, setEditingBag] = useState<number | null>(null);
+  const [editingBag, setEditingBag] = useState<Bag | null>(null);
   const [formData, setFormData] = useState<FormData>({
     name: '',
     description: '',
-    isDefault: false,
-    clubIds: [],
-    handicap: ''
+    is_default: false,
+    selectedClubs: []
   });
   const [snackbar, setSnackbar] = useState<SnackbarState>({
     open: false,
     message: '',
     severity: 'success'
   });
+  const [loading, setLoading] = useState(true);
 
-  // Load clubs and bags from localStorage on component mount
+  // Load bags and clubs from database
   useEffect(() => {
-    if (typeof window !== 'undefined' && user) {
-      // Load clubs
-      const savedClubs = localStorage.getItem(`golf-clubs-${user.id}`);
-      if (savedClubs) {
-        setClubs(JSON.parse(savedClubs));
-      }
+    const loadData = async () => {
+      if (!user) return;
 
-      // Load bags
-      const savedBags = localStorage.getItem(`golf-bags-${user.id}`);
-      if (savedBags) {
-        setBags(JSON.parse(savedBags));
+      try {
+        // Load bags with their clubs
+        const { data, error: bagsError } = await supabase
+          .from('bags')
+          .select(`
+            *,
+            bag_clubs (
+              club_id
+            )
+          `)
+          .eq('user_id', user.id)
+          .order('name');
+
+        if (bagsError) throw bagsError;
+        
+        // Transform the data to include club_ids
+        const transformedBags: Bag[] = (data as Array<Database['public']['Tables']['bags']['Row'] & {
+          bag_clubs: Array<Database['public']['Tables']['bag_clubs']['Row']>;
+        }> || []).map(row => ({
+          id: row.id,
+          user_id: row.user_id,
+          name: row.name,
+          description: row.description,
+          is_default: row.is_default,
+          club_ids: (row.bag_clubs || []).map(bc => bc.club_id)
+        }));
+        
+        setBags(transformedBags);
+
+        // Load clubs
+        const { data: clubsData, error: clubsError } = await supabase
+          .from('clubs')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('name');
+
+        if (clubsError) throw clubsError;
+        setClubs(clubsData?.map(row => row as ClubRow) || []);
+
+        setLoading(false);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        setSnackbar({
+          open: true,
+          message: 'Failed to load bags and clubs',
+          severity: 'error'
+        });
+        setLoading(false);
       }
-    }
+    };
+
+    loadData();
   }, [user]);
-
-  // Save bags to localStorage whenever they change
-  useEffect(() => {
-    if (typeof window !== 'undefined' && user && bags.length > 0) {
-      localStorage.setItem(`golf-bags-${user.id}`, JSON.stringify(bags));
-    }
-  }, [bags, user]);
 
   const handleClickOpen = () => {
     setFormData({
       name: '',
       description: '',
-      isDefault: false,
-      clubIds: [],
-      handicap: ''
+      is_default: false,
+      selectedClubs: []
     });
     setEditingBag(null);
     setOpen(true);
@@ -126,153 +197,210 @@ export default function BagsPage() {
 
   const handleClose = () => {
     setOpen(false);
+    setEditingBag(null);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value, type, checked } = e.target;
     
-    if (type === 'checkbox') {
-      setFormData({
-        ...formData,
-        [name]: checked
-      });
+    if (name === 'club') {
+      // Handle club checkbox changes
+      const clubId = value;
+      setFormData(prev => ({
+        ...prev,
+        selectedClubs: checked 
+          ? [...prev.selectedClubs, clubId]
+          : prev.selectedClubs.filter(id => id !== clubId)
+      }));
     } else {
-      setFormData({
-        ...formData,
-        [name]: value
-      });
-    }
-  };
-
-  const handleClubToggle = (clubId: string) => {
-    const currentClubIds = [...formData.clubIds];
-    const currentIndex = currentClubIds.indexOf(clubId);
-    
-    if (currentIndex === -1) {
-      // Add the club
-      currentClubIds.push(clubId);
-    } else {
-      // Remove the club
-      currentClubIds.splice(currentIndex, 1);
-    }
-
-    setFormData({
-      ...formData,
-      clubIds: currentClubIds
-    });
-  };
-
-  const handleSubmit = () => {
-    // Validate form
-    if (!formData.name) {
-      setSnackbar({
-        open: true,
-        message: 'Please provide a name for your bag',
-        severity: 'error'
-      });
-      return;
-    }
-
-    // Validate handicap if provided
-    if (formData.handicap && isNaN(Number(formData.handicap))) {
-      setSnackbar({
-        open: true,
-        message: 'Handicap must be a number',
-        severity: 'error'
-      });
-      return;
-    }
-
-    // If this bag is set as default, update other bags to not be default
-    let updatedBags = [...bags];
-    if (formData.isDefault) {
-      updatedBags = updatedBags.map(bag => ({
-        ...bag,
-        isDefault: false
+      // Handle other form inputs
+      setFormData(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' ? checked : value
       }));
     }
-
-    if (editingBag !== null) {
-      // Update existing bag
-      updatedBags = updatedBags.map((bag, index) => 
-        index === editingBag ? { 
-          ...bag, 
-          name: formData.name,
-          description: formData.description,
-          isDefault: formData.isDefault,
-          clubIds: formData.clubIds,
-          handicap: formData.handicap ? parseFloat(formData.handicap) : null
-        } : bag
-      );
-      setBags(updatedBags);
-      setSnackbar({
-        open: true,
-        message: 'Bag updated successfully',
-        severity: 'success'
-      });
-    } else {
-      // Add new bag
-      const newBag: Bag = {
-        id: Date.now().toString(), // Simple unique ID
-        name: formData.name,
-        description: formData.description,
-        isDefault: formData.isDefault,
-        clubIds: formData.clubIds,
-        handicap: formData.handicap ? parseFloat(formData.handicap) : null,
-        dateAdded: new Date().toISOString()
-      };
-      setBags([...updatedBags, newBag]);
-      setSnackbar({
-        open: true,
-        message: 'Bag added successfully',
-        severity: 'success'
-      });
-    }
-    
-    // Close the dialog
-    setOpen(false);
   };
 
-  const handleEdit = (index: number) => {
-    const bagToEdit = bags[index];
+  const handleSubmit = async () => {
+    if (!user) return;
+
+    try {
+      // Validate form
+      if (!formData.name) {
+        setSnackbar({
+          open: true,
+          message: 'Please provide a name for your bag',
+          severity: 'error'
+        });
+        return;
+      }
+
+      if (editingBag) {
+        // Update existing bag
+        const { error: bagError } = await supabase
+          .from('bags')
+          .update({
+            name: formData.name,
+            description: formData.description,
+            is_default: formData.is_default
+          })
+          .eq('id', editingBag.id);
+
+        if (bagError) throw bagError;
+
+        // Delete existing bag-club relationships
+        const { error: deleteError } = await supabase
+          .from('bag_clubs')
+          .delete()
+          .eq('bag_id', editingBag.id);
+
+        if (deleteError) throw deleteError;
+
+        // Insert new bag-club relationships
+        if (formData.selectedClubs.length > 0) {
+          const { error: insertError } = await supabase
+            .from('bag_clubs')
+            .insert(
+              formData.selectedClubs.map(clubId => ({
+                bag_id: editingBag.id,
+                club_id: clubId
+              }))
+            );
+
+          if (insertError) throw insertError;
+        }
+
+        // Update local state
+        setBags(bags.map(bag => 
+          bag.id === editingBag.id 
+            ? { 
+                ...bag, 
+                ...formData,
+                club_ids: formData.selectedClubs
+              }
+            : formData.is_default ? { ...bag, is_default: false } : bag
+        ));
+
+        setSnackbar({
+          open: true,
+          message: 'Bag updated successfully',
+          severity: 'success'
+        });
+      } else {
+        // Create new bag
+        const { data: newBag, error: bagError } = await supabase
+          .from('bags')
+          .insert([{
+            user_id: user.id,
+            name: formData.name,
+            description: formData.description,
+            is_default: formData.is_default
+          }])
+          .select()
+          .single();
+
+        if (bagError) throw bagError;
+
+        // Insert bag-club relationships
+        if (formData.selectedClubs.length > 0) {
+          const { error: insertError } = await supabase
+            .from('bag_clubs')
+            .insert(
+              formData.selectedClubs.map(clubId => ({
+                bag_id: newBag.id,
+                club_id: clubId
+              }))
+            );
+
+          if (insertError) throw insertError;
+        }
+
+        // Update local state
+        setBags(prevBags => {
+          const updatedBags = formData.is_default 
+            ? prevBags.map(bag => ({ ...bag, is_default: false }))
+            : [...prevBags];
+          const bagWithClubs: Bag = {
+            id: newBag.id as string,
+            user_id: newBag.user_id as string,
+            name: newBag.name as string,
+            description: newBag.description as string,
+            is_default: newBag.is_default as boolean,
+            club_ids: formData.selectedClubs
+          };
+          return [...updatedBags, bagWithClubs];
+        });
+
+        setSnackbar({
+          open: true,
+          message: 'Bag created successfully',
+          severity: 'success'
+        });
+      }
+
+      handleClose();
+    } catch (error) {
+      console.error('Error saving bag:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to save bag',
+        severity: 'error'
+      });
+    }
+  };
+
+  const handleEdit = (bag: Bag) => {
     setFormData({
-      name: bagToEdit.name,
-      description: bagToEdit.description,
-      isDefault: bagToEdit.isDefault,
-      clubIds: bagToEdit.clubIds,
-      handicap: bagToEdit.handicap !== null && bagToEdit.handicap !== undefined ? String(bagToEdit.handicap) : ''
+      name: bag.name,
+      description: bag.description,
+      is_default: bag.is_default,
+      selectedClubs: bag.club_ids || []
     });
-    setEditingBag(index);
+    setEditingBag(bag);
     setOpen(true);
   };
 
-  const handleDelete = (index: number) => {
-    const updatedBags = bags.filter((_, i) => i !== index);
-    setBags(updatedBags);
-    setSnackbar({
-      open: true,
-      message: 'Bag removed successfully',
-      severity: 'success'
-    });
+  const handleDelete = async (bagId: string) => {
+    try {
+      const { error } = await supabase
+        .from('bags')
+        .delete()
+        .eq('id', bagId);
+
+      if (error) throw error;
+
+      setBags(bags.filter(bag => bag.id !== bagId));
+      setSnackbar({
+        open: true,
+        message: 'Bag deleted successfully',
+        severity: 'success'
+      });
+    } catch (error) {
+      console.error('Error deleting bag:', error);
+      setSnackbar({
+        open: true,
+        message: 'Failed to delete bag',
+        severity: 'error'
+      });
+    }
   };
 
   const handleCloseSnackbar = () => {
-    setSnackbar({
-      ...snackbar,
-      open: false
-    });
+    setSnackbar({ ...snackbar, open: false });
   };
 
-  // Get club names for a bag
-  const getClubsForBag = (bag: Bag) => {
-    return clubs.filter(club => bag.clubIds.includes(club.id));
-  };
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <Typography>Loading...</Typography>
+      </Box>
+    );
+  }
 
   return (
     <ProtectedRoute>
       <Container maxWidth="lg">
         <Box sx={{ mt: 4, mb: 4 }}>
-          {/* Back button */}
           <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
             <Button 
               component={Link} 
@@ -291,7 +419,7 @@ export default function BagsPage() {
           <Paper elevation={3} sx={{ p: 4, mt: 3 }}>
             <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
               <Typography variant="h6" gutterBottom>
-                Manage your golf bags and club sets
+                Manage your golf bags
               </Typography>
               
               <Button
@@ -310,89 +438,106 @@ export default function BagsPage() {
               </Alert>
             ) : (
               <Grid container spacing={3}>
-                {bags.map((bag, index) => {
-                  const bagClubs = getClubsForBag(bag);
-                  return (
-                    <Grid item xs={12} sm={6} key={bag.id}>
-                      <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-                        <CardContent sx={{ flexGrow: 1 }}>
-                          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <Typography variant="h6" component="div" gutterBottom>
-                              {bag.name}
-                            </Typography>
-                            {bag.isDefault && (
-                              <Typography variant="caption" color="primary">
-                                Default Bag
-                              </Typography>
-                            )}
-                          </Box>
-                          
-                          {bag.description && (
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                              {bag.description}
-                            </Typography>
-                          )}
-
-                          {bag.handicap !== null && bag.handicap !== undefined && (
-                            <Typography variant="body2" color="text.secondary" gutterBottom>
-                              <strong>Handicap:</strong> {bag.handicap}
-                            </Typography>
-                          )}
-                          
-                          <Divider sx={{ my: 1 }} />
-                          
-                          <Typography variant="subtitle2" gutterBottom>
-                            Clubs in this bag ({bagClubs.length}):
+                {bags.map((bag) => (
+                  <Grid item xs={12} key={bag.id}>
+                    <Card>
+                      <CardContent>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="h6" component="div">
+                            {bag.name}
                           </Typography>
-                          
-                          {bagClubs.length === 0 ? (
-                            <Typography variant="body2" color="text.secondary">
-                              No clubs added to this bag yet.
+                          {bag.is_default && (
+                            <Typography variant="caption" color="primary">
+                              Default Bag
                             </Typography>
-                          ) : (
-                            <List dense sx={{ maxHeight: '200px', overflow: 'auto' }}>
-                              {bagClubs.map((club) => (
-                                <ListItem key={club.id}>
-                                  <ListItemIcon sx={{ minWidth: '30px' }}>
-                                    <GolfCourseIcon fontSize="small" />
-                                  </ListItemIcon>
-                                  <ListItemText 
-                                    primary={club.name} 
-                                    secondary={`${club.brand} • ${club.type}${club.loft ? ` • ${club.loft}°` : ''}`} 
-                                  />
-                                </ListItem>
-                              ))}
-                            </List>
                           )}
-                        </CardContent>
-                        <CardActions>
-                          <IconButton 
-                            aria-label="edit" 
-                            size="small" 
-                            onClick={() => handleEdit(index)}
-                          >
-                            <EditIcon />
-                          </IconButton>
-                          <IconButton 
-                            aria-label="delete" 
-                            size="small" 
-                            onClick={() => handleDelete(index)}
-                          >
-                            <DeleteIcon />
-                          </IconButton>
-                        </CardActions>
-                      </Card>
-                    </Grid>
-                  );
-                })}
+                        </Box>
+                        
+                        {bag.description && (
+                          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            {bag.description}
+                          </Typography>
+                        )}
+
+                        <Divider sx={{ my: 2 }} />
+
+                        <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1 }}>
+                          Clubs in Bag ({bag.club_ids.length})
+                        </Typography>
+
+                        {bag.club_ids.length === 0 ? (
+                          <Typography variant="body2" color="text.secondary">
+                            No clubs added to this bag yet.
+                          </Typography>
+                        ) : (
+                          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                            {clubs
+                              .filter(club => bag.club_ids.includes(club.id))
+                              .sort((a, b) => {
+                                // Custom sort order for club types
+                                const typeOrder = {
+                                  driver: 1,
+                                  wood: 2,
+                                  hybrid: 3,
+                                  iron: 4,
+                                  wedge: 5,
+                                  putter: 6
+                                };
+                                return (typeOrder[a.type as keyof typeof typeOrder] || 99) - 
+                                       (typeOrder[b.type as keyof typeof typeOrder] || 99);
+                              })
+                              .map(club => (
+                                <Paper
+                                  key={club.id}
+                                  variant="outlined"
+                                  sx={{
+                                    p: 1,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    minWidth: { xs: '100%', sm: '200px', md: '180px' },
+                                    maxWidth: { xs: '100%', sm: '200px', md: '180px' },
+                                    bgcolor: 'background.default'
+                                  }}
+                                >
+                                  <GolfCourseIcon fontSize="small" sx={{ mr: 1, opacity: 0.7 }} />
+                                  <Box>
+                                    <Typography variant="body2" noWrap>
+                                      {club.name}
+                                    </Typography>
+                                    <Typography variant="caption" color="text.secondary" display="block" noWrap>
+                                      {club.type.charAt(0).toUpperCase() + club.type.slice(1)}
+                                      {club.loft && ` • ${club.loft}°`}
+                                    </Typography>
+                                  </Box>
+                                </Paper>
+                              ))}
+                          </Box>
+                        )}
+                      </CardContent>
+                      <CardActions>
+                        <IconButton 
+                          aria-label="edit" 
+                          onClick={() => handleEdit(bag)}
+                        >
+                          <EditIcon />
+                        </IconButton>
+                        <IconButton 
+                          aria-label="delete" 
+                          onClick={() => handleDelete(bag.id)}
+                        >
+                          <DeleteIcon />
+                        </IconButton>
+                      </CardActions>
+                    </Card>
+                  </Grid>
+                ))}
               </Grid>
             )}
           </Paper>
         </Box>
 
-        {/* Add/Edit Bag Dialog */}
-        <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-          <DialogTitle>{editingBag !== null ? 'Edit Bag' : 'Add New Bag'}</DialogTitle>
+        <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+          <DialogTitle>{editingBag ? 'Edit Bag' : 'Add New Bag'}</DialogTitle>
           <DialogContent>
             <Box component="form" sx={{ mt: 1 }}>
               <TextField
@@ -418,77 +563,67 @@ export default function BagsPage() {
                 onChange={handleInputChange}
               />
               
-              <TextField
-                margin="normal"
-                fullWidth
-                id="handicap"
-                label="Bag Handicap"
-                name="handicap"
-                type="number"
-                value={formData.handicap}
-                onChange={handleInputChange}
-                helperText="Leave blank to use your profile handicap"
-              />
-              
               <FormControlLabel
                 control={
                   <Checkbox
-                    checked={formData.isDefault}
+                    checked={formData.is_default}
                     onChange={handleInputChange}
-                    name="isDefault"
+                    name="is_default"
                   />
                 }
                 label="Set as default bag"
-                sx={{ mt: 2, mb: 2 }}
+                sx={{ mt: 2 }}
               />
-              
-              <Typography variant="subtitle1" gutterBottom sx={{ mt: 2 }}>
-                Select clubs for this bag:
+
+              <Typography variant="subtitle1" sx={{ mt: 3, mb: 1 }}>
+                Select Clubs
               </Typography>
               
-              {clubs.length === 0 ? (
-                <Alert severity="info" sx={{ mt: 2 }}>
-                  You haven&apos;t added any clubs yet. <Link href="/profile/clubs">Add some clubs</Link> first.
-                </Alert>
-              ) : (
-                <Paper variant="outlined" sx={{ mt: 2, p: 2, maxHeight: '300px', overflow: 'auto' }}>
+              <Paper variant="outlined" sx={{ mt: 1, p: 2, maxHeight: 300, overflow: 'auto' }}>
+                {clubs.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary">
+                    No clubs available. Add some clubs first.
+                  </Typography>
+                ) : (
                   <List dense>
                     {clubs.map((club) => (
                       <ListItem key={club.id} disablePadding>
                         <FormControlLabel
                           control={
                             <Checkbox
-                              edge="start"
-                              checked={formData.clubIds.indexOf(club.id) !== -1}
-                              onChange={() => handleClubToggle(club.id)}
+                              checked={formData.selectedClubs.includes(club.id)}
+                              onChange={handleInputChange}
+                              name="club"
+                              value={club.id}
                             />
                           }
                           label={
                             <Box>
-                              <Typography variant="body1">{club.name}</Typography>
-                              <Typography variant="body2" color="text.secondary">
-                                {club.brand} • {club.type}{club.loft ? ` • ${club.loft}°` : ''}
+                              <Typography variant="body1">
+                                {club.name}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary">
+                                {club.brand} {club.model} • {club.type.charAt(0).toUpperCase() + club.type.slice(1)}
                               </Typography>
                             </Box>
                           }
-                          sx={{ width: '100%', m: 0 }}
+                          sx={{ width: '100%', ml: 0 }}
                         />
                       </ListItem>
                     ))}
                   </List>
-                </Paper>
-              )}
+                )}
+              </Paper>
             </Box>
           </DialogContent>
           <DialogActions>
             <Button onClick={handleClose}>Cancel</Button>
             <Button onClick={handleSubmit} variant="contained">
-              {editingBag !== null ? 'Update' : 'Add'}
+              {editingBag ? 'Update' : 'Add'}
             </Button>
           </DialogActions>
         </Dialog>
 
-        {/* Snackbar for notifications */}
         <Snackbar 
           open={snackbar.open} 
           autoHideDuration={6000} 
@@ -497,7 +632,7 @@ export default function BagsPage() {
         >
           <Alert 
             onClose={handleCloseSnackbar} 
-            severity={snackbar.severity} 
+            severity={snackbar.severity}
             sx={{ width: '100%' }}
           >
             {snackbar.message}

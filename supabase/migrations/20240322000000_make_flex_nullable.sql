@@ -1,0 +1,4 @@
+-- MANUALLY APPLIED in Supabase Dashboard
+-- Make flex and shaft columns nullable in clubs table
+-- ALTER TABLE clubs ALTER COLUMN flex DROP NOT NULL;
+-- ALTER TABLE clubs ALTER COLUMN shaft DROP NOT NULL; 

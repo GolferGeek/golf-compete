@@ -86,9 +86,108 @@ Deliverables:
 	•	Database migrations for courses, series, events.
 	•	E2E tests verifying admin creation and updating of data.
 
-Phase 4: Invitation & Participation Management System
+Phase 4: Rounds & Score Tracking
 
-Goal: Implement a comprehensive system for inviting users to series and events, managing participation requests, and handling the user onboarding flow.
+Goal: Implement comprehensive round tracking and scoring functionality.
+1. Round Data Structure
+  • Design and implement database tables for rounds
+  • Track scores, course conditions, weather
+  • Store hole-by-hole data
+  • Link rounds to events (optional)
+2. Score Entry Interface
+  • Create intuitive score entry UI
+  • Real-time validation and calculation
+  • Support for different scoring formats
+  • Mobile-friendly design for on-course use
+3. Statistics & Analysis
+  • Track key statistics (GIR, putts, etc.)
+  • Calculate round-specific analytics
+  • Historical performance tracking
+4. Round Review & Sharing
+  • Round summary view
+  • Share results with friends/group
+  • Export functionality
+5. E2E Testing
+  • Test round creation and score entry
+  • Verify statistics calculations
+  • Test sharing functionality
+
+Phase 5: Season-Long Competition Mechanics
+
+Goal: Implement the FedEx Cup–style logic: points calculation, standings, and multi-event progression.
+	1.	Points & Leaderboard Logic
+	•	Extend the "series" and "event" data models to handle points assigned.
+	•	Define how points are stored in the database (e.g., an event_results or pivot table).
+	•	Double points for playoffs or "playoff events."
+	2.	Standings & Leaderboard UI
+	•	Calculate aggregated points for each player in a series.
+	•	Display an ordered leaderboard (top players with their points).
+	•	Indicate "playoff events" with double points.
+	3.	Integration with Events
+	•	Link event outcomes to the user's total points in a series.
+	•	Mark the winner, automatically assign points, store in DB.
+	4.	E2E Testing
+	•	Create a series with multiple events.
+	•	Assign winners, validate correct point totals and leaderboard ordering.
+
+Deliverables:
+	•	Points system integrated into the series/events.
+	•	Leaderboard UI for each series.
+	•	E2E test coverage for multi-event progression and point calculations.
+
+Phase 6: Practice & Improvement Tools
+
+Goal: Enable users to log notes about their game, plan practice sessions, and reference them later.
+	1.	Notes & Improvement Logging
+	•	Create a "notes" or "improvement_logs" table.
+	•	Allow creation of notes during or after rounds (issues, victories, etc.).
+	•	Simple CRUD for notes.
+	2.	Practice Session Planning
+	•	Table for "practice_sessions" with references to user, date, location, plan details.
+	•	UI to create and view upcoming or past practice sessions.
+	•	Display on calendar (user's personal calendar).
+	3.	Integration with Calendar
+	•	Merge user events + practice sessions in the same calendar view.
+	•	Quick-add or quick-edit from the calendar.
+	4.	E2E Testing
+	•	Log a note during an event.
+	•	Create a practice plan.
+	•	Verify notes appear in a user's "improvement" area.
+
+Deliverables:
+	•	Notes system integrated with events and practice sessions.
+	•	Practice session planning with a basic UI.
+	•	Combined calendar view for events + practices.
+	•	E2E tests confirming creation, retrieval, and updates of notes and sessions.
+
+Phase 7: Routines & Handicap Calculation for Multiple Bags
+
+Goal: Incorporate user-defined routines and refine bag-based handicap calculations.
+	1.	Routines Management
+	•	Database schema for storing various routine types (pre-season, pre-round, etc.).
+	•	UI for adding/editing these routines.
+	•	Integrate routine prompts or references in event/practice flows (optional prompts).
+	2.	Bag-Based Handicap Updates
+	•	Finalize formula or approach for calculating a handicap per bag.
+	•	Trigger handicap recalculation when a user completes a round.
+	•	Store updated handicap in DB for quick retrieval.
+	3.	Integration in Round Flow
+	•	During or after a round, user sees their routine prompts or can skip.
+	•	On completion, final scores are used to recalculate handicap for that bag.
+	4.	E2E Testing
+	•	Create multiple bags.
+	•	Play a round, confirm that the correct bag's handicap updates.
+	•	Add/edit routines, confirm display in relevant UI sections.
+
+Deliverables:
+	•	Routine definitions per user.
+	•	Fully implemented bag-based handicap calculations.
+	•	UI flow integration.
+	•	E2E tests ensuring routine creation and handicap recalculation.
+
+Phase 8: Invitation & Participation Management System
+
+Goal: Implement a comprehensive system for inviting users to series and events.
 	1.	Invitation Infrastructure
 	•	Create an "invitations" table to track email invites with unique tokens.
 	•	Implement invitation status workflow (pending, accepted, declined, expired).
@@ -114,103 +213,6 @@ Deliverables:
 	•	User-friendly participant management for admins.
 	•	Seamless onboarding for new users with pending invitations.
 	•	E2E tests covering all invitation and participation flows.
-
-Phase 5: Season-Long Competition Mechanics
-
-Goal: Implement the FedEx Cup–style logic: points calculation, standings, and multi-event progression.
-	1.	Points & Leaderboard Logic
-	•	Extend the "series" and "event" data models to handle points assigned.
-	•	Define how points are stored in the database (e.g., an event_results or pivot table).
-	•	Double points for playoffs or "playoff events."
-	2.	Standings & Leaderboard UI
-	•	Calculate aggregated points for each player in a series.
-	•	Display an ordered leaderboard (top players with their points).
-	•	Indicate "playoff events" with double points.
-	3.	Integration with Events
-	•	Link event outcomes to the user's total points in a series.
-	•	Mark the winner, automatically assign points, store in DB.
-	4.	E2E Testing
-	•	Create a series with multiple events.
-	•	Assign winners, validate correct point totals and leaderboard ordering.
-
-Deliverables:
-	•	Points system integrated into the series/events.
-	•	Leaderboard UI for each series.
-	•	E2E test coverage for multi-event progression and point calculations.
-
-Phase 6: Standalone Events & Score Tracking
-
-Goal: Extend the event system so users can create events not tied to a series and track scores live.
-	1.	Standalone Events
-	•	Option to create events with no series.
-	•	Display those events in user dashboards.
-	2.	Online Scorecard
-	•	Allow each participant to enter hole-by-hole scores.
-	•	Real-time updates (Supabase Realtime or incremental polling).
-	•	Summaries: total strokes, net scores (considering handicaps later).
-	3.	Media Attachments
-	•	Allow uploading images/videos during the event (Supabase storage).
-	•	Display attachments in event details page.
-	4.	E2E Testing
-	•	Create a standalone event, invite participants, track scores hole by hole.
-	•	Confirm real-time updates.
-	•	Test media uploads.
-
-Deliverables:
-	•	UI for standalone events + integrated scoreboard.
-	•	Real-time (or near real-time) scoring.
-	•	Media upload for event participants.
-	•	E2E tests for the full event flow.
-
-Phase 7: Practice & Improvement Tools
-
-Goal: Enable users to log notes about their game, plan practice sessions, and reference them later.
-	1.	Notes & Improvement Logging
-	•	Create a "notes" or "improvement_logs" table.
-	•	Allow creation of notes during or after rounds (issues, victories, etc.).
-	•	Simple CRUD for notes.
-	2.	Practice Session Planning
-	•	Table for "practice_sessions" with references to user, date, location, plan details.
-	•	UI to create and view upcoming or past practice sessions.
-	•	Display on calendar (user's personal calendar).
-	3.	Integration with Calendar
-	•	Merge user events + practice sessions in the same calendar view.
-	•	Quick-add or quick-edit from the calendar.
-	4.	E2E Testing
-	•	Log a note during an event.
-	•	Create a practice plan.
-	•	Verify notes appear in a user's "improvement" area.
-
-Deliverables:
-	•	Notes system integrated with events and practice sessions.
-	•	Practice session planning with a basic UI.
-	•	Combined calendar view for events + practices.
-	•	E2E tests confirming creation, retrieval, and updates of notes and sessions.
-
-Phase 8: Routines & Handicap Calculation for Multiple Bags
-
-Goal: Incorporate user-defined routines (pre/post shot, etc.) and refine bag-based handicap calculations.
-	1.	Routines Management
-	•	Database schema for storing various routine types (pre-season, pre-round, etc.).
-	•	UI for adding/editing these routines.
-	•	Integrate routine prompts or references in event/practice flows (optional prompts).
-	2.	Bag-Based Handicap Updates
-	•	Finalize formula or approach for calculating a handicap per bag.
-	•	Trigger handicap recalculation when a user completes a round.
-	•	Store updated handicap in DB for quick retrieval.
-	3.	Integration in Round Flow
-	•	During or after a round, user sees their routine prompts or can skip.
-	•	On completion, final scores are used to recalculate handicap for that bag.
-	4.	E2E Testing
-	•	Create multiple bags.
-	•	Play a round, confirm that the correct bag's handicap updates.
-	•	Add/edit routines, confirm display in relevant UI sections.
-
-Deliverables:
-	•	Routine definitions per user.
-	•	Fully implemented bag-based handicap calculations.
-	•	UI flow integration.
-	•	E2E tests ensuring routine creation and handicap recalculation.
 
 Phase 9: Coach/Pro Interaction & Payments
 
@@ -240,7 +242,7 @@ Deliverables:
 
 Phase 10: Drills, Games, and Course-Hosted Competitions
 
-Goal: Build a library of drills/games and allow courses to set up small, daily competitions (e.g., putting contests).
+Goal: Build a library of drills/games and allow courses to set up small competitions.
 	1.	Drills & Games Library
 	•	Database structure for storing standard drills and user-created drills.
 	•	Tagging or categorization system to filter drills by issue type.

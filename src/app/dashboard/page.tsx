@@ -30,6 +30,7 @@ import BuildIcon from '@mui/icons-material/Build'
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import { getSeriesParticipantsByUserId } from '@/lib/series'
 import { getEventParticipantsByUserId } from '@/lib/events'
+import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 
 export default function DashboardPage() {
   const { user, profile } = useAuth()
@@ -141,22 +142,39 @@ export default function DashboardPage() {
               <Typography variant="body1" sx={{ mb: 1 }}>
                 This is your Golf Compete dashboard. Track your competitions, practice drills, and areas for improvement.
               </Typography>
-              {profile?.handicap !== null && profile?.handicap !== undefined && (
-                <Box sx={{ 
-                  mt: 2, 
-                  display: 'inline-flex', 
-                  alignItems: 'center',
-                  bgcolor: alpha(theme.palette.primary.main, 0.1),
-                  px: 2,
-                  py: 1,
-                  borderRadius: '8px',
-                  width: 'fit-content'
-                }}>
-                  <Typography variant="body2" fontWeight="500">
-                    Current Handicap: <strong>{profile.handicap}</strong>
-                  </Typography>
-                </Box>
-              )}
+              <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', mt: 2 }}>
+                {profile?.handicap !== null && profile?.handicap !== undefined && (
+                  <Box sx={{ 
+                    display: 'inline-flex', 
+                    alignItems: 'center',
+                    bgcolor: alpha(theme.palette.primary.main, 0.1),
+                    px: 2,
+                    py: 1,
+                    borderRadius: '8px',
+                    width: 'fit-content'
+                  }}>
+                    <Typography variant="body2" fontWeight="500">
+                      Current Handicap: <strong>{profile.handicap}</strong>
+                    </Typography>
+                  </Box>
+                )}
+                <Button
+                  component={Link}
+                  href="/rounds/new"
+                  variant="contained"
+                  color="primary"
+                  size="large"
+                  startIcon={<GolfCourseIcon />}
+                  sx={{ 
+                    py: 1.5,
+                    px: 3,
+                    borderRadius: '8px',
+                    fontWeight: 600
+                  }}
+                >
+                  Play Round
+                </Button>
+              </Box>
             </Paper>
           </Grid>
           

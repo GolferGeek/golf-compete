@@ -197,18 +197,31 @@ export default function EventParticipantsPage({ params }: EventParticipantsPageP
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, sm: 3 } }}>
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
         </Alert>
       )}
 
-      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
-        <IconButton onClick={() => router.back()} aria-label="back">
-          <ArrowBackIcon />
-        </IconButton>
-        <Breadcrumbs>
+      {/* Header Section */}
+      <Box sx={{ 
+        mb: { xs: 2, sm: 3 },
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        alignItems: { xs: 'flex-start', sm: 'center' },
+        gap: 2
+      }}>
+        <Button
+          startIcon={<ArrowBackIcon />}
+          onClick={() => router.back()}
+          variant="outlined"
+          size="small"
+          sx={{ alignSelf: { xs: 'flex-start', sm: 'center' } }}
+        >
+          Back
+        </Button>
+        <Breadcrumbs sx={{ flexGrow: 1 }}>
           <Link href="/admin/events" passHref>
             <MuiLink component="span">Events</MuiLink>
           </Link>
@@ -219,85 +232,209 @@ export default function EventParticipantsPage({ params }: EventParticipantsPageP
         </Breadcrumbs>
       </Box>
 
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <Typography variant="h5" component="h1">
-          Manage Event Participants
-        </Typography>
-        <Button
-          variant="contained"
-          color="primary"
-          onClick={() => setAddDialogOpen(true)}
-          disabled={availableUsers.length === 0}
-        >
-          Add Participant
-        </Button>
-      </Box>
+      {/* Title Section */}
+      <Paper sx={{ p: { xs: 2, sm: 3 }, mb: { xs: 2, sm: 3 } }}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between', 
+          alignItems: { xs: 'flex-start', sm: 'center' },
+          gap: 2
+        }}>
+          <Box>
+            <Typography variant="h5" component="h1" gutterBottom>
+              Manage Event Participants
+            </Typography>
+            <Typography variant="subtitle1" color="text.secondary">
+              {participants.length} {participants.length === 1 ? 'participant' : 'participants'} registered
+              {event.max_participants ? ` (max: ${event.max_participants})` : ''}
+            </Typography>
+          </Box>
+          {participants.length > 0 && (
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => setAddDialogOpen(true)}
+              disabled={availableUsers.length === 0}
+              sx={{ alignSelf: { xs: 'stretch', sm: 'auto' } }}
+            >
+              Add Participant
+            </Button>
+          )}
+        </Box>
+        
+        {participants.length === 0 && (
+          <Box sx={{ 
+            mt: 4, 
+            display: 'flex', 
+            flexDirection: 'column', 
+            alignItems: 'center',
+            gap: 2 
+          }}>
+            <Typography variant="body1" color="text.secondary">
+              No participants have been registered for this event yet.
+            </Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => setAddDialogOpen(true)}
+              disabled={availableUsers.length === 0}
+            >
+              Add First Participant
+            </Button>
+          </Box>
+        )}
+      </Paper>
 
-      {participants.length === 0 ? (
-        <Alert severity="info" sx={{ mb: 3 }}>
-          No participants have been registered for this event yet.
-        </Alert>
-      ) : (
-        <TableContainer component={Paper}>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Name</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Handicap Index</TableCell>
-                <TableCell align="right">Actions</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {participants.map((participant) => (
-                <TableRow key={participant.id}>
-                  <TableCell>
-                    {participant.first_name} {participant.last_name}
-                  </TableCell>
-                  <TableCell>{participant.username}</TableCell>
-                  <TableCell>
-                    <FormControl size="small" fullWidth>
-                      <Select
-                        value={participant.status}
-                        onChange={(e) => handleStatusChange(participant.id, e.target.value as 'registered' | 'confirmed' | 'withdrawn' | 'no_show')}
-                      >
-                        <MenuItem value="registered">Registered</MenuItem>
-                        <MenuItem value="confirmed">Confirmed</MenuItem>
-                        <MenuItem value="withdrawn">Withdrawn</MenuItem>
-                        <MenuItem value="no_show">No Show</MenuItem>
-                      </Select>
-                    </FormControl>
-                  </TableCell>
-                  <TableCell>{participant.handicap_index || 'N/A'}</TableCell>
-                  <TableCell align="right">
-                    <IconButton 
-                      color="error" 
-                      onClick={() => handleDeleteClick(participant.id)}
-                      aria-label="delete participant"
-                    >
-                      <DeleteIcon />
-                    </IconButton>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
+      {participants.length > 0 && (
+        <>
+          {/* Desktop view */}
+          <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+            <Paper elevation={2}>
+              <TableContainer>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Name</TableCell>
+                      <TableCell>Email</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell>Handicap Index</TableCell>
+                      <TableCell align="right">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {participants.map((participant) => (
+                      <TableRow key={participant.id} hover>
+                        <TableCell>
+                          <Typography variant="body1">
+                            {participant.first_name} {participant.last_name}
+                          </Typography>
+                        </TableCell>
+                        <TableCell>{participant.username}</TableCell>
+                        <TableCell>
+                          <FormControl size="small" sx={{ minWidth: 120 }}>
+                            <Select
+                              value={participant.status}
+                              onChange={(e) => handleStatusChange(participant.id, e.target.value as any)}
+                              variant="outlined"
+                              sx={{
+                                '& .MuiSelect-select': {
+                                  py: 1,
+                                  bgcolor: 
+                                    participant.status === 'confirmed' ? 'success.lighter' :
+                                    participant.status === 'registered' ? 'info.lighter' :
+                                    participant.status === 'withdrawn' ? 'error.lighter' :
+                                    participant.status === 'no_show' ? 'warning.lighter' :
+                                    'transparent'
+                                }
+                              }}
+                            >
+                              <MenuItem value="registered">Registered</MenuItem>
+                              <MenuItem value="confirmed">Confirmed</MenuItem>
+                              <MenuItem value="withdrawn">Withdrawn</MenuItem>
+                              <MenuItem value="no_show">No Show</MenuItem>
+                            </Select>
+                          </FormControl>
+                        </TableCell>
+                        <TableCell>
+                          {participant.handicap_index !== null ? participant.handicap_index.toFixed(1) : 'N/A'}
+                        </TableCell>
+                        <TableCell align="right">
+                          <IconButton
+                            onClick={() => handleDeleteClick(participant.id)}
+                            color="error"
+                            size="small"
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Paper>
+          </Box>
+
+          {/* Mobile view */}
+          <Box sx={{ display: { xs: 'flex', md: 'none' }, flexDirection: 'column', gap: 2 }}>
+            {participants.map((participant) => (
+              <Paper key={participant.id} elevation={2} sx={{ p: 2 }}>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+                  <Box sx={{ flex: 1 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'baseline', gap: 1, mb: 0.5 }}>
+                      <Typography variant="subtitle1" sx={{ fontWeight: 'medium' }}>
+                        {participant.first_name} {participant.last_name}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        •
+                      </Typography>
+                      <Typography variant="body2">
+                        HCP: {participant.handicap_index !== null ? participant.handicap_index.toFixed(1) : 'N/A'}
+                      </Typography>
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      {participant.username}
+                    </Typography>
+                  </Box>
+                  <IconButton
+                    onClick={() => handleDeleteClick(participant.id)}
+                    color="error"
+                    size="small"
+                    sx={{ ml: 1 }}
+                  >
+                    <DeleteIcon />
+                  </IconButton>
+                </Box>
+
+                <FormControl size="small" fullWidth>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                    Status
+                  </Typography>
+                  <Select
+                    value={participant.status}
+                    onChange={(e) => handleStatusChange(participant.id, e.target.value as any)}
+                    variant="outlined"
+                    sx={{
+                      '& .MuiSelect-select': {
+                        py: 1,
+                        bgcolor: 
+                          participant.status === 'confirmed' ? 'success.lighter' :
+                          participant.status === 'registered' ? 'info.lighter' :
+                          participant.status === 'withdrawn' ? 'error.lighter' :
+                          participant.status === 'no_show' ? 'warning.lighter' :
+                          'transparent'
+                      }
+                    }}
+                  >
+                    <MenuItem value="registered">Registered</MenuItem>
+                    <MenuItem value="confirmed">Confirmed</MenuItem>
+                    <MenuItem value="withdrawn">Withdrawn</MenuItem>
+                    <MenuItem value="no_show">No Show</MenuItem>
+                  </Select>
+                </FormControl>
+              </Paper>
+            ))}
+          </Box>
+        </>
       )}
 
       {/* Add Participant Dialog */}
-      <Dialog open={addDialogOpen} onClose={() => setAddDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Add Participant to Event</DialogTitle>
-        <DialogContent>
-          <Box sx={{ mt: 2 }}>
-            <FormControl fullWidth sx={{ mb: 2 }}>
-              <InputLabel id="user-select-label">User</InputLabel>
+      <Dialog 
+        open={addDialogOpen} 
+        onClose={() => setAddDialogOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Add Participant</DialogTitle>
+        <DialogContent dividers>
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+            <FormControl fullWidth>
+              <InputLabel>Select Player</InputLabel>
               <Select
-                labelId="user-select-label"
                 value={selectedUserId}
-                onChange={(e) => setSelectedUserId(e.target.value as string)}
-                label="User"
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                label="Select Player"
               >
                 {availableUsers.map((user) => (
                   <MenuItem key={user.id} value={user.id}>
@@ -306,46 +443,51 @@ export default function EventParticipantsPage({ params }: EventParticipantsPageP
                 ))}
               </Select>
             </FormControl>
-            
             <TextField
-              fullWidth
               label="Handicap Index"
               type="number"
               value={handicapIndex}
               onChange={(e) => setHandicapIndex(e.target.value)}
               inputProps={{ step: 0.1 }}
-              helperText="Optional: Enter the player's handicap index"
+              fullWidth
             />
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setAddDialogOpen(false)}>Cancel</Button>
-          <Button 
-            onClick={handleAddParticipant} 
-            variant="contained" 
+          <Button
+            onClick={handleAddParticipant}
+            variant="contained"
             color="primary"
             disabled={!selectedUserId || addingParticipant}
           >
-            {addingParticipant ? <CircularProgress size={24} /> : 'Add'}
+            {addingParticipant ? <CircularProgress size={24} /> : 'Add Participant'}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>Confirm Deletion</DialogTitle>
-        <DialogContent>
-          Are you sure you want to remove this participant from the event?
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        fullWidth
+        maxWidth="sm"
+      >
+        <DialogTitle>Remove Participant</DialogTitle>
+        <DialogContent dividers>
+          <Typography>
+            Are you sure you want to remove this participant from the event? This action cannot be undone.
+          </Typography>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, py: 2 }}>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button 
-            onClick={handleDeleteConfirm} 
-            color="error" 
+          <Button
+            onClick={handleDeleteConfirm}
+            color="error"
             variant="contained"
             disabled={deletingParticipant}
           >
-            {deletingParticipant ? <CircularProgress size={24} /> : 'Delete'}
+            {deletingParticipant ? <CircularProgress size={24} /> : 'Remove'}
           </Button>
         </DialogActions>
       </Dialog>
