@@ -1,32 +1,41 @@
 import * as db from '../database/databaseService';
-import { supabase } from '@/lib/supabase';
+import { User, Profile, UserRow, ProfileRow } from '@/types/user';
 
 // Types
-export interface User {
+export interface AuthUser {
   id: string;
   email: string;
   created_at: string;
-  updated_at?: string;
   last_sign_in_at?: string;
-  role?: string;
 }
 
-export interface Profile {
+// Re-export types from @/types/user
+export type { User, Profile, UserRow, ProfileRow };
+
+interface ProfileResponse {
   id: string;
-  user_id: string;
-  first_name: string;
-  last_name: string;
-  display_name?: string;
-  avatar_url?: string;
-  handicap?: number;
-  phone_number?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zip_code?: string;
-  created_at?: string;
-  updated_at?: string;
+  username: string | null;
+  first_name: string | null;
+  last_name: string | null;
+  handicap: number | null;
+  is_admin: boolean;
+  created_at: string;
+  updated_at: string;
 }
+
+/**
+ * Converts a ProfileRow from the database to a Profile
+ */
+const toProfile = (row: ProfileRow): Profile => ({
+  id: row.id,
+  first_name: row.first_name || '',
+  last_name: row.last_name || '',
+  username: row.username || '',
+  handicap: row.handicap || undefined,
+  is_admin: row.is_admin,
+  created_at: row.created_at,
+  updated_at: row.updated_at
+});
 
 /**
  * Fetches all users with optional pagination
@@ -36,18 +45,16 @@ export interface Profile {
  */
 export const fetchAllUsers = async (limit?: number, offset?: number): Promise<User[]> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .range(offset || 0, (offset || 0) + (limit || 100) - 1);
-
-    if (error) {
-      console.error('Error fetching users:', error);
-      throw error;
+    const page = offset ? Math.floor(offset / (limit || 100)) + 1 : 1;
+    const response = await fetch(`/api/users?page=${page}&per_page=${limit || 100}`);
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch users');
     }
 
-    return data as unknown as User[];
+    const data = await response.json();
+    return data.users;
   } catch (error) {
     console.error('Error in fetchAllUsers:', error);
     throw error;
@@ -61,18 +68,15 @@ export const fetchAllUsers = async (limit?: number, offset?: number): Promise<Us
  */
 export const fetchUserById = async (userId: string): Promise<User> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching user:', error);
-      throw error;
+    const response = await fetch(`/api/users/${userId}`);
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to fetch user');
     }
 
-    return data as unknown as User;
+    const data = await response.json();
+    return data.user;
   } catch (error) {
     console.error('Error in fetchUserById:', error);
     throw error;
@@ -87,19 +91,21 @@ export const fetchUserById = async (userId: string): Promise<User> => {
  */
 export const updateUserRole = async (userId: string, role: string): Promise<User> => {
   try {
-    const { data, error } = await supabase
-      .from('users')
-      .update({ role })
-      .eq('id', userId)
-      .select()
-      .single();
+    const response = await fetch(`/api/users/${userId}/role`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ role }),
+    });
 
-    if (error) {
-      console.error('Error updating user role:', error);
-      throw error;
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to update user role');
     }
 
-    return data as unknown as User;
+    // Fetch the complete user data
+    return await fetchUserById(userId);
   } catch (error) {
     console.error('Error in updateUserRole:', error);
     throw error;
@@ -107,71 +113,32 @@ export const updateUserRole = async (userId: string, role: string): Promise<User
 };
 
 /**
- * Fetches a user's profile
- * @param userId The ID of the user
- * @returns Promise with the profile
- */
-export const fetchUserProfile = async (userId: string): Promise<Profile> => {
-  try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
-
-    if (error) {
-      console.error('Error fetching user profile:', error);
-      throw error;
-    }
-
-    return data as unknown as Profile;
-  } catch (error) {
-    console.error('Error in fetchUserProfile:', error);
-    throw error;
-  }
-};
-
-/**
  * Creates or updates a user profile
- * @param profile The profile data
+ * @param profile The profile data to update
  * @returns Promise with the updated profile
  */
-export const upsertUserProfile = async (profile: Omit<Profile, 'id' | 'created_at' | 'updated_at'>): Promise<Profile> => {
+export const upsertUserProfile = async (profile: Partial<Omit<Profile, 'created_at' | 'updated_at'>> & { id: string }): Promise<Profile> => {
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .upsert({
-        ...profile,
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
+    console.log('Starting upsertUserProfile with data:', profile);
 
-    if (error) {
-      console.error('Error upserting user profile:', error);
-      throw error;
+    const response = await fetch(`/api/users/${profile.id}/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(profile),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to update profile');
     }
 
-    return data as unknown as Profile;
+    const data = await response.json();
+    console.log('Successfully updated profile:', data.profile);
+    return toProfile(data.profile);
   } catch (error) {
     console.error('Error in upsertUserProfile:', error);
-    throw error;
-  }
-};
-
-/**
- * Fetches a user with their profile
- * @param userId The ID of the user
- * @returns Promise with the user and profile
- */
-export const fetchUserWithProfile = async (userId: string): Promise<{ user: User; profile: Profile }> => {
-  try {
-    const user = await fetchUserById(userId);
-    const profile = await fetchUserProfile(userId);
-
-    return { user, profile };
-  } catch (error) {
-    console.error('Error in fetchUserWithProfile:', error);
     throw error;
   }
 };
@@ -180,83 +147,19 @@ export const fetchUserWithProfile = async (userId: string): Promise<{ user: User
  * Searches for users by name or email
  * @param searchTerm The search term
  * @param limit Optional limit for pagination
- * @returns Promise with the matching users and their profiles
+ * @returns Promise with the matching users
  */
-export const searchUsers = async (searchTerm: string, limit?: number): Promise<{ user: User; profile: Profile }[]> => {
+export const searchUsers = async (searchTerm: string, limit?: number): Promise<User[]> => {
   try {
-    // First search in profiles for name matches
-    const { data: profileMatches, error: profileError } = await supabase
-      .from('profiles')
-      .select('*, users(*)')
-      .or(`first_name.ilike.%${searchTerm}%,last_name.ilike.%${searchTerm}%,display_name.ilike.%${searchTerm}%`)
-      .limit(limit || 20);
-
-    if (profileError) {
-      console.error('Error searching profiles:', profileError);
-      throw profileError;
+    const response = await fetch(`/api/users?search=${encodeURIComponent(searchTerm)}&per_page=${limit || 20}`);
+    
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to search users');
     }
 
-    // Then search in users for email matches
-    const { data: userMatches, error: userError } = await supabase
-      .from('users')
-      .select('*, profiles(*)')
-      .ilike('email', `%${searchTerm}%`)
-      .limit(limit || 20);
-
-    if (userError) {
-      console.error('Error searching users:', userError);
-      throw userError;
-    }
-
-    // Combine and deduplicate results
-    const results: { user: User; profile: Profile }[] = [];
-    const userIds = new Set<string>();
-
-    // Process profile matches
-    profileMatches?.forEach((match: any) => {
-      if (match.users && !userIds.has(match.users.id)) {
-        userIds.add(match.users.id);
-        results.push({
-          user: match.users as User,
-          profile: {
-            id: match.id,
-            user_id: match.user_id,
-            first_name: match.first_name,
-            last_name: match.last_name,
-            display_name: match.display_name,
-            avatar_url: match.avatar_url,
-            handicap: match.handicap,
-            phone_number: match.phone_number,
-            address: match.address,
-            city: match.city,
-            state: match.state,
-            zip_code: match.zip_code,
-            created_at: match.created_at,
-            updated_at: match.updated_at
-          }
-        });
-      }
-    });
-
-    // Process user matches
-    userMatches?.forEach((match: any) => {
-      if (match.profiles && !userIds.has(match.id)) {
-        userIds.add(match.id);
-        results.push({
-          user: {
-            id: match.id,
-            email: match.email,
-            created_at: match.created_at,
-            updated_at: match.updated_at,
-            last_sign_in_at: match.last_sign_in_at,
-            role: match.role
-          },
-          profile: match.profiles as Profile
-        });
-      }
-    });
-
-    return results;
+    const data = await response.json();
+    return data.users;
   } catch (error) {
     console.error('Error in searchUsers:', error);
     throw error;
@@ -266,21 +169,20 @@ export const searchUsers = async (searchTerm: string, limit?: number): Promise<{
 /**
  * Disables a user account
  * @param userId The ID of the user
- * @returns Promise with the result
+ * @returns Promise with the updated user
  */
-export const disableUser = async (userId: string): Promise<boolean> => {
+export const disableUser = async (userId: string): Promise<User> => {
   try {
-    // This would typically call an admin function or API
-    // For Supabase, you might need to use a server-side function or API
-    // This is a placeholder implementation
-    const { error } = await supabase.rpc('disable_user', { user_id: userId });
+    const response = await fetch(`/api/users/${userId}/disable`, {
+      method: 'PUT',
+    });
 
-    if (error) {
-      console.error('Error disabling user:', error);
-      throw error;
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to disable user');
     }
 
-    return true;
+    return await fetchUserById(userId);
   } catch (error) {
     console.error('Error in disableUser:', error);
     throw error;
@@ -290,23 +192,105 @@ export const disableUser = async (userId: string): Promise<boolean> => {
 /**
  * Enables a user account
  * @param userId The ID of the user
- * @returns Promise with the result
+ * @returns Promise with the updated user
  */
-export const enableUser = async (userId: string): Promise<boolean> => {
+export const enableUser = async (userId: string): Promise<User> => {
   try {
-    // This would typically call an admin function or API
-    // For Supabase, you might need to use a server-side function or API
-    // This is a placeholder implementation
-    const { error } = await supabase.rpc('enable_user', { user_id: userId });
+    const response = await fetch(`/api/users/${userId}/enable`, {
+      method: 'PUT',
+    });
 
-    if (error) {
-      console.error('Error enabling user:', error);
-      throw error;
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to enable user');
     }
 
-    return true;
+    return await fetchUserById(userId);
   } catch (error) {
     console.error('Error in enableUser:', error);
+    throw error;
+  }
+};
+
+/**
+ * Creates a new user with auth and profile
+ * @param email User's email
+ * @param password User's password
+ * @param profile Initial profile data
+ * @returns Promise with the created user
+ */
+export const createUser = async (
+  email: string,
+  password: string,
+  profile: Partial<Omit<Profile, 'id' | 'created_at' | 'updated_at'>>
+): Promise<User> => {
+  try {
+    // Create auth user
+    const authResponse = await fetch('/api/auth/signup', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!authResponse.ok) {
+      const error = await authResponse.json();
+      throw new Error(error.message || 'Failed to create auth user');
+    }
+
+    const authData = await authResponse.json();
+    if (!authData.user) {
+      throw new Error('No user data returned from auth creation');
+    }
+
+    const timestamp = new Date().toISOString();
+    
+    // Create profile
+    const profileResponse = await fetch(`/api/users/${authData.user.id}/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        ...profile,
+        created_at: timestamp,
+        updated_at: timestamp
+      }),
+    });
+
+    if (!profileResponse.ok) {
+      const error = await profileResponse.json();
+      // Clean up auth user if profile creation fails
+      await fetch(`/api/auth/delete/${authData.user.id}`, {
+        method: 'DELETE',
+      });
+      throw new Error(error.message || 'Failed to create user profile');
+    }
+
+    const profileData = await profileResponse.json();
+    if (!profileData.profile) {
+      throw new Error('No profile data returned from profile creation');
+    }
+
+    // Return the complete user object
+    return {
+      id: authData.user.id,
+      email: authData.user.email || '',
+      active: true,
+      profile: {
+        id: profileData.profile.id,
+        username: profileData.profile.username || '',
+        first_name: profileData.profile.first_name || '',
+        last_name: profileData.profile.last_name || '',
+        handicap: profileData.profile.handicap || undefined,
+        is_admin: profileData.profile.is_admin,
+        created_at: profileData.profile.created_at,
+        updated_at: profileData.profile.updated_at
+      }
+    };
+  } catch (error) {
+    console.error('Error in createUser:', error);
     throw error;
   }
 }; 
