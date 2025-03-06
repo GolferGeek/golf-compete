@@ -23,6 +23,7 @@ import {
   DialogContentText,
   DialogTitle,
   Link,
+  Divider,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
@@ -127,9 +128,16 @@ export default function EventsManagement() {
 
   return (
     <AdminAuthGuard>
-      <Box sx={{ p: 3 }}>
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h4" component="h1">
+      <Box sx={{ p: { xs: 2, sm: 3 } }}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', sm: 'row' },
+          justifyContent: 'space-between', 
+          alignItems: { xs: 'stretch', sm: 'center' },
+          gap: { xs: 2, sm: 0 },
+          mb: 3 
+        }}>
+          <Typography variant="h5" component="h1" sx={{ textAlign: { xs: 'center', sm: 'left' } }}>
             Events Management
           </Typography>
           <Button
@@ -137,6 +145,8 @@ export default function EventsManagement() {
             color="primary"
             startIcon={<AddIcon />}
             onClick={handleCreateEvent}
+            fullWidth={false}
+            sx={{ alignSelf: { xs: 'stretch', sm: 'auto' } }}
           >
             Create Event
           </Button>
@@ -163,83 +173,176 @@ export default function EventsManagement() {
             </Button>
           </Paper>
         ) : (
-          <TableContainer component={Paper}>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Name</TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Course</TableCell>
-                  <TableCell>Format</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell align="right">Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
+          <>
+            {/* Desktop view */}
+            <Box sx={{ display: { xs: 'none', md: 'block' } }}>
+              <TableContainer component={Paper}>
+                <Table>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>Name</TableCell>
+                      <TableCell>Date</TableCell>
+                      <TableCell>Course</TableCell>
+                      <TableCell>Format</TableCell>
+                      <TableCell>Status</TableCell>
+                      <TableCell align="right">Actions</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {events.map((event) => (
+                      <TableRow key={event.id}>
+                        <TableCell>
+                          <Link
+                            component="button"
+                            onClick={() => handleViewEvent(event.id)}
+                            sx={{ textAlign: 'left' }}
+                          >
+                            {event.name}
+                          </Link>
+                        </TableCell>
+                        <TableCell>
+                          {format(new Date(event.event_date), 'MMM d, yyyy')}
+                        </TableCell>
+                        <TableCell>
+                          {(event as any).courses?.name || 'Unknown Course'}
+                        </TableCell>
+                        <TableCell>
+                          {event.event_format.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={event.status.charAt(0).toUpperCase() + event.status.slice(1).replace('_', ' ')}
+                            color={getStatusChipColor(event.status) as any}
+                            size="small"
+                          />
+                        </TableCell>
+                        <TableCell align="right">
+                          <IconButton
+                            color="primary"
+                            onClick={() => handleViewEvent(event.id)}
+                            size="small"
+                            title="View Event"
+                          >
+                            <EditIcon />
+                          </IconButton>
+                          <IconButton
+                            color="secondary"
+                            onClick={() => handleManageParticipants(event.id)}
+                            size="small"
+                            title="Manage Participants"
+                          >
+                            <PeopleIcon />
+                          </IconButton>
+                          <IconButton
+                            color="error"
+                            onClick={() => handleDeleteEvent(event.id)}
+                            size="small"
+                            title="Delete Event"
+                          >
+                            <DeleteIcon />
+                          </IconButton>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
+            </Box>
+
+            {/* Mobile view */}
+            <Box sx={{ display: { xs: 'block', md: 'none' } }}>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                 {events.map((event) => (
-                  <TableRow key={event.id}>
-                    <TableCell>
-                      <Link
-                        component="button"
-                        onClick={() => handleViewEvent(event.id)}
-                        sx={{ textAlign: 'left' }}
-                      >
+                  <Paper key={event.id} sx={{ p: 2 }}>
+                    <Box sx={{ mb: 2 }}>
+                      <Typography variant="h6" component="h2" gutterBottom>
                         {event.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      {format(new Date(event.event_date), 'MMM d, yyyy')}
-                    </TableCell>
-                    <TableCell>
-                      {(event as any).courses?.name || 'Unknown Course'}
-                    </TableCell>
-                    <TableCell>
-                      {event.event_format.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                    </TableCell>
-                    <TableCell>
-                      <Chip
-                        label={event.status.charAt(0).toUpperCase() + event.status.slice(1).replace('_', ' ')}
-                        color={getStatusChipColor(event.status) as any}
-                        size="small"
-                      />
-                    </TableCell>
-                    <TableCell align="right">
-                      <IconButton
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Date:
+                          </Typography>
+                          <Typography variant="body1">
+                            {format(new Date(event.event_date), 'MMM d, yyyy')}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Course:
+                          </Typography>
+                          <Typography variant="body1">
+                            {(event as any).courses?.name || 'Unknown Course'}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Format:
+                          </Typography>
+                          <Typography variant="body1">
+                            {event.event_format.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                          </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <Typography variant="body2" color="text.secondary">
+                            Status:
+                          </Typography>
+                          <Chip
+                            label={event.status.charAt(0).toUpperCase() + event.status.slice(1).replace('_', ' ')}
+                            color={getStatusChipColor(event.status) as any}
+                            size="small"
+                          />
+                        </Box>
+                      </Box>
+                    </Box>
+                    <Divider />
+                    <Box sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'flex-end', 
+                      gap: 1,
+                      mt: 2 
+                    }}>
+                      <Button
+                        variant="outlined"
                         color="primary"
+                        size="small"
+                        startIcon={<EditIcon />}
                         onClick={() => handleViewEvent(event.id)}
-                        size="small"
-                        title="View Event"
                       >
-                        <EditIcon />
-                      </IconButton>
-                      <IconButton
+                        View
+                      </Button>
+                      <Button
+                        variant="outlined"
                         color="secondary"
+                        size="small"
+                        startIcon={<PeopleIcon />}
                         onClick={() => handleManageParticipants(event.id)}
-                        size="small"
-                        title="Manage Participants"
                       >
-                        <PeopleIcon />
-                      </IconButton>
-                      <IconButton
+                        Participants
+                      </Button>
+                      <Button
+                        variant="outlined"
                         color="error"
-                        onClick={() => handleDeleteEvent(event.id)}
                         size="small"
-                        title="Delete Event"
+                        startIcon={<DeleteIcon />}
+                        onClick={() => handleDeleteEvent(event.id)}
                       >
-                        <DeleteIcon />
-                      </IconButton>
-                    </TableCell>
-                  </TableRow>
+                        Delete
+                      </Button>
+                    </Box>
+                  </Paper>
                 ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+              </Box>
+            </Box>
+          </>
         )}
 
         {/* Delete Confirmation Dialog */}
         <Dialog
           open={deleteDialogOpen}
           onClose={handleDeleteCancel}
+          fullWidth
+          maxWidth="sm"
         >
           <DialogTitle>Delete Event</DialogTitle>
           <DialogContent>
@@ -249,7 +352,7 @@ export default function EventsManagement() {
           </DialogContent>
           <DialogActions>
             <Button onClick={handleDeleteCancel}>Cancel</Button>
-            <Button onClick={handleDeleteConfirm} color="error" autoFocus>
+            <Button onClick={handleDeleteConfirm} color="error" variant="contained">
               Delete
             </Button>
           </DialogActions>

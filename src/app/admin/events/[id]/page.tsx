@@ -107,22 +107,31 @@ export default function EventDetailPage({ params }: EventDetailPageProps) {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box sx={{ p: { xs: 2, sm: 3 } }}>
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
         </Alert>
       )}
 
-      <Box sx={{ mb: 3, display: 'flex', alignItems: 'center', gap: 2 }}>
+      {/* Header Section */}
+      <Box sx={{ 
+        mb: { xs: 2, sm: 3 },
+        display: 'flex',
+        flexDirection: { xs: 'column', sm: 'row' },
+        alignItems: { xs: 'flex-start', sm: 'center' },
+        gap: 2
+      }}>
         <Button
           startIcon={<ArrowBackIcon />}
           onClick={() => router.back()}
           variant="outlined"
+          size="small"
+          sx={{ alignSelf: { xs: 'flex-start', sm: 'center' } }}
         >
           Back
         </Button>
-        <Breadcrumbs>
+        <Breadcrumbs sx={{ flexGrow: 1 }}>
           <Link href="/admin/events" passHref>
             <MuiLink component="span">Events</MuiLink>
           </Link>
@@ -130,101 +139,166 @@ export default function EventDetailPage({ params }: EventDetailPageProps) {
         </Breadcrumbs>
       </Box>
 
-      <Box sx={{ mb: 4, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <Box>
-          <Typography variant="h4" component="h1" gutterBottom>
-            {event.name}
-          </Typography>
-          <Typography variant="subtitle1" color="text.secondary" gutterBottom>
-            {event.description}
-          </Typography>
-          <Box sx={{ mt: 1 }}>
-            <Chip
-              label={event.status.charAt(0).toUpperCase() + event.status.slice(1).replace('_', ' ')}
-              color={getStatusColor(event.status)}
-              sx={{ mr: 1 }}
-            />
-            <Chip
-              label={formatEventFormat(event.event_format)}
-              variant="outlined"
-              sx={{ mr: 1 }}
-            />
-            <Chip
-              label={`${event.scoring_type.toUpperCase()} Scoring`}
-              variant="outlined"
-            />
+      {/* Title and Actions Section */}
+      <Paper sx={{ p: { xs: 2, sm: 3 }, mb: { xs: 2, sm: 4 } }}>
+        <Box sx={{ 
+          display: 'flex', 
+          flexDirection: { xs: 'column', md: 'row' },
+          justifyContent: 'space-between', 
+          alignItems: { xs: 'flex-start', md: 'flex-start' },
+          gap: 2
+        }}>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="h4" component="h1" gutterBottom>
+              {event.name}
+            </Typography>
+            {event.description && (
+              <Typography variant="subtitle1" color="text.secondary" gutterBottom>
+                {event.description}
+              </Typography>
+            )}
+            <Box sx={{ mt: 2, display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+              <Chip
+                label={event.status.charAt(0).toUpperCase() + event.status.slice(1).replace('_', ' ')}
+                color={getStatusColor(event.status)}
+              />
+              <Chip
+                label={formatEventFormat(event.event_format)}
+                variant="outlined"
+              />
+              <Chip
+                label={`${event.scoring_type.toUpperCase()} Scoring`}
+                variant="outlined"
+              />
+            </Box>
+          </Box>
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: 2,
+            width: { xs: '100%', md: 'auto' }
+          }}>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<EditIcon />}
+              onClick={() => router.push(`/admin/events/${eventId}/edit`)}
+              fullWidth={false}
+              sx={{ flex: { xs: 1, sm: '0 0 auto' } }}
+            >
+              Edit Event
+            </Button>
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<PeopleIcon />}
+              onClick={() => router.push(`/admin/events/${eventId}/participants`)}
+              fullWidth={false}
+              sx={{ flex: { xs: 1, sm: '0 0 auto' } }}
+            >
+              Manage Participants
+            </Button>
           </Box>
         </Box>
-        <Box>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<EditIcon />}
-            onClick={() => router.push(`/admin/events/${eventId}/edit`)}
-            sx={{ mr: 2 }}
-          >
-            Edit Event
-          </Button>
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<PeopleIcon />}
-            onClick={() => router.push(`/admin/events/${eventId}/participants`)}
-          >
-            Manage Participants
-          </Button>
-        </Box>
-      </Box>
+      </Paper>
 
-      <Grid container spacing={4}>
+      {/* Content Grid */}
+      <Grid container spacing={3}>
         <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Typography variant="h6" gutterBottom>Event Details</Typography>
-              <Divider sx={{ mb: 2 }} />
-              <Box sx={{ display: 'grid', gap: 2 }}>
+          <Paper elevation={2} sx={{ height: '100%' }}>
+            <Box sx={{ p: { xs: 2, sm: 3 } }}>
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                mb: 2,
+                pb: 2,
+                borderBottom: 1,
+                borderColor: 'divider'
+              }}>
+                <Typography variant="h6" sx={{ flex: 1 }}>Event Details</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <Box>
-                  <Typography variant="subtitle2" color="text.secondary">Date</Typography>
-                  <Typography>{format(new Date(event.event_date), 'MMMM d, yyyy')}</Typography>
-                </Box>
-                <Box>
-                  <Typography variant="subtitle2" color="text.secondary">Course</Typography>
-                  <Typography>{event.courses?.name || 'Unknown Course'}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {event.courses?.location}
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Date
+                  </Typography>
+                  <Typography variant="body1">
+                    {format(new Date(event.event_date), 'MMMM d, yyyy')}
                   </Typography>
                 </Box>
                 <Box>
-                  <Typography variant="subtitle2" color="text.secondary">Registration Closes</Typography>
-                  <Typography>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Course
+                  </Typography>
+                  <Typography variant="body1">
+                    {event.courses?.name || 'Unknown Course'}
+                  </Typography>
+                  {event.courses?.location && (
+                    <Typography variant="body2" color="text.secondary">
+                      {event.courses.location}
+                    </Typography>
+                  )}
+                </Box>
+                <Box>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Registration Closes
+                  </Typography>
+                  <Typography variant="body1">
                     {event.registration_close_date
                       ? format(new Date(event.registration_close_date), 'MMMM d, yyyy')
                       : 'Not specified'}
                   </Typography>
                 </Box>
                 <Box>
-                  <Typography variant="subtitle2" color="text.secondary">Maximum Participants</Typography>
-                  <Typography>{event.max_participants || 'No limit'}</Typography>
+                  <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                    Maximum Participants
+                  </Typography>
+                  <Typography variant="body1">
+                    {event.max_participants || 'No limit'}
+                  </Typography>
                 </Box>
               </Box>
-            </CardContent>
-          </Card>
+            </Box>
+          </Paper>
         </Grid>
 
         <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">
+          <Paper elevation={2} sx={{ height: '100%' }}>
+            <Box sx={{ p: { xs: 2, sm: 3 } }}>
+              <Box sx={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                mb: 2,
+                pb: 2,
+                borderBottom: 1,
+                borderColor: 'divider'
+              }}>
+                <Typography variant="h6" sx={{ flex: 1 }}>
                   Participants ({participants.length})
                 </Typography>
                 <PeopleIcon color="primary" />
               </Box>
-              <Divider sx={{ mb: 2 }} />
+              
               {participants.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  No participants have been registered for this event yet.
-                </Typography>
+                <Box sx={{ 
+                  display: 'flex', 
+                  flexDirection: 'column', 
+                  alignItems: 'center',
+                  gap: 2,
+                  py: 4
+                }}>
+                  <Typography variant="body1" color="text.secondary" align="center">
+                    No participants have been registered for this event yet.
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    color="primary"
+                    startIcon={<PeopleIcon />}
+                    onClick={() => router.push(`/admin/events/${eventId}/participants`)}
+                  >
+                    Add Participants
+                  </Button>
+                </Box>
               ) : (
                 <TableContainer>
                   <Table size="small">
@@ -237,7 +311,7 @@ export default function EventDetailPage({ params }: EventDetailPageProps) {
                     </TableHead>
                     <TableBody>
                       {participants.slice(0, 5).map((participant) => (
-                        <TableRow key={participant.id}>
+                        <TableRow key={participant.id} hover>
                           <TableCell>
                             {participant.first_name} {participant.last_name}
                           </TableCell>
@@ -248,38 +322,39 @@ export default function EventDetailPage({ params }: EventDetailPageProps) {
                               color={
                                 participant.status === 'confirmed' ? 'success' :
                                 participant.status === 'registered' ? 'info' :
-                                participant.status === 'withdrawn' ? 'error' :
                                 'default'
                               }
                             />
                           </TableCell>
                           <TableCell align="right">
-                            {participant.handicap_index || 'N/A'}
+                            {participant.handicap || 'N/A'}
                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
                   </Table>
                   {participants.length > 5 && (
-                    <Box sx={{ mt: 1, textAlign: 'center' }}>
-                      <Typography variant="body2" color="text.secondary">
-                        And {participants.length - 5} more participants...
-                      </Typography>
+                    <Box sx={{ 
+                      display: 'flex', 
+                      justifyContent: 'center',
+                      mt: 2,
+                      borderTop: 1,
+                      borderColor: 'divider',
+                      pt: 2
+                    }}>
+                      <Button
+                        color="primary"
+                        onClick={() => router.push(`/admin/events/${eventId}/participants`)}
+                        size="small"
+                      >
+                        View All Participants
+                      </Button>
                     </Box>
                   )}
                 </TableContainer>
               )}
-            </CardContent>
-            <CardActions>
-              <Button 
-                size="small" 
-                color="primary"
-                onClick={() => router.push(`/admin/events/${eventId}/participants`)}
-              >
-                Manage Participants
-              </Button>
-            </CardActions>
-          </Card>
+            </Box>
+          </Paper>
         </Grid>
       </Grid>
     </Box>

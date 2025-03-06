@@ -302,214 +302,202 @@ export default function EventForm({ eventId, seriesId }: EventFormProps) {
   }
 
   return (
-    <Box sx={{ p: 3 }}>
-      <Typography variant="h4" component="h1" gutterBottom>
-        {isEditMode ? 'Edit Event' : 'Create New Event'}
-      </Typography>
-
+    <Box component="form" onSubmit={handleSubmit} sx={{ width: '100%', p: { xs: 2, sm: 3 } }}>
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
           {error}
         </Alert>
       )}
 
-      <Paper sx={{ p: 3 }}>
-        <form onSubmit={handleSubmit}>
-          <Grid container spacing={3}>
-            <Grid item xs={12}>
-              <TextField
-                label="Event Name"
-                fullWidth
+      <Paper sx={{ p: { xs: 2, sm: 3 } }}>
+        <Typography variant="h6" gutterBottom>
+          {isEditMode ? 'Edit Event' : 'Create New Event'}
+        </Typography>
+
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Event Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              error={!!formErrors.name}
+              helperText={formErrors.name}
+              required
+              size="small"
+            />
+          </Grid>
+
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="Description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              multiline
+              rows={3}
+              size="small"
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Event Date"
+              type="date"
+              value={eventDate ? formatDateForInput(eventDate) : ''}
+              onChange={(e) => setEventDate(parseInputDate(e.target.value))}
+              error={!!formErrors.eventDate}
+              helperText={formErrors.eventDate}
+              required
+              InputLabelProps={{ shrink: true }}
+              size="small"
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Registration Close Date"
+              type="date"
+              value={registrationCloseDate ? formatDateForInput(registrationCloseDate) : ''}
+              onChange={(e) => setRegistrationCloseDate(parseInputDate(e.target.value))}
+              error={!!formErrors.registrationCloseDate}
+              helperText={formErrors.registrationCloseDate}
+              InputLabelProps={{ shrink: true }}
+              size="small"
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth error={!!formErrors.courseId} size="small">
+              <InputLabel>Course</InputLabel>
+              <Select
+                value={courseId}
+                onChange={(e) => setCourseId(e.target.value)}
+                label="Course"
                 required
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                error={!!formErrors.name}
-                helperText={formErrors.name}
-                disabled={submitting}
-              />
-            </Grid>
+              >
+                {courses.map((course) => (
+                  <MenuItem key={course.id} value={course.id}>
+                    {course.name} - {course.location}
+                  </MenuItem>
+                ))}
+              </Select>
+              {formErrors.courseId && (
+                <FormHelperText>{formErrors.courseId}</FormHelperText>
+              )}
+            </FormControl>
+          </Grid>
 
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Event Format</InputLabel>
+              <Select
+                value={eventFormat}
+                onChange={(e) => setEventFormat(e.target.value as EventFormat)}
+                label="Event Format"
+              >
+                <MenuItem value="stroke_play">Stroke Play</MenuItem>
+                <MenuItem value="match_play">Match Play</MenuItem>
+                <MenuItem value="stableford">Stableford</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Maximum Participants"
+              type="number"
+              value={maxParticipants || ''}
+              onChange={(e) => setMaxParticipants(parseInt(e.target.value) || null)}
+              error={!!formErrors.maxParticipants}
+              helperText={formErrors.maxParticipants}
+              InputLabelProps={{ shrink: true }}
+              size="small"
+            />
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Scoring Type</InputLabel>
+              <Select
+                value={scoringType}
+                onChange={(e) => setScoringType(e.target.value as ScoringType)}
+                label="Scoring Type"
+              >
+                <MenuItem value="gross">Gross</MenuItem>
+                <MenuItem value="net">Net</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+
+          <Grid item xs={12}>
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={isStandalone}
+                  onChange={(e) => setIsStandalone(e.target.checked)}
+                  disabled={!!seriesId}
+                />
+              }
+              label="Standalone Event"
+            />
+          </Grid>
+
+          {!isStandalone && !seriesId && (
             <Grid item xs={12}>
-              <TextField
-                label="Description"
-                fullWidth
-                multiline
-                rows={3}
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                disabled={submitting}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth error={!!formErrors.courseId}>
-                <InputLabel>Course</InputLabel>
-                <Select
-                  value={courseId}
-                  onChange={(e) => setCourseId(e.target.value)}
-                  label="Course"
-                  disabled={submitting}
-                >
-                  {courses.map((course) => (
-                    <MenuItem key={course.id} value={course.id}>
-                      {course.name} ({course.location}) {!course.isActive && '(Inactive)'}
-                    </MenuItem>
-                  ))}
-                </Select>
-                {formErrors.courseId && (
-                  <FormHelperText>{formErrors.courseId}</FormHelperText>
-                )}
-                {!formErrors.courseId && (
-                  <FormHelperText>
-                    Select a course for this event. Inactive courses can be activated in the course management section.
-                  </FormHelperText>
-                )}
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Event Format</InputLabel>
-                <Select
-                  value={eventFormat}
-                  onChange={(e) => setEventFormat(e.target.value as EventFormat)}
-                  label="Event Format"
-                  disabled={submitting}
-                >
-                  <MenuItem value="stroke_play">Stroke Play</MenuItem>
-                  <MenuItem value="match_play">Match Play</MenuItem>
-                  <MenuItem value="stableford">Stableford</MenuItem>
-                  <MenuItem value="scramble">Scramble</MenuItem>
-                  <MenuItem value="best_ball">Best Ball</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Event Date"
-                type="date"
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-                value={eventDate ? formatDateForInput(eventDate) : ''}
-                onChange={(e) => setEventDate(parseInputDate(e.target.value))}
-                error={!!formErrors.eventDate}
-                helperText={formErrors.eventDate}
-                disabled={submitting}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Registration Close Date"
-                type="date"
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-                value={registrationCloseDate ? formatDateForInput(registrationCloseDate) : ''}
-                onChange={(e) => setRegistrationCloseDate(parseInputDate(e.target.value))}
-                error={!!formErrors.registrationCloseDate}
-                helperText={formErrors.registrationCloseDate}
-                disabled={submitting}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <TextField
-                label="Maximum Participants"
-                type="number"
-                fullWidth
-                value={maxParticipants === null ? '' : maxParticipants}
-                onChange={(e) => setMaxParticipants(e.target.value === '' ? null : parseInt(e.target.value, 10))}
-                error={!!formErrors.maxParticipants}
-                helperText={formErrors.maxParticipants}
-                disabled={submitting}
-                inputProps={{ min: 1 }}
-              />
-            </Grid>
-
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth>
-                <InputLabel>Scoring Type</InputLabel>
-                <Select
-                  value={scoringType}
-                  onChange={(e) => setScoringType(e.target.value as ScoringType)}
-                  label="Scoring Type"
-                  disabled={submitting}
-                >
-                  <MenuItem value="gross">Gross</MenuItem>
-                  <MenuItem value="net">Net</MenuItem>
-                  <MenuItem value="both">Both (Gross & Net)</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid item xs={12}>
-              <FormControl fullWidth>
+              <FormControl fullWidth size="small">
                 <InputLabel>Series</InputLabel>
                 <Select
                   value={selectedSeriesId}
-                  onChange={(e) => {
-                    setSelectedSeriesId(e.target.value);
-                    setIsStandalone(!e.target.value);
-                  }}
+                  onChange={(e) => setSelectedSeriesId(e.target.value)}
                   label="Series"
-                  disabled={submitting}
                 >
-                  <MenuItem value="">
-                    <em>None (Standalone Event)</em>
-                  </MenuItem>
                   {allSeries.map((series) => (
                     <MenuItem key={series.id} value={series.id}>
                       {series.name}
                     </MenuItem>
                   ))}
                 </Select>
-                <FormHelperText>
-                  Select a series to add this event to, or leave blank for a standalone event
-                </FormHelperText>
               </FormControl>
             </Grid>
+          )}
+        </Grid>
 
-            <Grid item xs={12}>
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={isStandalone}
-                    onChange={(e) => {
-                      setIsStandalone(e.target.checked);
-                      if (e.target.checked) {
-                        setSelectedSeriesId('');
-                      }
-                    }}
-                    disabled={submitting}
-                  />
-                }
-                label="This is a standalone event (not part of a series)"
-              />
-            </Grid>
-
-            <Grid item xs={12}>
-              <Divider sx={{ my: 2 }} />
-              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-                <Button
-                  variant="outlined"
-                  onClick={() => router.push('/admin/events')}
-                  disabled={submitting}
-                >
-                  Cancel
-                </Button>
-                <Button
-                  type="submit"
-                  variant="contained"
-                  color="primary"
-                  disabled={submitting}
-                >
-                  {submitting ? 'Saving...' : isEditMode ? 'Update Event' : 'Create Event'}
-                </Button>
-              </Box>
-            </Grid>
-          </Grid>
-        </form>
+        <Box sx={{ 
+          display: 'flex', 
+          justifyContent: 'flex-end',
+          gap: 2,
+          mt: 4,
+          flexDirection: { xs: 'column', sm: 'row' }
+        }}>
+          <Button
+            variant="outlined"
+            onClick={() => router.back()}
+            fullWidth={false}
+            sx={{ flex: { xs: '1', sm: '0 0 auto' } }}
+          >
+            Cancel
+          </Button>
+          <Button
+            type="submit"
+            variant="contained"
+            color="primary"
+            disabled={submitting}
+            fullWidth={false}
+            sx={{ flex: { xs: '1', sm: '0 0 auto' } }}
+          >
+            {submitting ? (
+              <CircularProgress size={24} />
+            ) : isEditMode ? (
+              'Update Event'
+            ) : (
+              'Create Event'
+            )}
+          </Button>
+        </Box>
       </Paper>
     </Box>
   );
