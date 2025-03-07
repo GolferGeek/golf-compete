@@ -15,9 +15,16 @@ import { supabaseClient } from '@/lib/auth';
  */
 export const createRound = async (input: CreateRoundInput): Promise<Round> => {
     try {
+        const { data: { user }, error: userError } = await supabaseClient.auth.getUser();
+        if (userError) throw userError;
+        if (!user) throw new Error('User not authenticated');
+
         const { data, error } = await supabaseClient
             .from('rounds')
-            .insert(input)
+            .insert({
+                ...input,
+                user_id: user.id
+            })
             .select()
             .single();
 
@@ -60,10 +67,10 @@ export const getRoundWithDetails = async (roundId: string): Promise<RoundWithDet
             .from('rounds')
             .select(`
                 *,
-                course:courses(id, name, city, state),
-                tee_set:tee_sets(id, name, color, par, rating, slope, yardage),
+                course:courses(id, name, location),
+                tee_set:tee_sets(id, name, color, rating, slope, length),
                 bag:bags(id, name, description),
-                event:events(id, name, date)
+                event:events!left(id, name, event_date)
             `)
             .eq('id', roundId)
             .single();

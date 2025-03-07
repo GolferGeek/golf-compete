@@ -36,12 +36,23 @@ import ProtectedRoute from '@/components/auth/ProtectedRoute';
 import { supabase } from '@/lib/supabase';
 
 // TypeScript interfaces
+interface BagData {
+  id: string;
+  user_id: string;
+  name: string;
+  description: string | null;
+  is_default: boolean;
+  handicap: number | null;
+  bag_clubs?: { club_id: string }[];
+}
+
 type BagRow = {
   id: string;
   user_id: string;
   name: string;
   description: string;
   is_default: boolean;
+  handicap?: number;
   club_ids?: string[];
   bag_clubs?: {
     club_id: string;
@@ -98,6 +109,7 @@ interface FormData {
   description: string;
   is_default: boolean;
   selectedClubs: string[];
+  handicap?: number;
 }
 
 interface SnackbarState {
@@ -146,15 +158,14 @@ export default function BagsPage() {
         if (bagsError) throw bagsError;
         
         // Transform the data to include club_ids
-        const transformedBags: Bag[] = (data as Array<Database['public']['Tables']['bags']['Row'] & {
-          bag_clubs: Array<Database['public']['Tables']['bag_clubs']['Row']>;
-        }> || []).map(row => ({
+        const transformedBags: Bag[] = ((data as any) || []).map((row: any) => ({
           id: row.id,
           user_id: row.user_id,
           name: row.name,
-          description: row.description,
+          description: row.description || '',
           is_default: row.is_default,
-          club_ids: (row.bag_clubs || []).map(bc => bc.club_id)
+          handicap: typeof row.handicap === 'number' ? row.handicap : undefined,
+          club_ids: (row.bag_clubs || []).map((bc: any) => bc.club_id)
         }));
         
         setBags(transformedBags);
@@ -212,6 +223,12 @@ export default function BagsPage() {
           ? [...prev.selectedClubs, clubId]
           : prev.selectedClubs.filter(id => id !== clubId)
       }));
+    } else if (name === 'handicap') {
+      // Handle handicap input
+      setFormData(prev => ({
+        ...prev,
+        handicap: value === '' ? undefined : parseFloat(value)
+      }));
     } else {
       // Handle other form inputs
       setFormData(prev => ({
@@ -235,6 +252,16 @@ export default function BagsPage() {
         return;
       }
 
+      // Validate handicap if provided
+      if (formData.handicap !== undefined && (formData.handicap < 0 || formData.handicap > 54)) {
+        setSnackbar({
+          open: true,
+          message: 'Handicap must be between 0 and 54',
+          severity: 'error'
+        });
+        return;
+      }
+
       if (editingBag) {
         // Update existing bag
         const { error: bagError } = await supabase
@@ -242,7 +269,8 @@ export default function BagsPage() {
           .update({
             name: formData.name,
             description: formData.description,
-            is_default: formData.is_default
+            is_default: formData.is_default,
+            handicap: formData.handicap
           })
           .eq('id', editingBag.id);
 
@@ -294,7 +322,8 @@ export default function BagsPage() {
             user_id: user.id,
             name: formData.name,
             description: formData.description,
-            is_default: formData.is_default
+            is_default: formData.is_default,
+            handicap: formData.handicap
           }])
           .select()
           .single();
@@ -326,6 +355,7 @@ export default function BagsPage() {
             name: newBag.name as string,
             description: newBag.description as string,
             is_default: newBag.is_default as boolean,
+            handicap: newBag.handicap,
             club_ids: formData.selectedClubs
           };
           return [...updatedBags, bagWithClubs];
@@ -354,7 +384,8 @@ export default function BagsPage() {
       name: bag.name,
       description: bag.description,
       is_default: bag.is_default,
-      selectedClubs: bag.club_ids || []
+      selectedClubs: bag.club_ids || [],
+      handicap: typeof bag.handicap === 'number' ? bag.handicap : undefined
     });
     setEditingBag(bag);
     setOpen(true);
@@ -561,6 +592,23 @@ export default function BagsPage() {
                 rows={2}
                 value={formData.description}
                 onChange={handleInputChange}
+              />
+
+              <TextField
+                margin="normal"
+                fullWidth
+                id="handicap"
+                label="Handicap"
+                name="handicap"
+                type="number"
+                inputProps={{ 
+                  step: 0.1,
+                  min: 0,
+                  max: 54
+                }}
+                value={formData.handicap || ''}
+                onChange={handleInputChange}
+                helperText="Enter a value between 0 and 54"
               />
               
               <FormControlLabel

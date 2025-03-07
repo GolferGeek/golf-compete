@@ -31,6 +31,9 @@ import ArrowForwardIcon from '@mui/icons-material/ArrowForward'
 import { getSeriesParticipantsByUserId } from '@/lib/series'
 import { getEventParticipantsByUserId } from '@/lib/events'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
+import RecentRounds from '@/components/rounds/RecentRounds'
+import { supabaseClient } from '@/lib/auth'
+import { RoundWithDetails } from '@/types/round'
 
 export default function DashboardPage() {
   const { user, profile } = useAuth()
@@ -38,6 +41,9 @@ export default function DashboardPage() {
   const [userEvents, setUserEvents] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [rounds, setRounds] = useState<RoundWithDetails[]>([])
+  const [roundsLoading, setRoundsLoading] = useState(false)
+  const [roundsError, setRoundsError] = useState<string | null>(null)
   const theme = useTheme()
 
   useEffect(() => {
@@ -65,6 +71,41 @@ export default function DashboardPage() {
     
     loadUserCompetitions()
   }, [user])
+
+  useEffect(() => {
+    const loadRecentRounds = async () => {
+      if (!user) return;
+
+      try {
+        setRoundsLoading(true);
+        setRoundsError(null);
+
+        const { data, error: roundsError } = await supabaseClient
+          .from('rounds')
+          .select(`
+            *,
+            course:courses(id, name, city, state),
+            tee_set:tee_sets(id, name, color, rating, slope, length),
+            bag:bags(id, name, description, handicap),
+            hole_scores(*)
+          `)
+          .eq('user_id', user.id)
+          .order('date_played', { ascending: false })
+          .limit(4);
+
+        if (roundsError) throw roundsError;
+
+        setRounds(data as RoundWithDetails[]);
+      } catch (error) {
+        console.error('Error loading recent rounds:', error);
+        setRoundsError('Failed to load recent rounds');
+      } finally {
+        setRoundsLoading(false);
+      }
+    };
+
+    loadRecentRounds();
+  }, [user]);
 
   // Function to get status color for chips
   const getStatusColor = (status: string) => {

@@ -35,6 +35,7 @@ export interface Bag {
   brand: string | null;
   model: string | null;
   description: string | null;
+  handicap: number | null;
   is_default: boolean;
   created_at: string;
   updated_at: string;

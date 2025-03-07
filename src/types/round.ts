@@ -61,6 +61,7 @@ export interface RoundWithDetails extends Round {
         id: string;
         name: string;
         description?: string;
+        handicap?: number;
     };
     hole_scores: HoleScore[];
     event?: {

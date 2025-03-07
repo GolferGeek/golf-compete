@@ -1,25 +1,34 @@
 "use client";
 
-import React from 'react';
-import { Metadata } from 'next';
-import ScoreEntryForm from '@/components/rounds/ScoreEntryForm';
+import React, { Suspense } from 'react';
+import QuickScoreCard from '@/components/rounds/QuickScoreCard';
 import { AuthGuard } from '@/components/auth/AuthGuard';
-
-export const metadata: Metadata = {
-  title: 'Enter Scores | Golf Compete',
-  description: 'Enter hole scores for your round',
-};
+import { CircularProgress, Box } from '@mui/material';
 
 interface ScoreEntryPageProps {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
+}
+
+function ScoreEntry({ roundId }: { roundId: string }) {
+  return (
+    <AuthGuard>
+      <QuickScoreCard roundId={roundId} />
+    </AuthGuard>
+  );
 }
 
 export default function ScoreEntryPage({ params }: ScoreEntryPageProps) {
+  const resolvedParams = React.use(params);
+  
   return (
-    <AuthGuard>
-      <ScoreEntryForm roundId={params.id} />
-    </AuthGuard>
+    <Suspense fallback={
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+        <CircularProgress />
+      </Box>
+    }>
+      <ScoreEntry roundId={resolvedParams.id} />
+    </Suspense>
   );
 } 
