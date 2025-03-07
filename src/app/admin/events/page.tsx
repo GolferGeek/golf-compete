@@ -29,6 +29,7 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import PeopleIcon from '@mui/icons-material/People';
+import ScoreboardIcon from '@mui/icons-material/Scoreboard';
 import { format } from 'date-fns';
 import { getAllEvents, deleteEvent } from '@/lib/events';
 import { Event, EventStatus } from '@/types/events';
@@ -219,9 +220,17 @@ export default function EventsManagement() {
                         <TableCell align="right">
                           <IconButton
                             color="primary"
+                            onClick={() => router.push(`/events/${event.id}`)}
+                            size="small"
+                            title="View Event Day"
+                          >
+                            <ScoreboardIcon />
+                          </IconButton>
+                          <IconButton
+                            color="primary"
                             onClick={() => handleViewEvent(event.id)}
                             size="small"
-                            title="View Event"
+                            title="Edit Event"
                           >
                             <EditIcon />
                           </IconButton>
@@ -306,10 +315,19 @@ export default function EventsManagement() {
                         variant="outlined"
                         color="primary"
                         size="small"
+                        startIcon={<ScoreboardIcon />}
+                        onClick={() => router.push(`/events/${event.id}`)}
+                      >
+                        View Day
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="primary"
+                        size="small"
                         startIcon={<EditIcon />}
                         onClick={() => handleViewEvent(event.id)}
                       >
-                        View
+                        Edit
                       </Button>
                       <Button
                         variant="outlined"

@@ -51,7 +51,8 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
   const [courseId, setCourseId] = useState<string | undefined>(initialCourseId);
   const [formData, setFormData] = useState<CourseFormData>({
     name: '',
-    location: '',
+    city: '',
+    state: '',
     holes: 18,
     par: 72,
     amenities: '',
@@ -161,7 +162,8 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
         // Type assertion to ensure TypeScript knows data has the expected properties
         const courseDataTyped = courseData as {
           name: string;
-          location: string;
+          city: string;
+          state: string;
           holes: number;
           par: number;
           amenities: string | string[] | null;
@@ -172,7 +174,8 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
         
         setFormData({
           name: courseDataTyped.name || '',
-          location: courseDataTyped.location || '',
+          city: courseDataTyped.city || '',
+          state: courseDataTyped.state || '',
           holes: courseDataTyped.holes || 18,
           par: courseDataTyped.par || 72,
           amenities: courseDataTyped.amenities ? 
@@ -448,7 +451,8 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
           // Prepare course data for Supabase
           const courseData = {
             name: formData.name,
-            location: formData.location,
+            city: formData.city,
+            state: formData.state,
             par: formData.par,
             holes: formData.holes,
             amenities: formData.amenities,
@@ -476,7 +480,8 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
         // Prepare course data for Supabase
         const courseData = {
           name: formData.name,
-          location: formData.location,
+          city: formData.city,
+          state: formData.state,
           par: formData.par,
           holes: formData.holes,
           amenities: formData.amenities,
@@ -498,7 +503,8 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
               {
                 p_id: courseId,
                 p_name: courseData.name,
-                p_location: courseData.location,
+                p_city: courseData.city,
+                p_state: courseData.state,
                 p_par: courseData.par,
                 p_holes: courseData.holes,
                 p_amenities: courseData.amenities,
@@ -524,7 +530,8 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
                 // If that fails, try updating without is_active first
                 const courseDataWithoutActive = {
                   name: courseData.name,
-                  location: courseData.location,
+                  city: courseData.city,
+                  state: courseData.state,
                   par: courseData.par,
                   holes: courseData.holes,
                   amenities: courseData.amenities,
@@ -571,7 +578,8 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
               'insert_course_with_active',
               {
                 p_name: courseData.name,
-                p_location: courseData.location,
+                p_city: courseData.city,
+                p_state: courseData.state,
                 p_par: courseData.par,
                 p_holes: courseData.holes,
                 p_amenities: courseData.amenities,
@@ -610,7 +618,8 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
                 // Try inserting without is_active field
                 const courseDataWithoutActive = {
                   name: courseData.name,
-                  location: courseData.location,
+                  city: courseData.city,
+                  state: courseData.state,
                   par: courseData.par,
                   holes: courseData.holes,
                   amenities: courseData.amenities,
@@ -776,8 +785,8 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
   
   // Validate form data
   const validateForm = () => {
-    if (!formData.name || !formData.location) {
-      setError('Name and location are required fields');
+    if (!formData.name || !formData.city || !formData.state) {
+      setError('Name, city, and state are required fields');
       return false;
     }
     return true;

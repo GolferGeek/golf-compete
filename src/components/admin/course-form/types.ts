@@ -1,7 +1,8 @@
 // Course form data type
 export interface CourseFormData {
   name: string;
-  location: string;
+  city: string;
+  state: string;
   holes: number;
   par: number;
   amenities: string;

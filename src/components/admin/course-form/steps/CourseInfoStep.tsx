@@ -127,17 +127,31 @@ const CourseInfoStep: React.FC<CourseInfoStepProps> = ({
             />
           </Grid>
           
-          <Grid item xs={12}>
+          <Grid item xs={12} sm={6}>
             <TextField
+              required
               fullWidth
-              id="location"
-              name="location"
-              label="Location"
-              value={formData.location}
+              id="city"
+              name="city"
+              label="City"
+              value={formData.city}
               onChange={handleTextChange}
               disabled={loading}
               size={isMobile ? "small" : "medium"}
-              placeholder="City, State"
+            />
+          </Grid>
+          
+          <Grid item xs={12} sm={6}>
+            <TextField
+              required
+              fullWidth
+              id="state"
+              name="state"
+              label="State"
+              value={formData.state}
+              onChange={handleTextChange}
+              disabled={loading}
+              size={isMobile ? "small" : "medium"}
             />
           </Grid>
           

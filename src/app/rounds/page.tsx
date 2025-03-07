@@ -53,7 +53,7 @@ export default function RoundsPage() {
             bag:bags(id, name, description, handicap),
             hole_scores(*)
           `)
-          .eq('user_id', user.id)
+          .eq('profile_id', user.id)
           .order('date_played', { ascending: false });
 
         if (roundsError) throw roundsError;

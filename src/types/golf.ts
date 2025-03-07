@@ -31,17 +31,20 @@ export interface Competition {
 export interface Course {
   id: string;
   name: string;
-  location: string;
-  holes: number;
+  city: string;
+  state: string;
   par: number;
-  rating: number;
-  slope: number;
+  holes: number;
+  rating?: number;
+  slope?: number;
   tees: TeeSets[];
   holeDetails?: Hole[];
   amenities?: string[];
   website?: string;
-  phoneNumber?: string;
+  phone_number?: string;
   is_active: boolean;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface TeeSets {

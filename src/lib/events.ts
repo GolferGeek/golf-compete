@@ -1,5 +1,14 @@
 import { supabase } from './supabase';
 import { Event, EventParticipant, SeriesEvent } from '@/types/events';
+import { Database } from '@/types/supabase';
+
+type EventRow = Database['public']['Tables']['events']['Row'] & {
+  courses: {
+    name: string;
+    city: string;
+    state: string;
+  } | null;
+};
 
 // Get all events
 export async function getAllEvents() {
@@ -17,11 +26,53 @@ export async function getAllEvents() {
   return data;
 }
 
+interface EventResponse {
+  id: string;
+  name: string;
+  description: string | null;
+  event_date: string;
+  registration_close_date: string | null;
+  course_id: string;
+  event_format: string;
+  scoring_type: string;
+  max_participants: number | null;
+  is_active: boolean;
+  is_standalone: boolean;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  courses: {
+    name: string;
+    city: string;
+    state: string;
+  } | null;
+}
+
 // Get event by ID
-export async function getEventById(eventId: string) {
+export async function getEventById(eventId: string): Promise<Event> {
   const { data, error } = await supabase
     .from('events')
-    .select('*, courses(name, location)')
+    .select(`
+      id,
+      name,
+      description,
+      event_date,
+      registration_close_date,
+      course_id,
+      event_format,
+      scoring_type,
+      max_participants,
+      is_active,
+      is_standalone,
+      status,
+      created_at,
+      updated_at,
+      courses:course_id (
+        name,
+        city,
+        state
+      )
+    `)
     .eq('id', eventId)
     .single();
   
@@ -30,7 +81,11 @@ export async function getEventById(eventId: string) {
     throw new Error('Failed to fetch event');
   }
   
-  return data;
+  const eventData = data as EventRow;
+  return {
+    ...eventData,
+    courses: eventData.courses || undefined
+  } as Event;
 }
 
 // Get events for a series

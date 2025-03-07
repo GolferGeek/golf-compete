@@ -9,19 +9,31 @@ export type ResultStatus = 'pending' | 'submitted' | 'verified' | 'disqualified'
 export interface Event {
   id: string;
   name: string;
-  description: string | null;
+  description?: string;
   event_date: string;
-  registration_close_date: string | null;
+  registration_close_date?: string;
   course_id: string;
+  tee_set_id?: string;
   event_format: EventFormat;
-  status: EventStatus;
-  max_participants: number | null;
   scoring_type: ScoringType;
-  is_standalone: boolean;
-  created_at: string;
-  created_by: string;
-  updated_at: string;
+  max_participants?: number;
   is_active: boolean;
+  is_standalone: boolean;
+  status: EventStatus;
+  created_at: string;
+  updated_at: string;
+  courses?: {
+    name: string;
+    city: string;
+    state: string;
+  };
+  tee_sets?: {
+    id: string;
+    name: string;
+    color: string;
+    rating: number;
+    slope: number;
+  };
 }
 
 export interface EventParticipant {
@@ -61,7 +73,8 @@ export interface SeriesEvent {
 export type EventWithCourse = Event & {
   course: {
     name: string;
-    location: string;
+    city: string;
+    state: string;
   };
 };
 
@@ -83,7 +96,8 @@ export type EventWithSeries = Event & {
 export type EventWithAll = Event & {
   course: {
     name: string;
-    location: string;
+    city: string;
+    state: string;
   };
   participants: EventParticipant[];
   results: EventResult[];

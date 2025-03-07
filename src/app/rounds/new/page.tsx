@@ -11,13 +11,23 @@ export const metadata: Metadata = {
 interface NewRoundPageProps {
   searchParams: {
     eventId?: string;
+    courseId?: string;
+    teeSetId?: string;
+    date?: string;
   };
 }
 
 export default function NewRoundPage({ searchParams }: NewRoundPageProps) {
+  console.log('NewRoundPage searchParams:', searchParams);
+  
   return (
     <AuthGuard>
-      <RoundForm eventId={searchParams.eventId} />
+      <RoundForm 
+        eventId={searchParams.eventId}
+        initialCourseId={searchParams.courseId}
+        initialTeeSetId={searchParams.teeSetId}
+        initialDate={searchParams.date}
+      />
     </AuthGuard>
   );
 } 

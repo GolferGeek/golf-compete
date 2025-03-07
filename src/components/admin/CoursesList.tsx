@@ -142,7 +142,8 @@ export default function CoursesList() {
     const query = searchQuery.toLowerCase().trim();
     const filtered = courses.filter(course => 
       (course.name && course.name.toLowerCase().includes(query)) || 
-      (course.location && course.location.toLowerCase().includes(query))
+      (course.city && course.city.toLowerCase().includes(query)) ||
+      (course.state && course.state.toLowerCase().includes(query))
     );
     
     setFilteredCourses(filtered);
@@ -362,7 +363,7 @@ export default function CoursesList() {
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <LocationOnIcon fontSize="small" color="action" />
                             <Typography variant="body2" color="text.secondary" noWrap>
-                              {course.location || 'No location specified'}
+                              {course.city && course.state ? `${course.city}, ${course.state}` : 'No location specified'}
                             </Typography>
                           </Box>
                           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -457,7 +458,7 @@ export default function CoursesList() {
                   <TableCell component="th" scope="row">
                     {course.name}
                   </TableCell>
-                  <TableCell>{course.location}</TableCell>
+                  <TableCell>{course.city && course.state ? `${course.city}, ${course.state}` : 'No location specified'}</TableCell>
                   <TableCell>{course.holes}</TableCell>
                   <TableCell>{course.par}</TableCell>
                   <TableCell>

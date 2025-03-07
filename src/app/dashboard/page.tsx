@@ -89,7 +89,7 @@ export default function DashboardPage() {
             bag:bags(id, name, description, handicap),
             hole_scores(*)
           `)
-          .eq('user_id', user.id)
+          .eq('profile_id', user.id)
           .order('date_played', { ascending: false })
           .limit(4);
 
@@ -297,7 +297,7 @@ export default function DashboardPage() {
                                 <ListItem key={event.id} disablePadding sx={{ mb: 1, px: 1, py: 0.75, borderRadius: '8px' }}>
                                   <ListItemText
                                     primary={
-                                      <Link href={`/admin/events/${event.event_id}`} passHref style={{ textDecoration: 'none', color: 'inherit' }}>
+                                      <Link href={`/events/${event.event_id}`} passHref style={{ textDecoration: 'none', color: 'inherit' }}>
                                         <Typography variant="body2" component="span" sx={{ fontWeight: 'medium', cursor: 'pointer', '&:hover': { color: theme.palette.primary.main } }}>
                                           {event.name || 'Unnamed Event'}
                                         </Typography>
