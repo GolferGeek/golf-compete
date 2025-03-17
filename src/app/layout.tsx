@@ -3,6 +3,7 @@ import './globals.css';
 import { Metadata } from "next";
 import ThemeRegistry from '../theme/ThemeRegistry';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { GolfAssistantProvider } from '@/contexts/GolfAssistantContext';
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -21,7 +22,9 @@ export default function RootLayout({
       <body className={inter.className}>
         <AuthProvider>
           <ThemeRegistry>
-            {children}
+            <GolfAssistantProvider>
+              {children}
+            </GolfAssistantProvider>
           </ThemeRegistry>
         </AuthProvider>
       </body>

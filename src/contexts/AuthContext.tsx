@@ -16,6 +16,9 @@ export type Profile = {
   is_admin?: boolean
   created_at?: string
   updated_at?: string
+  openai_api_key?: string
+  use_own_openai_key?: boolean
+  ai_assistant_enabled?: boolean
 }
 
 type AuthContextType = {
@@ -68,7 +71,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         multiple_clubs_sets: typeof data.multiple_clubs_sets === 'boolean' ? data.multiple_clubs_sets : undefined,
         is_admin: typeof data.is_admin === 'boolean' ? data.is_admin : undefined,
         created_at: typeof data.created_at === 'string' ? data.created_at : undefined,
-        updated_at: typeof data.updated_at === 'string' ? data.updated_at : undefined
+        updated_at: typeof data.updated_at === 'string' ? data.updated_at : undefined,
+        openai_api_key: typeof data.openai_api_key === 'string' ? data.openai_api_key : undefined,
+        use_own_openai_key: typeof data.use_own_openai_key === 'boolean' ? data.use_own_openai_key : undefined,
+        ai_assistant_enabled: typeof data.ai_assistant_enabled === 'boolean' ? data.ai_assistant_enabled : undefined
       }
       
       return profileData

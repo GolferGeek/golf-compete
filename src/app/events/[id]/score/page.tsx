@@ -55,6 +55,7 @@ export default function EventScoringPage({ params }: EventScoringPageProps) {
     async function loadEventData() {
       try {
         setLoading(true);
+        console.log(`Loading event data for ID: ${eventId}`);
         
         // Get event data
         const { data: eventData, error: eventError } = await supabaseClient
@@ -63,11 +64,20 @@ export default function EventScoringPage({ params }: EventScoringPageProps) {
           .eq('id', eventId)
           .single();
 
-        if (eventError) throw eventError;
-        if (!eventData) throw new Error('Event not found');
+        if (eventError) {
+          console.error('Error fetching event:', eventError);
+          throw eventError;
+        }
+        if (!eventData) {
+          console.error(`Event not found with ID: ${eventId}`);
+          throw new Error('Event not found');
+        }
+        
+        console.log(`Found event: ${eventData.name}`);
         
         // Get default tee set if not specified
         if (!eventData.tee_sets?.id) {
+          console.log(`No tee set specified for event, looking for default tee set for course: ${eventData.course_id}`);
           const { data: teeSetData, error: teeSetError } = await supabaseClient
             .from('tee_sets')
             .select('id')
@@ -75,22 +85,37 @@ export default function EventScoringPage({ params }: EventScoringPageProps) {
             .eq('is_default', true)
             .single();
 
-          if (teeSetError) throw teeSetError;
-          if (!teeSetData) throw new Error('No default tee set found');
+          if (teeSetError) {
+            console.error('Error fetching default tee set:', teeSetError);
+            throw teeSetError;
+          }
+          if (!teeSetData) {
+            console.error(`No default tee set found for course: ${eventData.course_id}`);
+            throw new Error('No default tee set found');
+          }
           
           eventData.tee_set_id = teeSetData.id;
+          console.log(`Using default tee set: ${teeSetData.id}`);
         } else {
           eventData.tee_set_id = eventData.tee_sets.id;
+          console.log(`Using specified tee set: ${eventData.tee_sets.id}`);
         }
 
         setEvent(eventData as EventWithDetails);
 
         // Load existing rounds
-        const roundsData = await getEventRounds(eventId);
-        setRoundSummary(roundsData);
+        console.log(`Loading rounds for event: ${eventId}`);
+        try {
+          const roundsData = await getEventRounds(eventId);
+          console.log(`Found ${roundsData.rounds.length} rounds for event`);
+          setRoundSummary(roundsData);
+        } catch (roundsError) {
+          console.error('Error loading rounds:', roundsError);
+          // Continue without rounds data rather than failing completely
+        }
       } catch (err) {
-        console.error('Error loading event data:', err);
-        setError('Failed to load event data');
+        console.error('Error in loadEventData:', err);
+        setError('Failed to load event data. Check console for details.');
       } finally {
         setLoading(false);
       }

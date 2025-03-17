@@ -117,33 +117,75 @@ interface RoundWithProfile {
  */
 export const getEventRounds = async (eventId: string): Promise<EventRoundSummary> => {
     try {
-        // Get the rounds with profile data - profile_id in rounds matches profile.id
+        console.log(`Getting rounds for event ID: ${eventId}`);
+        
+        // Get the rounds without relying on the join to profiles
         const { data: roundsData, error: roundsError } = await supabaseClient
             .from('rounds')
-            .select<string, RoundWithProfile>(`
+            .select(`
                 id,
                 profile_id,
                 total_score,
                 total_putts,
                 fairways_hit,
-                greens_in_regulation,
-                profile:profiles!profile_id(
-                    first_name,
-                    last_name
-                )
+                greens_in_regulation
             `)
             .eq('event_id', eventId);
 
-        if (roundsError) throw roundsError;
+        if (roundsError) {
+            console.error('Error fetching rounds:', roundsError);
+            throw roundsError;
+        }
+
+        console.log(`Found ${roundsData?.length || 0} rounds for event`);
+        
+        if (!roundsData || roundsData.length === 0) {
+            return {
+                event_id: eventId,
+                rounds: []
+            };
+        }
+
+        // Get profiles for each round separately
+        const profileIds = roundsData.map(round => round.profile_id).filter(Boolean);
+        console.log(`Getting profiles for IDs:`, profileIds);
+        
+        let profileData = {};
+        
+        if (profileIds.length > 0) {
+            const { data: profilesData, error: profilesError } = await supabaseClient
+                .from('profiles')
+                .select('id, first_name, last_name, name')
+                .in('id', profileIds);
+
+            if (profilesError) {
+                console.error('Error fetching profiles:', profilesError);
+                // Continue without profile data rather than failing
+            } else if (profilesData) {
+                // Create a map of profile IDs to profile data
+                profileData = profilesData.reduce((acc, profile) => {
+                    acc[profile.id] = profile;
+                    return acc;
+                }, {});
+            }
+        }
 
         // Combine the data
         return {
             event_id: eventId,
             rounds: roundsData.map(round => {
-                const profile = round.profile;
-                const displayName = profile?.first_name && profile?.last_name
-                    ? `${profile.first_name} ${profile.last_name}`
-                    : 'Unknown User';
+                const profile = profileData[round.profile_id];
+                let displayName = 'Player';
+                
+                if (profile) {
+                    if (profile.first_name || profile.last_name) {
+                        displayName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
+                    } else if (profile.name) {
+                        displayName = profile.name;
+                    }
+                } else {
+                    console.log(`No profile found for user ID: ${round.profile_id}`);
+                }
 
                 return {
                     user_id: round.profile_id, // Keep returning as user_id for backward compatibility

@@ -237,7 +237,7 @@ export default function RoundForm({ eventId, initialCourseId, initialTeeSetId, i
       const errors: Record<string, string> = {};
       if (!formData.course_id) errors.course_id = 'Course is required';
       if (!formData.tee_set_id) errors.tee_set_id = 'Tee set is required';
-      if (!formData.bag_id) errors.bag_id = 'Bag is required';
+      if (bags.length > 0 && !formData.bag_id) errors.bag_id = 'Bag is required';
       
       if (Object.keys(errors).length > 0) {
         setFormErrors(errors);
@@ -248,8 +248,12 @@ export default function RoundForm({ eventId, initialCourseId, initialTeeSetId, i
       // Create the round
       const round = await createRound(formData as CreateRoundInput);
       
-      // Redirect to the score entry page
-      router.push(`/rounds/${round.id}/score`);
+      // Redirect based on event presence
+      if (eventId) {
+        router.push(`/events/${eventId}/scoring`);
+      } else {
+        router.push(`/rounds/${round.id}/score`);
+      }
     } catch (error) {
       console.error('Error creating round:', error);
       setError('Failed to create round');
@@ -364,25 +368,28 @@ export default function RoundForm({ eventId, initialCourseId, initialTeeSetId, i
               </FormControl>
             </Grid>
 
-            <Grid item xs={12} sm={6}>
-              <FormControl fullWidth error={!!formErrors.bag_id} size="small">
-                <InputLabel>Bag</InputLabel>
-                <Select
-                  value={formData.bag_id || ''}
-                  onChange={(e) => setFormData({ ...formData, bag_id: e.target.value })}
-                  label="Bag"
-                >
-                  {bags.map((bag) => (
-                    <MenuItem key={bag.id} value={bag.id}>
-                      {bag.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-                {formErrors.bag_id && (
-                  <FormHelperText>{formErrors.bag_id}</FormHelperText>
-                )}
-              </FormControl>
-            </Grid>
+            {/* Only show bag selection if user has bags */}
+            {bags.length > 0 && (
+              <Grid item xs={12} sm={6}>
+                <FormControl fullWidth error={!!formErrors.bag_id} size="small">
+                  <InputLabel>Bag</InputLabel>
+                  <Select
+                    value={formData.bag_id || ''}
+                    onChange={(e) => setFormData({ ...formData, bag_id: e.target.value })}
+                    label="Bag"
+                  >
+                    {bags.map((bag) => (
+                      <MenuItem key={bag.id} value={bag.id}>
+                        {bag.name}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                  {formErrors.bag_id && (
+                    <FormHelperText>{formErrors.bag_id}</FormHelperText>
+                  )}
+                </FormControl>
+              </Grid>
+            )}
 
             <Grid item xs={12} sm={6}>
               <TextField

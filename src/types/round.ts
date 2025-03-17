@@ -76,7 +76,7 @@ export interface CreateRoundInput {
     event_id?: string;
     course_id: string;
     tee_set_id: string;
-    bag_id: string;     // Added required bag_id
+    bag_id?: string;     // Made bag_id optional
     date_played?: string;  // Will default to now if not provided
     weather_conditions: WeatherCondition[];
     course_conditions: CourseCondition[];

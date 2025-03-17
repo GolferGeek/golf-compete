@@ -14,6 +14,10 @@ export interface Profile {
   is_admin: boolean;
   created_at?: string;
   updated_at?: string;
+  multiple_clubs_sets?: boolean;
+  openai_api_key?: string;
+  use_own_openai_key?: boolean;
+  ai_assistant_enabled?: boolean;
 }
 
 export interface UserRow {
@@ -32,4 +36,8 @@ export interface ProfileRow {
   is_admin: boolean;
   created_at: string;
   updated_at: string;
+  multiple_clubs_sets: boolean | null;
+  openai_api_key: string | null;
+  use_own_openai_key: boolean | null;
+  ai_assistant_enabled: boolean | null;
 } 
