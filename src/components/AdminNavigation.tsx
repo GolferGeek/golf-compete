@@ -30,23 +30,13 @@ interface AdminNavigationProps {
 export default function AdminNavigation({ open = true }: AdminNavigationProps) {
   const pathname = usePathname();
 
-  const isActive = (path: string) => {
-    if (path === '/admin' && pathname === '/admin') {
-      return true;
-    }
-    if (path !== '/admin' && pathname.startsWith(path)) {
-      return true;
-    }
-    return false;
+  const isSelected = (path: string) => {
+    return pathname?.startsWith(path) ?? false;
   };
 
-  const navItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, path: '/admin' },
-    { text: 'Series', icon: <ViewListIcon />, path: '/admin/series' },
-    { text: 'Events', icon: <EventIcon />, path: '/admin/events' },
+  const menuItems = [
     { text: 'Courses', icon: <GolfCourseIcon />, path: '/admin/courses' },
     { text: 'Users', icon: <PeopleIcon />, path: '/admin/users' },
-    { text: 'Settings', icon: <SettingsIcon />, path: '/admin/settings' },
   ];
 
   return (
@@ -77,7 +67,7 @@ export default function AdminNavigation({ open = true }: AdminNavigationProps) {
       </Box>
       <Divider />
       <List>
-        {navItems.map((item) => (
+        {menuItems.map((item) => (
           <Link key={item.text} href={item.path} passHref style={{ textDecoration: 'none', color: 'inherit' }}>
             <ListItem disablePadding>
               <ListItemButton
@@ -85,9 +75,9 @@ export default function AdminNavigation({ open = true }: AdminNavigationProps) {
                   minHeight: 48,
                   justifyContent: open ? 'initial' : 'center',
                   px: 2.5,
-                  bgcolor: isActive(item.path) ? 'rgba(0, 0, 0, 0.04)' : 'transparent',
+                  bgcolor: isSelected(item.path) ? 'rgba(0, 0, 0, 0.04)' : 'transparent',
                   '&:hover': {
-                    bgcolor: isActive(item.path) ? 'rgba(0, 0, 0, 0.08)' : 'rgba(0, 0, 0, 0.04)',
+                    bgcolor: isSelected(item.path) ? 'rgba(0, 0, 0, 0.08)' : 'rgba(0, 0, 0, 0.04)',
                   },
                 }}
               >
@@ -96,7 +86,7 @@ export default function AdminNavigation({ open = true }: AdminNavigationProps) {
                     minWidth: 0,
                     mr: open ? 3 : 'auto',
                     justifyContent: 'center',
-                    color: isActive(item.path) ? 'primary.main' : 'inherit',
+                    color: isSelected(item.path) ? 'primary.main' : 'inherit',
                   }}
                 >
                   {item.icon}
@@ -105,7 +95,7 @@ export default function AdminNavigation({ open = true }: AdminNavigationProps) {
                   primary={item.text} 
                   sx={{ 
                     opacity: open ? 1 : 0,
-                    color: isActive(item.path) ? 'primary.main' : 'inherit',
+                    color: isSelected(item.path) ? 'primary.main' : 'inherit',
                   }} 
                 />
               </ListItemButton>

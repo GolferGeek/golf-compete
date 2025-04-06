@@ -153,7 +153,7 @@ export class TestAdmin {
    */
   static async addEventParticipant(page: Page, eventId: string, userName: string): Promise<void> {
     // Navigate to event participants page
-    await page.goto(`/admin/events/${eventId}/participants`);
+    await page.goto(`/events/${eventId}/participants`);
     
     // Add participant
     await page.getByRole('button', { name: 'Add Participant' }).click();
@@ -203,13 +203,13 @@ export class TestAdmin {
    */
   static async deleteEvent(page: Page, eventId: string): Promise<void> {
     // Navigate to event page
-    await page.goto(`/admin/events/${eventId}`);
+    await page.goto(`/events/${eventId}`);
     
     // Delete the event
     await page.getByRole('button', { name: 'Delete' }).click();
     await page.getByRole('button', { name: 'Confirm' }).click();
     
     // Wait for redirect to events list
-    await page.waitForURL('/admin/events');
+    await page.waitForURL('/events');
   }
 } 

@@ -7,6 +7,7 @@ export type ParticipantRole = 'participant' | 'admin';
 export type ParticipantStatus = 'active' | 'withdrawn' | 'invited';
 export type EventParticipantStatus = 'registered' | 'confirmed' | 'withdrawn' | 'no_show';
 export type EventResultStatus = 'pending' | 'submitted' | 'verified' | 'disqualified';
+export type SeriesInvitationStatus = 'pending' | 'accepted' | 'declined' | 'expired';
 
 // Series interface
 export interface Series {
@@ -48,9 +49,16 @@ export interface SeriesParticipant {
   id: string;
   series_id: string;
   user_id: string;
-  role: ParticipantRole;
-  joined_at: string;
-  status: ParticipantStatus;
+  role: 'admin' | 'participant';
+  status: 'active' | 'withdrawn' | 'invited';
+  created_at: string;
+  updated_at: string;
+  // Additional fields for invitations
+  series_name?: string;
+  invited_by?: string;
+  invited_by_name?: string;
+  invited_at?: string;
+  responded_at?: string;
   // User profile fields
   first_name?: string;
   last_name?: string;
@@ -106,6 +114,18 @@ export interface SeriesPoints {
   position: number | null;
   created_at: string;
   updated_at: string;
+}
+
+// Series Invitation interface
+export interface SeriesInvitation {
+  id: string;
+  series_id: string;
+  user_id: string;
+  invited_by: string | null;
+  status: SeriesInvitationStatus;
+  invited_at: string;
+  responded_at: string | null;
+  expires_at: string | null;
 }
 
 // Extended interfaces with related data

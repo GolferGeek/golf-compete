@@ -327,7 +327,7 @@ test.describe('Admin functionality', () => {
     await TestAdmin.addEventParticipant(page, eventId, 'Test User');
     
     // Navigate back to events list
-    await page.goto('/admin/events');
+    await page.goto('/events');
     
     // Verify our event is in the list
     await expect(page.getByText(eventName)).toBeVisible();

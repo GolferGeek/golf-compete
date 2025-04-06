@@ -1,30 +1,36 @@
+import { Database } from './supabase';
+import { Profile } from './profile';
+
+// Type for Supabase Auth User
+export interface AuthUser {
+  id: string;
+  email: string;
+  created_at: string;
+  last_sign_in_at?: string;
+}
+
+// Our application's User type that combines Auth and Profile
 export interface User {
   id: string;
   email: string;
-  active: boolean;
+  created_at: string;
   profile?: Profile;
 }
 
-export interface Profile {
-  id: string;
-  first_name: string;
-  last_name: string;
-  username: string;
-  handicap?: number;
-  is_admin: boolean;
-  created_at?: string;
-  updated_at?: string;
-  multiple_clubs_sets?: boolean;
-  openai_api_key?: string;
-  use_own_openai_key?: boolean;
-  ai_assistant_enabled?: boolean;
-}
+// Re-export Profile type for convenience
+export type { Profile };
 
-export interface UserRow {
-  id: string;
-  email: string;
-  active: boolean;
-  profile: ProfileRow | null;
+// Export the raw database types
+export type UserRow = Database['public']['Tables']['users']['Row'];
+
+// Helper function to convert auth user to our User type
+export function toUser(authUser: AuthUser, profile?: Profile): User {
+  return {
+    id: authUser.id,
+    email: authUser.email,
+    created_at: authUser.created_at,
+    profile
+  };
 }
 
 export interface ProfileRow {

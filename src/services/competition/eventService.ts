@@ -125,24 +125,113 @@ export const fetchEventById = async (eventId: string): Promise<Event> => {
 };
 
 /**
- * Creates a new event
+ * Copies participants from a series to an event
+ * @param seriesId The ID of the series
+ * @param eventId The ID of the event
+ * @returns Promise with the result
+ */
+export const copySeriesParticipantsToEvent = async (seriesId: string, eventId: string): Promise<boolean> => {
+  try {
+    // First get all series participants
+    const { data: seriesParticipants, error: seriesError } = await supabase
+      .from('series_participants')
+      .select('user_id')
+      .eq('series_id', seriesId)
+      .eq('status', 'active');
+
+    if (seriesError) {
+      console.error('Error fetching series participants:', seriesError);
+      throw seriesError;
+    }
+
+    if (!seriesParticipants || seriesParticipants.length === 0) {
+      return true; // No participants to copy
+    }
+
+    // Create event participants for each series participant
+    const eventParticipants = seriesParticipants.map(participant => ({
+      event_id: eventId,
+      user_id: participant.user_id,
+      registration_date: new Date().toISOString(),
+      status: 'registered' as const
+    }));
+
+    const { error: insertError } = await supabase
+      .from('event_participants')
+      .insert(eventParticipants);
+
+    if (insertError) {
+      console.error('Error copying participants to event:', insertError);
+      throw insertError;
+    }
+
+    return true;
+  } catch (error) {
+    console.error('Error in copySeriesParticipantsToEvent:', error);
+    throw error;
+  }
+};
+
+/**
+ * Creates a new event and associates it with a series
  * @param eventData The event data
+ * @param seriesId The ID of the series to associate the event with
  * @returns Promise with the created event
  */
-export const createEvent = async (eventData: Omit<Event, 'id' | 'created_at' | 'updated_at'>): Promise<Event> => {
+export const createEvent = async (
+  eventData: Omit<Event, 'id' | 'created_at' | 'updated_at'>,
+  seriesId: string
+): Promise<Event> => {
   try {
-    const { data, error } = await supabase
+    // Start a transaction
+    const { data: newEvent, error: eventError } = await supabase
       .from('events')
       .insert([eventData])
       .select()
       .single();
 
-    if (error) {
-      console.error('Error creating event:', error);
-      throw error;
+    if (eventError) {
+      console.error('Error creating event:', eventError);
+      throw eventError;
     }
 
-    return data as unknown as Event;
+    if (!newEvent) {
+      throw new Error('No event data returned after creation');
+    }
+
+    const createdEvent = newEvent as unknown as Event;
+
+    // Get the current highest event_order for this series
+    const { data: maxOrderData } = await supabase
+      .from('series_events')
+      .select('event_order')
+      .eq('series_id', seriesId)
+      .order('event_order', { ascending: false })
+      .limit(1)
+      .single();
+
+    const nextOrder = ((maxOrderData?.event_order as number) || 0) + 1;
+
+    // Create the series_events entry
+    const { error: seriesEventError } = await supabase
+      .from('series_events')
+      .insert([{
+        series_id: seriesId,
+        event_id: createdEvent.id,
+        event_order: nextOrder
+      }]);
+
+    if (seriesEventError) {
+      console.error('Error creating series event:', seriesEventError);
+      // Rollback by deleting the event
+      await supabase.from('events').delete().eq('id', createdEvent.id);
+      throw seriesEventError;
+    }
+
+    // Copy series participants to the event
+    await copySeriesParticipantsToEvent(seriesId, createdEvent.id);
+
+    return createdEvent;
   } catch (error) {
     console.error('Error in createEvent:', error);
     throw error;

@@ -30,15 +30,13 @@ import ClearIcon from '@mui/icons-material/Clear';
 import EditIcon from '@mui/icons-material/Edit';
 import PersonIcon from '@mui/icons-material/Person';
 import Link from 'next/link';
-import { fetchAllUsers, User } from '@/services/admin/userService';
-
-type UserWithProfile = User;  // Since User already includes profile
+import { getProfilesWithEmail, type ProfileWithEmail } from '@/lib/profileService';
 
 export default function UsersManagement() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('md'));
-  const [users, setUsers] = useState<UserWithProfile[]>([]);
-  const [filteredUsers, setFilteredUsers] = useState<UserWithProfile[]>([]);
+  const [users, setUsers] = useState<ProfileWithEmail[]>([]);
+  const [filteredUsers, setFilteredUsers] = useState<ProfileWithEmail[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(0);
@@ -50,9 +48,9 @@ export default function UsersManagement() {
       try {
         setLoading(true);
         setError(null);
-        const usersData = await fetchAllUsers();
-        setUsers(usersData);
-        setFilteredUsers(usersData);
+        const profiles = await getProfilesWithEmail();
+        setUsers(profiles);
+        setFilteredUsers(profiles);
       } catch (error: any) {
         console.error('Error loading users:', error);
         setError(error.message || 'Failed to load users. Please try again later.');
@@ -72,10 +70,10 @@ export default function UsersManagement() {
     } else {
       const query = searchQuery.toLowerCase();
       const filtered = users.filter(user => 
-        user.email.toLowerCase().includes(query) || 
-        (user.profile?.first_name && user.profile.first_name.toLowerCase().includes(query)) ||
-        (user.profile?.last_name && user.profile.last_name.toLowerCase().includes(query)) ||
-        (user.profile?.display_name && user.profile.display_name.toLowerCase().includes(query))
+        (user.user_email || '').toLowerCase().includes(query) || 
+        (user.first_name || '').toLowerCase().includes(query) ||
+        (user.last_name || '').toLowerCase().includes(query) ||
+        (user.username || '').toLowerCase().includes(query)
       );
       setFilteredUsers(filtered);
     }
@@ -99,7 +97,7 @@ export default function UsersManagement() {
     setSearchQuery('');
   };
 
-  const getInitials = (firstName?: string, lastName?: string) => {
+  const getInitials = (firstName: string | null, lastName: string | null) => {
     if (!firstName && !lastName) return '?';
     return `${firstName?.[0] || ''}${lastName?.[0] || ''}`.toUpperCase();
   };
@@ -199,176 +197,97 @@ export default function UsersManagement() {
                         <ClearIcon />
                       </IconButton>
                     </InputAdornment>
-                  )
+                  ),
                 }}
-                variant="outlined"
-                size="small"
-                sx={{
-                  '& .MuiOutlinedInput-root': {
-                    borderRadius: 2,
-                    backgroundColor: theme.palette.background.paper
-                  }
-                }}
+                sx={{ maxWidth: 500 }}
               />
             </Box>
-            
+
             {loading ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
                 <CircularProgress />
               </Box>
             ) : (
               <>
-                {/* Desktop View */}
-                {!isMobile && (
-                  <TableContainer>
-                    <Table sx={{ minWidth: 650 }} aria-label="users table">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>Name</TableCell>
-                          <TableCell>Email</TableCell>
-                          <TableCell>Role</TableCell>
-                          <TableCell>Created</TableCell>
-                          <TableCell align="right">Actions</TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {filteredUsers.length === 0 ? (
+                {filteredUsers.length === 0 ? (
+                  <Box sx={{ textAlign: 'center', py: 4 }}>
+                    <Typography color="textSecondary">
+                      {searchQuery ? 'No users found matching your search.' : 'No users found.'}
+                    </Typography>
+                  </Box>
+                ) : (
+                  <>
+                    <TableContainer>
+                      <Table>
+                        <TableHead>
                           <TableRow>
-                            <TableCell colSpan={5} align="center">
-                              <Box sx={{ py: 3 }}>
-                                <Typography color="text.secondary">
-                                  No users found
-                                </Typography>
-                              </Box>
-                            </TableCell>
+                            <TableCell>User</TableCell>
+                            <TableCell>Email</TableCell>
+                            <TableCell>Role</TableCell>
+                            <TableCell>Status</TableCell>
+                            <TableCell align="right">Actions</TableCell>
                           </TableRow>
-                        ) : (
-                          filteredUsers
+                        </TableHead>
+                        <TableBody>
+                          {filteredUsers
                             .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                            .map(user => (
-                              <TableRow 
-                                key={user.id}
-                                hover
-                                sx={{
-                                  '&:last-child td, &:last-child th': { border: 0 }
-                                }}
-                              >
+                            .map((user) => (
+                              <TableRow key={user.id}>
                                 <TableCell>
                                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                    <Avatar sx={{ bgcolor: theme.palette.primary.light, width: 32, height: 32 }}>
-                                      {getInitials(user.profile?.first_name, user.profile?.last_name)}
+                                    <Avatar sx={{ bgcolor: theme.palette.primary.main }}>
+                                      {getInitials(user.first_name, user.last_name)}
                                     </Avatar>
-                                    <Typography>
-                                      {user.profile ? 
-                                        `${user.profile.first_name} ${user.profile.last_name}` : 
-                                        'No profile'}
-                                    </Typography>
+                                    <Box>
+                                      <Typography variant="subtitle2">
+                                        {user.first_name} {user.last_name}
+                                      </Typography>
+                                      <Typography variant="body2" color="textSecondary">
+                                        {user.username || 'No username'}
+                                      </Typography>
+                                    </Box>
                                   </Box>
                                 </TableCell>
-                                <TableCell>{user.email}</TableCell>
+                                <TableCell>{user.user_email || 'No email'}</TableCell>
                                 <TableCell>
                                   <Chip 
-                                    label={user.profile?.role || 'User'} 
-                                    color={getRoleColor(user.profile?.role)} 
+                                    label={user.is_admin ? 'Admin' : 'User'}
+                                    color={user.is_admin ? 'primary' : 'default'}
                                     size="small"
-                                    sx={{ minWidth: 80 }}
                                   />
                                 </TableCell>
                                 <TableCell>
-                                  {new Date(user.created_at).toLocaleDateString()}
+                                  <Chip 
+                                    label="Active"
+                                    color="success"
+                                    size="small"
+                                  />
                                 </TableCell>
                                 <TableCell align="right">
                                   <IconButton
                                     component={Link}
                                     href={`/admin/users/${user.id}/edit`}
-                                    size="small"
                                     color="primary"
+                                    size="small"
                                   >
-                                    <EditIcon fontSize="small" />
+                                    <EditIcon />
                                   </IconButton>
                                 </TableCell>
                               </TableRow>
-                            ))
-                        )}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                )}
-
-                {/* Mobile View */}
-                {isMobile && (
-                  <Grid container spacing={2}>
-                    {filteredUsers.length === 0 ? (
-                      <Grid item xs={12}>
-                        <Box sx={{ 
-                          py: 4, 
-                          textAlign: 'center',
-                          color: 'text.secondary'
-                        }}>
-                          <PersonIcon sx={{ fontSize: 48, opacity: 0.5, mb: 1 }} />
-                          <Typography>No users found</Typography>
-                        </Box>
-                      </Grid>
-                    ) : (
-                      filteredUsers
-                        .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
-                        .map(user => (
-                          <Grid item xs={12} key={user.id}>
-                            <Card>
-                              <CardContent>
-                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-                                  <Avatar sx={{ bgcolor: theme.palette.primary.light }}>
-                                    {getInitials(user.profile?.first_name, user.profile?.last_name)}
-                                  </Avatar>
-                                  <Box sx={{ flex: 1 }}>
-                                    <Typography variant="subtitle1" component="div">
-                                      {user.profile ? 
-                                        `${user.profile.first_name} ${user.profile.last_name}` : 
-                                        'No profile'}
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                      {user.email}
-                                    </Typography>
-                                  </Box>
-                                  <IconButton
-                                    component={Link}
-                                    href={`/admin/users/${user.id}/edit`}
-                                    size="small"
-                                    color="primary"
-                                  >
-                                    <EditIcon fontSize="small" />
-                                  </IconButton>
-                                </Box>
-                                <Divider />
-                                <Box sx={{ mt: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <Chip 
-                                    label={user.profile?.role || 'User'} 
-                                    color={getRoleColor(user.profile?.role)} 
-                                    size="small"
-                                  />
-                                  <Typography variant="body2" color="text.secondary">
-                                    Created: {new Date(user.created_at).toLocaleDateString()}
-                                  </Typography>
-                                </Box>
-                              </CardContent>
-                            </Card>
-                          </Grid>
-                        ))
-                    )}
-                  </Grid>
-                )}
-
-                {filteredUsers.length > 0 && (
-                  <TablePagination
-                    component="div"
-                    count={filteredUsers.length}
-                    page={page}
-                    onPageChange={handleChangePage}
-                    rowsPerPage={rowsPerPage}
-                    onRowsPerPageChange={handleChangeRowsPerPage}
-                    rowsPerPageOptions={[5, 10, 25]}
-                    sx={{ mt: 2 }}
-                  />
+                            ))}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                    <TablePagination
+                      rowsPerPageOptions={[5, 10, 25]}
+                      component="div"
+                      count={filteredUsers.length}
+                      rowsPerPage={rowsPerPage}
+                      page={page}
+                      onPageChange={handleChangePage}
+                      onRowsPerPageChange={handleChangeRowsPerPage}
+                    />
+                  </>
                 )}
               </>
             )}

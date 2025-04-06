@@ -1,7 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
-import { createUser } from '@/services/admin/userService';
+import { createProfile, type CreateProfileData } from '@/lib/profileService';
 
 export async function GET(request: Request) {
   try {
@@ -156,8 +156,19 @@ export async function POST(request: Request) {
       );
     }
 
-    // Create the user
-    const user = await createUser(email, password, profile);
+    // Create the user and profile
+    const profileData: CreateProfileData = {
+      email,
+      password,
+      username: profile.username,
+      first_name: profile.first_name,
+      last_name: profile.last_name,
+      is_admin: profile.is_admin,
+      handicap: profile.handicap,
+      multiple_clubs_sets: profile.multiple_clubs_sets
+    };
+
+    const user = await createProfile(profileData);
 
     return NextResponse.json({ user });
   } catch (error: any) {

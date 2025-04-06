@@ -30,6 +30,7 @@ import EventIcon from '@mui/icons-material/Event';
 import Link from 'next/link';
 import { useRouter } from 'next/router';
 import { useAuth } from '@/contexts/AuthContext';
+import PeopleIcon from '@mui/icons-material/People';
 
 interface AdminLayoutProps {
   children: ReactNode;
@@ -62,11 +63,8 @@ const AdminLayout: React.FC<AdminLayoutProps> = ({ children }) => {
   };
 
   const menuItems = [
-    { text: 'Dashboard', icon: <DashboardIcon />, href: '/admin' },
     { text: 'Courses', icon: <GolfCourseIcon />, href: '/admin/courses' },
-    { text: 'Series', icon: <EmojiEventsIcon />, href: '/admin/series' },
-    { text: 'Events', icon: <EventIcon />, href: '/admin/events' },
-    { text: 'Settings', icon: <SettingsIcon />, href: '/admin/settings' },
+    { text: 'Users', icon: <PeopleIcon />, href: '/admin/users' },
   ];
 
   // Show loading state while checking authentication

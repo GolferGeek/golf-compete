@@ -57,12 +57,8 @@ export default function AdminLayout({
     const path = window.location.pathname;
     if (path.includes('/admin/courses')) {
       setActiveTab(0);
-    } else if (path.includes('/admin/series')) {
-      setActiveTab(1);
-    } else if (path.includes('/admin/events')) {
-      setActiveTab(2);
     } else if (path.includes('/admin/users')) {
-      setActiveTab(3);
+      setActiveTab(1);
     } else {
       // Default to courses tab for the dashboard
       setActiveTab(0);
@@ -79,12 +75,6 @@ export default function AdminLayout({
         router.push('/admin/courses');
         break;
       case 1:
-        router.push('/admin/series');
-        break;
-      case 2:
-        router.push('/admin/events');
-        break;
-      case 3:
         router.push('/admin/users');
         break;
       default:
@@ -200,26 +190,8 @@ export default function AdminLayout({
               }}
             />
             <Tab 
-              icon={<EmojiEventsIcon />} 
-              label={isMobile ? undefined : "Series"} 
-              iconPosition="start"
-              sx={{ 
-                minWidth: isMobile ? 'auto' : '120px',
-                px: isMobile ? 1 : 2
-              }}
-            />
-            <Tab 
-              icon={<EventIcon />} 
-              label={isMobile ? undefined : "Events"} 
-              iconPosition="start"
-              sx={{ 
-                minWidth: isMobile ? 'auto' : '120px',
-                px: isMobile ? 1 : 2
-              }}
-            />
-            <Tab 
-              icon={<PeopleIcon />} 
-              label={isMobile ? undefined : "Users"} 
+              icon={<PeopleIcon />}
+              label={isMobile ? undefined : "Users"}
               iconPosition="start"
               sx={{ 
                 minWidth: isMobile ? 'auto' : '120px',

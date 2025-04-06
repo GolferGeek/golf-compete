@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { supabaseClient as supabase } from '@/lib/auth';
 import { Box, Typography, Paper, CircularProgress } from '@mui/material';
 import Scorecard from '@/components/events/Scorecard';
+import { EventAuthGuard } from '@/components/auth/EventAuthGuard';
 
 interface Round {
   id: string;
@@ -127,28 +128,30 @@ export default function EventScoringPage() {
     };
   }, [eventId]);
 
-  if (loading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
-
-  if (error) {
-    return (
-      <Box sx={{ p: 4 }}>
-        <Typography color="error">{error}</Typography>
-      </Box>
-    );
-  }
+  const content = (
+    <Box sx={{ maxWidth: 1200, mx: 'auto', p: 2 }}>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      ) : error ? (
+        <Box sx={{ p: 4 }}>
+          <Typography color="error">{error}</Typography>
+        </Box>
+      ) : (
+        <>
+          <Typography variant="h4" gutterBottom>Event Scorecard</Typography>
+          <Paper sx={{ p: 3 }}>
+            <Scorecard rounds={rounds} />
+          </Paper>
+        </>
+      )}
+    </Box>
+  );
 
   return (
-    <Box sx={{ maxWidth: 1200, mx: 'auto', p: 2 }}>
-      <Typography variant="h4" gutterBottom>Event Scorecard</Typography>
-      <Paper sx={{ p: 3 }}>
-        <Scorecard rounds={rounds} />
-      </Paper>
-    </Box>
+    <EventAuthGuard eventId={eventId}>
+      {content}
+    </EventAuthGuard>
   );
 } 

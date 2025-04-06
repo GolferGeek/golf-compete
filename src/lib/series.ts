@@ -123,6 +123,17 @@ export async function createSeries(seriesData: Omit<Series, 'id' | 'created_at' 
     console.error('Error creating series:', error);
     throw error;
   }
+
+  // Add the creator as an admin participant
+  if (data) {
+    const series = assertType<Series>(data);
+    try {
+      await addParticipantToSeries(series.id, seriesData.created_by, 'admin');
+    } catch (participantError) {
+      console.error('Error adding creator as admin participant:', participantError);
+      // Don't throw here - the series was created successfully
+    }
+  }
   
   return assertType<Series>(data);
 }
