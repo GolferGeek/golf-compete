@@ -272,39 +272,51 @@ export default function Navbar() {
             )}
           </Box>
 
-          {/* User Menu - Always Visible */}
+          {/* User Menu or Login Button */}
           <Box sx={{ flexGrow: 0 }}>
-            <Tooltip title="Account menu">
-              <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                {mounted && user ? (
-                  <Avatar sx={{ bgcolor: 'primary.main' }}>
-                    {getUserInitials()}
-                  </Avatar>
-                ) : (
-                  <Avatar sx={{ bgcolor: 'grey.300' }}>
-                    <PersonIcon color="action" />
-                  </Avatar>
-                )}
-              </IconButton>
-            </Tooltip>
-            <Menu
-              sx={{ mt: '45px' }}
-              id="menu-appbar-user"
-              anchorEl={anchorElUser}
-              anchorOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-              keepMounted
-              transformOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-              open={Boolean(anchorElUser)}
-              onClose={handleCloseUserMenu}
-            >
-              {getUserMenuItems()}
-            </Menu>
+            {mounted && user ? (
+              <>
+                <Tooltip title="Account menu">
+                  <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+                    <Avatar sx={{ bgcolor: 'primary.main' }}>
+                      {getUserInitials()}
+                    </Avatar>
+                  </IconButton>
+                </Tooltip>
+                <Menu
+                  sx={{ mt: '45px' }}
+                  id="menu-appbar-user"
+                  anchorEl={anchorElUser}
+                  anchorOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                  }}
+                  keepMounted
+                  transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                  }}
+                  open={Boolean(anchorElUser)}
+                  onClose={handleCloseUserMenu}
+                >
+                  {getUserMenuItems()}
+                </Menu>
+              </>
+            ) : (
+              <Button
+                component={Link}
+                href="/auth/login"
+                variant="text"
+                sx={{ 
+                  color: 'text.primary',
+                  '&:hover': {
+                    color: 'primary.main',
+                  }
+                }}
+              >
+                Log in
+              </Button>
+            )}
           </Box>
         </Toolbar>
       </Container>
