@@ -16,6 +16,7 @@ import {
 } from '@mui/material'
 import { signUpWithEmail, signInWithGoogle } from '@/lib/supabase'
 import { AuthError } from '@supabase/supabase-js'
+import { getBrowserClient } from '@/lib/supabase-browser'
 
 export default function SignUpPage() {
   const [email, setEmail] = useState('')
@@ -56,22 +57,36 @@ export default function SignUpPage() {
     setIsLoading(true)
 
     try {
-      const { data, error } = await signUpWithEmail(email, password)
+      const supabase = getBrowserClient()
+      
+      if (!supabase) {
+        throw new Error('Failed to initialize Supabase client')
+      }
+
+      const { data, error } = await signUpWithEmail(supabase as any, email, password)
       
       if (error) {
         throw error
       }
 
       if (data.user) {
-        setSuccess('Account created successfully! Redirecting to onboarding...')
+        setSuccess('Account created successfully! Please check your email for confirmation.')
         // Wait a moment before redirecting to show success message
         setTimeout(() => {
-          router.push('/onboarding')
+          router.push('/auth/login')
         }, 2000)
+      } else {
+        throw new Error('No user data returned from sign up')
       }
     } catch (error: unknown) {
       console.error('Signup error:', error)
-      setError(error instanceof AuthError ? error.message : 'Failed to sign up')
+      if (error instanceof AuthError) {
+        setError(error.message)
+      } else if (error instanceof Error) {
+        setError(error.message)
+      } else {
+        setError('Failed to sign up. Please try again.')
+      }
     } finally {
       setIsLoading(false)
     }
@@ -83,7 +98,13 @@ export default function SignUpPage() {
     setIsGoogleLoading(true)
 
     try {
-      const { error } = await signInWithGoogle()
+      const supabase = getBrowserClient()
+      
+      if (!supabase) {
+        throw new Error('Failed to initialize Supabase client')
+      }
+
+      const { error } = await signInWithGoogle(supabase as any)
       
       if (error) {
         throw error
@@ -92,7 +113,13 @@ export default function SignUpPage() {
       // The redirect will happen automatically
     } catch (error: unknown) {
       console.error('Google signup error:', error)
-      setError(error instanceof AuthError ? error.message : 'Failed to sign up with Google')
+      if (error instanceof AuthError) {
+        setError(error.message)
+      } else if (error instanceof Error) {
+        setError(error.message)
+      } else {
+        setError('Failed to sign up with Google. Please try again.')
+      }
       setIsGoogleLoading(false)
     }
   }

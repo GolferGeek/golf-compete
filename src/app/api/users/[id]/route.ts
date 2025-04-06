@@ -1,6 +1,7 @@
 import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
 
 export async function GET(
   request: Request,
@@ -200,6 +201,54 @@ export async function PATCH(
         error: error instanceof Error ? error.message : 'Internal server error',
         details: error instanceof Error ? error.stack : undefined
       },
+      { status: 500 }
+    );
+  }
+}
+
+// Initialize Supabase admin client with service role key
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const userId = params.id;
+
+    // First delete the user's profile
+    const { error: profileError } = await supabaseAdmin
+      .from('profiles')
+      .delete()
+      .eq('id', userId);
+
+    if (profileError) {
+      console.error('Error deleting user profile:', profileError);
+      return NextResponse.json(
+        { error: `Failed to delete user profile: ${profileError.message}` },
+        { status: 500 }
+      );
+    }
+
+    // Then delete the user from auth
+    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+
+    if (authError) {
+      console.error('Error deleting auth user:', authError);
+      return NextResponse.json(
+        { error: `Failed to delete auth user: ${authError.message}` },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error in DELETE /api/users/[id]:', error);
+    return NextResponse.json(
+      { error: 'Failed to delete user' },
       { status: 500 }
     );
   }

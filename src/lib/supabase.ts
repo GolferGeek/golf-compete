@@ -129,7 +129,11 @@ export const signInWithEmail = async (email: string, password: string, client: R
   }
 }
 
-export const signUpWithEmail = async (client: ReturnType<typeof createClient>, email: string, password: string) => {
+export const signUpWithEmail = async (
+  client: ReturnType<typeof createClient>,
+  email: string,
+  password: string
+) => {
   try {
     const result = await client.auth.signUp({
       email,
