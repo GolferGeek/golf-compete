@@ -1,4 +1,4 @@
-import { supabase } from '@/lib/supabase';
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 
 // Internal types
 interface CreateUserData {
@@ -9,6 +9,7 @@ interface CreateUserData {
 // This service should ONLY be used internally by profileService
 // Private/Internal functions
 async function deleteAuthUser(userId: string) {
+  const supabase = getSupabaseBrowserClient();
   // First check if the user exists
   const { data: { user }, error: fetchError } = await supabase.auth.admin.getUserById(userId);
   if (fetchError) throw fetchError;
@@ -19,6 +20,7 @@ async function deleteAuthUser(userId: string) {
 }
 
 async function createAuthUser({ email, password }: CreateUserData) {
+  const supabase = getSupabaseBrowserClient();
   const { data, error } = await supabase.auth.signUp({
     email,
     password,

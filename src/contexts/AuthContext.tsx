@@ -1,28 +1,12 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { User, Session } from '@supabase/supabase-js'
-import { getUserProfile } from '@/lib/supabase'
-import { getBrowserClient } from '@/lib/supabase-browser'
+import { Session } from '@supabase/supabase-js'
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
 import { useRouter } from 'next/navigation'
-
-export type Profile = {
-  id: string
-  first_name?: string
-  last_name?: string
-  username?: string
-  handicap?: number
-  multiple_clubs_sets?: boolean
-  is_admin?: boolean
-  created_at?: string
-  updated_at?: string
-  openai_api_key?: string
-  use_own_openai_key?: boolean
-  ai_assistant_enabled?: boolean
-}
+import { getCurrentProfile, type Profile } from '@/lib/profileService'
 
 type AuthContextType = {
-  user: User | null
   profile: Profile | null
   session: Session | null
   isLoading: boolean
@@ -32,7 +16,6 @@ type AuthContextType = {
 
 // Create a default context value to avoid hydration mismatch
 const defaultContextValue: AuthContextType = {
-  user: null,
   profile: null,
   session: null,
   isLoading: true,
@@ -43,59 +26,33 @@ const defaultContextValue: AuthContextType = {
 const AuthContext = createContext<AuthContextType>(defaultContextValue)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
   const [profile, setProfile] = useState<Profile | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [hasInitialized, setHasInitialized] = useState(false)
   const router = useRouter()
 
-  // Function to fetch user profile
-  const fetchUserProfile = async (userId: string): Promise<Profile | null> => {
+  // Function to fetch current profile
+  const fetchCurrentProfile = async () => {
     try {
-      const { data, error } = await getUserProfile(userId)
-      
-      if (error) {
-        console.error('Error fetching user profile:', error)
-        return null
-      }
-      
-      if (!data || typeof data.id !== 'string') return null
-
-      // Ensure the data matches the Profile type
-      const profileData: Profile = {
-        id: data.id,
-        first_name: typeof data.first_name === 'string' ? data.first_name : undefined,
-        last_name: typeof data.last_name === 'string' ? data.last_name : undefined,
-        username: typeof data.username === 'string' ? data.username : undefined,
-        handicap: typeof data.handicap === 'number' ? data.handicap : undefined,
-        multiple_clubs_sets: typeof data.multiple_clubs_sets === 'boolean' ? data.multiple_clubs_sets : undefined,
-        is_admin: typeof data.is_admin === 'boolean' ? data.is_admin : undefined,
-        created_at: typeof data.created_at === 'string' ? data.created_at : undefined,
-        updated_at: typeof data.updated_at === 'string' ? data.updated_at : undefined,
-        openai_api_key: typeof data.openai_api_key === 'string' ? data.openai_api_key : undefined,
-        use_own_openai_key: typeof data.use_own_openai_key === 'boolean' ? data.use_own_openai_key : undefined,
-        ai_assistant_enabled: typeof data.ai_assistant_enabled === 'boolean' ? data.ai_assistant_enabled : undefined
-      }
-      
+      const profileData = await getCurrentProfile()
+      setProfile(profileData)
       return profileData
     } catch (error) {
-      console.error('Unexpected error fetching profile:', error)
+      console.error('Error fetching current profile:', error)
       return null
     }
   }
 
-  // Function to refresh user profile
+  // Function to refresh profile
   const refreshProfile = async () => {
-    if (!user) {
-      console.log('Cannot refresh profile: No user')
+    if (!session?.user) {
+      console.log('Cannot refresh profile: No session')
       return
     }
     
     try {
-      const profileData = await fetchUserProfile(user.id)
-      if (profileData) {
-        setProfile(profileData)
-      }
+      await fetchCurrentProfile()
     } catch (error) {
       console.error('Error refreshing profile:', error)
     }
@@ -104,23 +61,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Function to sign out
   const signOut = async () => {
     try {
-      const supabase = getBrowserClient()
-      if (!supabase) {
-        console.error('Supabase client not initialized')
-        return
-      }
-
-      console.log('Signing out user...')
+      const supabase = getSupabaseBrowserClient()
+      
+      console.log('Signing out...')
       
       // Clear local state first
-      setUser(null)
       setProfile(null)
       setSession(null)
       
       // Clear any local storage items
       if (typeof window !== 'undefined') {
         console.log('Clearing local storage items...')
-        localStorage.clear() // Clear all local storage items
+        localStorage.clear()
       }
       
       // Now call the Supabase signOut
@@ -133,8 +85,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       console.log('Successfully signed out')
       
-      // Redirect to home page
-      router.push('/')
+      // Redirect to home page using replace to prevent back button issues
+      router.replace('/')
     } catch (error) {
       console.error('Unexpected error signing out:', error)
     }
@@ -143,17 +95,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Initialize auth state
   useEffect(() => {
     const initializeAuth = async () => {
+      if (hasInitialized) return
+
       try {
-        // Remove console log to reduce noise
-        // console.log('Initializing auth state...')
+        setIsLoading(true)
         
-        // Get the Supabase client
-        const supabase = getBrowserClient()
-        if (!supabase) {
-          console.error('Failed to initialize Supabase client')
-          setIsLoading(false)
-          return
-        }
+        const supabase = getSupabaseBrowserClient()
         
         // Get initial session
         const { data: { session }, error } = await supabase.auth.getSession()
@@ -161,6 +108,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) {
           console.error('Error getting session:', error)
           setIsLoading(false)
+          setHasInitialized(true)
           return
         }
         
@@ -173,50 +121,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           
           if (refreshError) {
             console.error('Error refreshing session:', refreshError)
-            // Clear any stale session data
             setSession(null)
-            setUser(null)
             setProfile(null)
             setIsLoading(false)
+            setHasInitialized(true)
             return
           }
           
           if (refreshData.session) {
             console.log('Session refreshed successfully')
             setSession(refreshData.session)
-            setUser(refreshData.session.user)
-            
-            const profileData = await fetchUserProfile(refreshData.session.user.id)
-            if (profileData) {
-              setProfile(profileData)
-            }
+            await fetchCurrentProfile()
           }
         } else {
-          // No session found
           setSession(null)
-          setUser(null)
           setProfile(null)
         }
 
         // Set up auth state listener
-        const { data: { subscription } } = await supabase.auth.onAuthStateChange(
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(
           async (event, session) => {
+            console.log('Auth state changed:', event)
+            
             if (event === 'SIGNED_OUT') {
-              // Clear all state
               setSession(null)
-              setUser(null)
               setProfile(null)
               return
             }
             
             if (session) {
               setSession(session)
-              setUser(session.user)
-              
-              const profileData = await fetchUserProfile(session.user.id)
-              if (profileData) {
-                setProfile(profileData)
-              }
+              await fetchCurrentProfile()
             }
           }
         )
@@ -228,16 +163,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.error('Error initializing auth:', error)
       } finally {
         setIsLoading(false)
+        setHasInitialized(true)
       }
     }
 
     initializeAuth()
-  }, [router])
+  }, [hasInitialized, router])
 
   return (
     <AuthContext.Provider
       value={{
-        user,
         profile,
         session,
         isLoading,

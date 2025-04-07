@@ -10,24 +10,34 @@ type ProtectedRouteProps = {
 }
 
 export default function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { user, isLoading, profile } = useAuth()
+  const { profile, isLoading, session } = useAuth()
   const router = useRouter()
-  const pathname = usePathname()
+  const pathname = usePathname() || '/'
 
   useEffect(() => {
-    // If not loading and no user, redirect to login
-    if (!isLoading && !user) {
+    console.log('ProtectedRoute state:', {
+      isLoading,
+      hasSession: !!session,
+      hasProfile: !!profile,
+      pathname,
+      profileId: profile?.id
+    })
+
+    // If not loading and no session, redirect to login
+    if (!isLoading && !session) {
+      console.log('No session, redirecting to login')
       router.push(`/auth/login?redirect=${encodeURIComponent(pathname)}`)
       return
     }
 
-    // If user exists but no profile, redirect to onboarding
+    // If session exists but no profile, redirect to onboarding
     // Skip this check on the onboarding page itself
-    if (!isLoading && user && !profile && !pathname.includes('/onboarding')) {
+    if (!isLoading && session && !profile && !pathname.includes('/onboarding')) {
+      console.log('Session exists but no profile, redirecting to onboarding')
       router.push('/onboarding')
       return
     }
-  }, [user, isLoading, router, pathname, profile])
+  }, [session, isLoading, router, pathname, profile])
 
   // Show loading state while checking authentication
   if (isLoading) {
@@ -38,8 +48,8 @@ export default function ProtectedRoute({ children }: ProtectedRouteProps) {
     )
   }
 
-  // If not loading and has user, render children
-  if (!isLoading && user) {
+  // If not loading and has session, render children
+  if (!isLoading && session) {
     return <>{children}</>
   }
 

@@ -5,6 +5,9 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
 
+console.log('Initializing Supabase client with URL:', supabaseUrl);
+console.log('Using service role key:', !!supabaseServiceKey);
+
 // Create a custom storage object that safely handles server-side rendering
 const customStorage = {
   getItem: (key: string) => {
@@ -52,6 +55,7 @@ const customStorage = {
 let supabase: ReturnType<typeof createClient>;
 
 if (supabaseUrl && supabaseServiceKey) {
+  console.log('Creating Supabase client with service role key');
   // Use service role key for server-side operations (bypasses RLS)
   supabase = createClient(supabaseUrl, supabaseServiceKey, {
     auth: {
@@ -62,6 +66,7 @@ if (supabaseUrl && supabaseServiceKey) {
     },
   });
 } else if (supabaseUrl && supabaseAnonKey) {
+  console.log('Creating Supabase client with anon key');
   // Fallback to anon key if service role key is not available
   supabase = createClient(supabaseUrl, supabaseAnonKey, {
     auth: {
@@ -72,6 +77,7 @@ if (supabaseUrl && supabaseServiceKey) {
     },
   });
 } else {
+  console.warn('Missing Supabase credentials, creating mock client');
   // Create a mock client with methods that return appropriate errors
   // This prevents crashes during build/test when env vars aren't available
   const mockErrorMessage = 'Supabase client not initialized: Missing environment variables';
@@ -112,6 +118,21 @@ if (supabaseUrl && supabaseServiceKey) {
     console.warn(mockErrorMessage);
   }
 }
+
+// Test the connection
+(async () => {
+  try {
+    console.log('Testing Supabase connection...');
+    const { data, error } = await supabase.from('profiles').select('count').single();
+    if (error) {
+      console.error('Supabase connection test failed:', error);
+    } else {
+      console.log('Supabase connection test successful');
+    }
+  } catch (err) {
+    console.error('Error testing Supabase connection:', err);
+  }
+})();
 
 export { supabase };
 

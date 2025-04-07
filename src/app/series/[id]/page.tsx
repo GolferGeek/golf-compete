@@ -83,7 +83,18 @@ function SeriesDetailContent({ seriesId }: { seriesId: string }) {
   };
 
   const handleManageParticipants = () => {
-    router.push(`/series/${seriesId}/participants`);
+    try {
+      console.log('Navigating to participants page for series:', seriesId);
+      if (!seriesId) {
+        console.error('Series ID is missing');
+        setError('Cannot access participants page: Series ID is missing');
+        return;
+      }
+      router.push(`/series/${seriesId}/participants`);
+    } catch (error) {
+      console.error('Error navigating to participants page:', error);
+      setError('Failed to navigate to participants page. Please try again.');
+    }
   };
 
   if (loading) {

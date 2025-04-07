@@ -293,62 +293,51 @@ export async function removeParticipantFromEvent(participantId: string) {
 
 // Get event participants by user ID
 export async function getEventParticipantsByUserId(userId: string) {
-  // First get the event participant records
-  const { data: participantsData, error: participantsError } = await supabase
-    .from('event_participants')
-    .select(`
-      id,
-      user_id,
-      event_id,
-      status,
-      registration_date,
-      tee_time,
-      starting_hole,
-      group_number,
-      handicap_index
-    `)
-    .eq('user_id', userId);
+  console.log('Getting event participants for user:', userId);
+  
+  try {
+    // Get event participant records with user and event information
+    console.log('Fetching event participant records...');
+    const { data: participantsData, error: participantsError } = await supabase
+      .from('event_participants_with_users')
+      .select('*')
+      .eq('user_id', userId);
 
-  if (participantsError) {
-    console.error('Error fetching event participants by user ID:', participantsError);
-    throw participantsError;
+    if (participantsError) {
+      console.error('Error fetching event participants by user ID:', participantsError);
+      throw participantsError;
+    }
+
+    console.log('Participants data received:', participantsData);
+
+    if (!participantsData || participantsData.length === 0) {
+      console.log('No event participants found for user');
+      return [];
+    }
+
+    // Map the data to the expected format
+    const result = participantsData.map(participant => ({
+      id: participant.id,
+      user_id: participant.user_id,
+      event_id: participant.event_id,
+      status: participant.status,
+      registration_date: participant.registration_date,
+      tee_time: participant.tee_time,
+      starting_hole: participant.starting_hole,
+      group_number: participant.group_number,
+      handicap_index: participant.handicap_index,
+      name: participant.event_name,
+      description: participant.event_description,
+      event_date: participant.event_date,
+      event_format: participant.event_format,
+      event_status: participant.event_status,
+      course_id: participant.course_id
+    }));
+
+    console.log('Final mapped result:', result);
+    return result;
+  } catch (error) {
+    console.error('Unexpected error in getEventParticipantsByUserId:', error);
+    throw error;
   }
-
-  if (!participantsData || participantsData.length === 0) {
-    return [];
-  }
-
-  // Get the event details for each participant
-  const eventIds = participantsData.map(p => p.event_id);
-  const { data: eventsData, error: eventsError } = await supabase
-    .from('events')
-    .select(`
-      id,
-      name,
-      description,
-      event_date,
-      event_format,
-      status,
-      course_id
-    `)
-    .in('id', eventIds);
-
-  if (eventsError) {
-    console.error('Error fetching event details:', eventsError);
-    throw eventsError;
-  }
-
-  // Combine the data
-  return participantsData.map(participant => {
-    const event = eventsData.find(e => e.id === participant.event_id);
-    return {
-      ...participant,
-      name: event?.name || 'Unknown Event',
-      description: event?.description,
-      event_date: event?.event_date,
-      event_format: event?.event_format,
-      event_status: event?.status,
-      course_id: event?.course_id
-    };
-  });
 } 

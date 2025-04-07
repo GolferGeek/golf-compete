@@ -1031,7 +1031,48 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      series_participants_with_profiles: {
+        Row: {
+          id: string;
+          series_id: string;
+          user_id: string;
+          role: string;
+          status: string;
+          joined_at: string | null;
+          first_name: string | null;
+          last_name: string | null;
+          username: string | null;
+          handicap: number | null;
+          series_name: string;
+          series_description: string | null;
+          start_date: string;
+          end_date: string;
+          series_status: string;
+        };
+      };
+      event_participants_with_users: {
+        Row: {
+          id: string;
+          user_id: string;
+          event_id: string;
+          status: string;
+          registration_date: string;
+          tee_time: string | null;
+          starting_hole: number | null;
+          group_number: number | null;
+          handicap_index: number | null;
+          first_name: string | null;
+          last_name: string | null;
+          username: string | null;
+          handicap: number | null;
+          event_name: string;
+          event_description: string | null;
+          event_date: string;
+          event_format: string;
+          event_status: string;
+          course_id: string;
+        };
+      };
     }
     Functions: {
       is_admin: {

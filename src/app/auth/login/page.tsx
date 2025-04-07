@@ -1,9 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useRouter } from 'next/navigation'
-import { signInWithEmail, signInWithGoogle } from '@/lib/supabase'
-import { getBrowserClient } from '@/lib/supabase-browser'
+import { useRouter, useSearchParams } from 'next/navigation'
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
 import {
   Box,
   Button,
@@ -18,6 +17,7 @@ import {
 } from '@mui/material'
 import GoogleIcon from '@mui/icons-material/Google'
 import EmailIcon from '@mui/icons-material/Email'
+import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 
 export default function Login() {
@@ -26,21 +26,23 @@ export default function Login() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [checkingSession, setCheckingSession] = useState(true)
+  const [hasCheckedSession, setHasCheckedSession] = useState(false)
   const router = useRouter()
-  const { user } = useAuth()
+  const searchParams = useSearchParams()
+  const { profile, session, isLoading: authLoading } = useAuth()
+  const redirectPath = searchParams?.get('redirect') || '/dashboard'
 
   // Check if user is already logged in
   useEffect(() => {
     const checkSession = async () => {
+      // Prevent recursive checks
+      if (hasCheckedSession) {
+        return
+      }
+
       try {
         console.log('Checking for existing session...')
-        const supabase = getBrowserClient()
-        
-        if (!supabase) {
-          console.error('Failed to initialize Supabase client')
-          setCheckingSession(false)
-          return
-        }
+        const supabase = getSupabaseBrowserClient()
         
         // Clear any stale auth data first
         if (typeof window !== 'undefined') {
@@ -60,36 +62,59 @@ export default function Login() {
           }
         }
         
-        const { data, error } = await supabase.auth.getSession()
+        const { data: { session: currentSession }, error } = await supabase.auth.getSession()
         
         if (error) {
           console.error('Error checking session:', error)
           setCheckingSession(false)
+          setHasCheckedSession(true)
           return
         }
         
-        if (data?.session) {
-          console.log('Active session found, redirecting to dashboard')
-          router.push('/dashboard')
+        if (currentSession?.user) {
+          console.log('Active session found, checking for profile...')
+          // Wait for profile to be loaded
+          await new Promise(resolve => setTimeout(resolve, 500))
+          
+          if (profile) {
+            console.log('Profile found, redirecting to:', redirectPath)
+            router.replace(redirectPath)
+          } else {
+            console.log('No profile found, redirecting to onboarding')
+            router.replace('/onboarding')
+          }
           return
         }
         
-        console.log('No active session found, showing login form 2')
+        console.log('No active session found, showing login form')
         setCheckingSession(false)
+        setHasCheckedSession(true)
       } catch (err) {
         console.error('Unexpected error checking session:', err)
         setCheckingSession(false)
+        setHasCheckedSession(true)
       }
     }
 
-    // Only check session if we don't already have a user in context
-    if (user) {
-      console.log('User already in context, redirecting to dashboard')
-      router.push('/dashboard')
-    } else {
-      checkSession()
+    // Only check session if:
+    // 1. We haven't checked before
+    // 2. We're not already loading auth state
+    // 3. We don't already have a session and profile
+    if (!hasCheckedSession && !authLoading) {
+      if (session) {
+        console.log('Session already in context, checking profile...')
+        if (profile) {
+          console.log('Profile found, redirecting to:', redirectPath)
+          router.replace(redirectPath)
+        } else {
+          console.log('No profile found, redirecting to onboarding')
+          router.replace('/onboarding')
+        }
+      } else {
+        checkSession()
+      }
     }
-  }, [router, user])
+  }, [router, session, profile, redirectPath, hasCheckedSession, authLoading])
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -98,16 +123,12 @@ export default function Login() {
     
     try {
       console.log('Attempting email login...')
-      const supabase = getBrowserClient()
+      const supabase = getSupabaseBrowserClient()
       
-      if (!supabase) {
-        console.error('Failed to initialize Supabase client')
-        setError('Authentication service unavailable. Please try again later.')
-        setLoading(false)
-        return
-      }
-      
-      const { error } = await signInWithEmail(email, password, supabase as any)
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      })
       
       if (error) {
         console.error('Email login error:', error)
@@ -116,8 +137,22 @@ export default function Login() {
         return
       }
       
-      console.log('Email login successful, redirecting...')
-      router.push('/dashboard')
+      if (data.session) {
+        console.log('Email login successful, waiting for profile...')
+        // Wait for profile to be loaded
+        await new Promise(resolve => setTimeout(resolve, 500))
+        
+        if (profile) {
+          console.log('Profile found, redirecting to:', redirectPath)
+          router.push(redirectPath)
+        } else {
+          console.log('No profile found, redirecting to onboarding')
+          router.push('/onboarding')
+        }
+      } else {
+        setError('No session established after login. Please try again.')
+        setLoading(false)
+      }
     } catch (err) {
       console.error('Unexpected error during email login:', err)
       setError('An unexpected error occurred. Please try again.')
@@ -131,37 +166,43 @@ export default function Login() {
     
     try {
       console.log('Initiating Google login...')
-      const supabase = getBrowserClient()
-      
-      if (!supabase) {
-        console.error('Failed to initialize Supabase client')
-        setError('Authentication service unavailable. Please try again later.')
-        setLoading(false)
-        return
-      }
+      const supabase = getSupabaseBrowserClient()
       
       // Clear any existing session first
       await supabase.auth.signOut()
       
-      const { error } = await signInWithGoogle(supabase as any)
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
+        }
+      })
       
       if (error) {
         console.error('Google login error:', error)
-        // Use a generic error message to avoid type issues
         setError('Failed to sign in with Google. Please try again.')
         setLoading(false)
+        return
       }
       
-      // Note: We don't redirect here as the OAuth flow will handle that
+      if (!data.url) {
+        console.error('No OAuth URL returned')
+        setError('Failed to initiate Google sign in. Please try again.')
+        setLoading(false)
+        return
+      }
+      
+      // Redirect to the OAuth URL
+      window.location.href = data.url
     } catch (err) {
       console.error('Unexpected error during Google login:', err)
       setError('An unexpected error occurred. Please try again.')
       setLoading(false)
     }
-  }
-
-  const clearError = () => {
-    setError(null)
   }
 
   if (checkingSession) {
@@ -192,7 +233,7 @@ export default function Login() {
           <Alert 
             severity="error" 
             sx={{ mb: 3 }}
-            onClose={clearError}
+            onClose={() => setError(null)}
           >
             {error}
           </Alert>
@@ -266,19 +307,20 @@ export default function Login() {
         <Box sx={{ mt: 2, textAlign: 'center' }}>
           <Typography variant="body2">
             Don't have an account?{' '}
-            <MuiLink 
-              href="/auth/signup" 
-              sx={{ 
-                fontWeight: 'medium',
-                cursor: 'pointer',
-                textDecoration: 'none',
-                '&:hover': {
-                  textDecoration: 'underline',
-                }
-              }}
-            >
-              Sign up
-            </MuiLink>
+            <Link href="/auth/signup" style={{ textDecoration: 'none' }}>
+              <MuiLink 
+                component="span"
+                sx={{ 
+                  fontWeight: 'medium',
+                  cursor: 'pointer',
+                  '&:hover': {
+                    textDecoration: 'underline',
+                  }
+                }}
+              >
+                Sign up
+              </MuiLink>
+            </Link>
           </Typography>
         </Box>
       </Paper>

@@ -29,15 +29,22 @@ import {
   ListItemSecondaryAction,
   TextField,
   Autocomplete,
+  MenuItem,
+  Breadcrumbs,
+  Link as MuiLink,
 } from '@mui/material';
+import Link from 'next/link';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { getSeriesParticipants, inviteUsers, removeParticipant } from '@/services/competition/seriesParticipantService';
 import { SeriesParticipant } from '@/types/series';
 import { useAuth } from '@/contexts/AuthContext';
-import { getProfilesWithEmail, ProfileWithEmail } from '@/lib/profileService';
+import { getProfilesWithEmail, getProfilesNotInSeries, ProfileWithEmail } from '@/lib/profileService';
 import { Database } from '@/types/supabase';
 import { Profile } from '@/types/profile';
+import { getSeriesById } from '@/lib/series';
+import { format } from 'date-fns';
 
 type DbProfile = Database['public']['Tables']['profiles']['Row'];
 
@@ -62,8 +69,10 @@ export default function SeriesParticipantsManagement({
   const [participantToRemove, setParticipantToRemove] = useState<SeriesParticipant | null>(null);
   const [availableUsers, setAvailableUsers] = useState<{ id: string; label: string }[]>([]);
   const [selectedUsers, setSelectedUsers] = useState<{ id: string; label: string }[]>([]);
+  const [selectedRole, setSelectedRole] = useState<'participant' | 'admin'>('participant');
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isAddingUsers, setIsAddingUsers] = useState(false);
+  const [series, setSeries] = useState<any>(null);
 
   const loadParticipants = useCallback(async () => {
     if (!seriesId) {
@@ -76,9 +85,14 @@ export default function SeriesParticipantsManagement({
       setLoading(true);
       setError(null);
       console.log('Loading participants for series:', seriesId);
-      const data = await getSeriesParticipants(seriesId);
+      const [data, seriesData] = await Promise.all([
+        getSeriesParticipants(seriesId),
+        getSeriesById(seriesId)
+      ]);
       console.log('Loaded participants:', data);
+      console.log('Loaded series:', seriesData);
       setParticipants(data);
+      setSeries(seriesData);
       setError(null);
     } catch (err) {
       console.error('Error loading participants:', err);
@@ -90,21 +104,18 @@ export default function SeriesParticipantsManagement({
 
   const loadAvailableUsers = useCallback(async () => {
     try {
-      const profiles = await getProfilesWithEmail();
-      const currentParticipantIds = new Set(participants.map(p => p.user_id));
-      const availableUserOptions = profiles
-        .filter(profile => !currentParticipantIds.has(profile.id))
-        .map(profile => ({
-          id: profile.id,
-          label: `${profile.first_name || ''} ${profile.last_name || ''} (${profile.user_email || ''})`,
-        }));
+      const profiles = await getProfilesNotInSeries(seriesId);
+      const availableUserOptions = profiles.map(profile => ({
+        id: profile.id,
+        label: `${profile.first_name || ''} ${profile.last_name || ''} (${profile.user_email || ''})`,
+      }));
       setAvailableUsers(availableUserOptions);
       setError(null);
     } catch (err) {
       console.error('Error loading available users:', err);
       // Don't set error here as it's not critical for the main functionality
     }
-  }, [participants]);
+  }, [seriesId]);
 
   useEffect(() => {
     loadParticipants();
@@ -126,7 +137,7 @@ export default function SeriesParticipantsManagement({
     try {
       console.log('Adding users:', selectedUsers);
       const userIds = selectedUsers.map(user => user.id);
-      const result = await inviteUsers(seriesId, userIds);
+      const result = await inviteUsers(seriesId, userIds, selectedRole);
       
       console.log('Add users result:', result);
       
@@ -205,6 +216,34 @@ export default function SeriesParticipantsManagement({
 
   return (
     <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
+      <Box sx={{ mb: 3 }}>
+        <Breadcrumbs>
+          <MuiLink component={Link} href="/series" color="inherit">
+            Series
+          </MuiLink>
+          <MuiLink component={Link} href={`/series/${seriesId}`} color="inherit">
+            {series?.name || 'Series Details'}
+          </MuiLink>
+          <Typography color="text.primary">Participants</Typography>
+        </Breadcrumbs>
+      </Box>
+
+      {series && (
+        <Box sx={{ mb: 4 }}>
+          <Typography variant="h4" component="h1" gutterBottom>
+            {series.name}
+          </Typography>
+          <Typography variant="body1" color="text.secondary" gutterBottom>
+            {format(new Date(series.start_date), 'MMM d, yyyy')} - {format(new Date(series.end_date), 'MMM d, yyyy')}
+          </Typography>
+          {series.description && (
+            <Typography variant="body1" color="text.secondary" paragraph>
+              {series.description}
+            </Typography>
+          )}
+        </Box>
+      )}
+
       <Box sx={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
@@ -213,16 +252,26 @@ export default function SeriesParticipantsManagement({
         flexDirection: { xs: 'column', sm: 'row' },
         gap: { xs: 2, sm: 0 }
       }}>
-        <Typography variant="h4" component="h1">
-          Series Participants
+        <Typography variant="h5" component="h2">
+          Participants
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<PersonAddIcon />}
-          onClick={() => setInviteDialogOpen(true)}
-        >
-          Add Participants
-        </Button>
+        <Box sx={{ display: 'flex', gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<ArrowBackIcon />}
+            component={Link}
+            href={`/series/${seriesId}`}
+          >
+            Back to Series
+          </Button>
+          <Button
+            variant="contained"
+            startIcon={<PersonAddIcon />}
+            onClick={() => setInviteDialogOpen(true)}
+          >
+            Add Participants
+          </Button>
+        </Box>
       </Box>
 
       {error && (
@@ -339,6 +388,17 @@ export default function SeriesParticipantsManagement({
                 />
               )}
             />
+            <TextField
+              select
+              fullWidth
+              margin="normal"
+              label="Role"
+              value={selectedRole}
+              onChange={(e) => setSelectedRole(e.target.value as 'participant' | 'admin')}
+            >
+              <MenuItem value="participant">Participant</MenuItem>
+              <MenuItem value="admin">Admin</MenuItem>
+            </TextField>
           </Box>
         </DialogContent>
         <DialogActions>

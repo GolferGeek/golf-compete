@@ -20,7 +20,7 @@ import Tooltip from '@mui/material/Tooltip';
 import PersonIcon from '@mui/icons-material/Person';
 import { useAuth } from '@/contexts/AuthContext';
 import { signOut } from '@/lib/supabase';
-import { getBrowserClient } from '@/lib/supabase-browser';
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 
 const pages = [
   { name: 'About', href: '/about' },
@@ -28,7 +28,7 @@ const pages = [
 ];
 
 export default function Navbar() {
-  const { user, profile } = useAuth();
+  const { session, profile } = useAuth();
   const router = useRouter();
   const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(null);
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(null);
@@ -68,14 +68,14 @@ export default function Navbar() {
       const lastInitial = profile.last_name ? profile.last_name.charAt(0) : '';
       return (firstInitial + lastInitial).toUpperCase();
     }
-    return user?.email?.charAt(0).toUpperCase() || '?';
+    return session?.user?.email?.charAt(0).toUpperCase() || '?';
   };
 
   // Add the checkAuthState function
   const checkAuthState = async () => {
     try {
       // Get the current Supabase client
-      const supabase = getBrowserClient();
+      const supabase = getSupabaseBrowserClient();
       
       if (!supabase) {
         console.error('Supabase client is null');
@@ -83,24 +83,24 @@ export default function Navbar() {
       }
       
       // Check Supabase session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
       console.log('=== AUTH DEBUG ===');
-      console.log('Supabase Session:', session ? 'Active' : 'None');
-      if (session) {
-        console.log('User ID:', session.user.id);
-        console.log('User Email:', session.user.email);
-        console.log('Session Expires:', session.expires_at ? new Date(session.expires_at * 1000).toLocaleString() : 'Unknown');
+      console.log('Supabase Session:', currentSession ? 'Active' : 'None');
+      if (currentSession) {
+        console.log('User ID:', currentSession.user.id);
+        console.log('User Email:', currentSession.user.email);
+        console.log('Session Expires:', currentSession.expires_at ? new Date(currentSession.expires_at * 1000).toLocaleString() : 'Unknown');
       }
       if (sessionError) {
         console.error('Session Error:', sessionError);
       }
       
       // Check for user profile if session exists
-      if (session) {
+      if (currentSession) {
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('*')
-          .eq('id', session.user.id)
+          .eq('id', currentSession.user.id)
           .single();
           
         console.log('Profile Data:', profileData);
@@ -111,7 +111,7 @@ export default function Navbar() {
       
       // Check AuthContext state
       console.log('AuthContext State:');
-      console.log('User:', user ? 'Present' : 'None');
+      console.log('Session:', session ? 'Present' : 'None');
       console.log('Profile:', profile ? 'Present' : 'None');
       if (profile) {
         console.log('Is Admin:', profile.is_admin ? 'Yes' : 'No');
@@ -125,7 +125,7 @@ export default function Navbar() {
 
   // Generate menu items based on authentication status
   const getUserMenuItems = () => {
-    if (mounted && user) {
+    if (mounted && session) {
       // Logged in user menu items
       const menuItems = [
         <MenuItem key="dashboard" component={Link} href="/dashboard" onClick={handleCloseUserMenu}>
@@ -154,9 +154,15 @@ export default function Navbar() {
       
       return menuItems;
     } else {
-      // Not logged in - only show Login option
+      // Not logged in - show Login button
       return [
-        <MenuItem key="login" component={Link} href="/auth/login" onClick={handleCloseUserMenu}>
+        <MenuItem 
+          key="login" 
+          onClick={() => {
+            handleCloseUserMenu();
+            window.location.href = '/auth/login';
+          }}
+        >
           <Typography textAlign="center">Login</Typography>
         </MenuItem>
       ];
@@ -173,7 +179,7 @@ export default function Navbar() {
             variant="h6"
             noWrap
             component={Link}
-            href={mounted && user ? "/dashboard" : "/"}
+            href={mounted && session ? "/dashboard" : "/"}
             sx={{
               mr: 2,
               display: { xs: 'none', md: 'flex' },
@@ -216,25 +222,20 @@ export default function Navbar() {
               }}
             >
               {pages.map((page) => (
-                <MenuItem key={page.name} onClick={handleCloseNavMenu} component={Link} href={page.href}>
+                <MenuItem key={page.name} component={Link} href={page.href} onClick={handleCloseNavMenu}>
                   <Typography textAlign="center">{page.name}</Typography>
                 </MenuItem>
               ))}
-              {mounted && user && (
-                <MenuItem onClick={handleCloseNavMenu} component={Link} href="/dashboard">
-                  <Typography textAlign="center">Dashboard</Typography>
-                </MenuItem>
-              )}
             </Menu>
           </Box>
 
           {/* Mobile Logo */}
           <GolfCourseIcon sx={{ display: { xs: 'flex', md: 'none' }, mr: 1 }} />
           <Typography
-            variant="h6"
+            variant="h5"
             noWrap
             component={Link}
-            href={mounted && user ? "/dashboard" : "/"}
+            href={mounted && session ? "/dashboard" : "/"}
             sx={{
               mr: 2,
               display: { xs: 'flex', md: 'none' },
@@ -255,68 +256,42 @@ export default function Navbar() {
                 component={Link}
                 href={page.href}
                 onClick={handleCloseNavMenu}
-                sx={{ my: 2, color: 'text.primary', display: 'block' }}
+                sx={{ my: 2, color: 'inherit', display: 'block' }}
               >
                 {page.name}
               </Button>
             ))}
-            {mounted && user && (
-              <Button
-                component={Link}
-                href="/dashboard"
-                onClick={handleCloseNavMenu}
-                sx={{ my: 2, color: 'text.primary', display: 'block' }}
-              >
-                Dashboard
-              </Button>
-            )}
           </Box>
 
-          {/* User Menu or Login Button */}
+          {/* User Menu */}
           <Box sx={{ flexGrow: 0 }}>
-            {mounted && user ? (
-              <>
-                <Tooltip title="Account menu">
-                  <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                    <Avatar sx={{ bgcolor: 'primary.main' }}>
-                      {getUserInitials()}
-                    </Avatar>
-                  </IconButton>
-                </Tooltip>
-                <Menu
-                  sx={{ mt: '45px' }}
-                  id="menu-appbar-user"
-                  anchorEl={anchorElUser}
-                  anchorOrigin={{
-                    vertical: 'top',
-                    horizontal: 'right',
-                  }}
-                  keepMounted
-                  transformOrigin={{
-                    vertical: 'top',
-                    horizontal: 'right',
-                  }}
-                  open={Boolean(anchorElUser)}
-                  onClose={handleCloseUserMenu}
-                >
-                  {getUserMenuItems()}
-                </Menu>
-              </>
-            ) : (
-              <Button
-                component={Link}
-                href="/auth/login"
-                variant="text"
-                sx={{ 
-                  color: 'text.primary',
-                  '&:hover': {
-                    color: 'primary.main',
-                  }
-                }}
-              >
-                Log in
-              </Button>
-            )}
+            <Tooltip title="Open settings">
+              <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+                {mounted && session ? (
+                  <Avatar>{getUserInitials()}</Avatar>
+                ) : (
+                  <PersonIcon />
+                )}
+              </IconButton>
+            </Tooltip>
+            <Menu
+              sx={{ mt: '45px' }}
+              id="menu-appbar"
+              anchorEl={anchorElUser}
+              anchorOrigin={{
+                vertical: 'top',
+                horizontal: 'right',
+              }}
+              keepMounted
+              transformOrigin={{
+                vertical: 'top',
+                horizontal: 'right',
+              }}
+              open={Boolean(anchorElUser)}
+              onClose={handleCloseUserMenu}
+            >
+              {getUserMenuItems()}
+            </Menu>
           </Box>
         </Toolbar>
       </Container>

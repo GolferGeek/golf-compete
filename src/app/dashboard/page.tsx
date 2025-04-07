@@ -37,6 +37,7 @@ import type { Profile } from '@/lib/profileService';
 import { getSeriesParticipantsByUserId } from '@/lib/series';
 import { getEventParticipantsByUserId } from '@/lib/events';
 import { format } from 'date-fns';
+import DashboardSeriesSection from '@/components/series/DashboardSeriesSection';
 
 type SeriesParticipant = {
   id: string;
@@ -50,6 +51,7 @@ type SeriesParticipant = {
   start_date: string;
   end_date: string;
   series_status: string;
+  created_by?: string;
 };
 
 type EventParticipant = {
@@ -86,33 +88,40 @@ export default function Dashboard() {
   const [eventMenuAnchor, setEventMenuAnchor] = useState<null | HTMLElement>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        setLoading(true);
-        const profileData = await getCurrentProfile();
-        if (!profileData) {
-          router.push('/auth/signin');
-          return;
-        }
-        setProfile(profileData);
-
-        // Load series and events
-        const [seriesData, eventsData] = await Promise.all([
-          getSeriesParticipantsByUserId(profileData.id),
-          getEventParticipantsByUserId(profileData.id)
-        ]);
-
-        setSeries(seriesData as SeriesParticipant[]);
-        setEvents(eventsData as EventParticipant[]);
-      } catch (err) {
-        console.error('Error loading dashboard data:', err);
-        setError('Failed to load dashboard data. Please try again later.');
-      } finally {
-        setLoading(false);
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      console.log('Loading dashboard data...');
+      const profileData = await getCurrentProfile();
+      if (!profileData) {
+        console.log('No profile data found, redirecting to signin');
+        router.push('/auth/signin');
+        return;
       }
-    }
+      console.log('Profile data loaded:', profileData);
+      setProfile(profileData);
 
+      // Load series and events
+      console.log('Loading series and events for user:', profileData.id);
+      const [seriesData, eventsData] = await Promise.all([
+        getSeriesParticipantsByUserId(profileData.id),
+        getEventParticipantsByUserId(profileData.id)
+      ]);
+
+      console.log('Series data loaded:', seriesData);
+      console.log('Events data loaded:', eventsData);
+
+      setSeries(seriesData as unknown as SeriesParticipant[]);
+      setEvents(eventsData as EventParticipant[]);
+    } catch (err) {
+      console.error('Error loading dashboard data:', err);
+      setError('Failed to load dashboard data. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadData();
   }, [router]);
 
@@ -153,158 +162,57 @@ export default function Dashboard() {
     );
   }
 
-  if (!profile) {
-    return null;
-  }
-
   return (
-    <Box sx={{ width: '100%' }}>
-      <Typography variant="h4" component="h1" sx={{ 
-        mb: { xs: 2, sm: 3, md: 4 },
-        fontSize: { xs: '1.75rem', sm: '2rem', md: '2.25rem' }
-      }}>
-        My Dashboard
-      </Typography>
-
-      {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
-      )}
-
-      <Grid container spacing={{ xs: 2, sm: 3 }} sx={{ mb: { xs: 2, sm: 3, md: 4 } }}>
-        {/* Profile Card */}
-        <Grid item xs={12} md={6}>
-          <Card sx={{ height: '100%' }}>
+    <Box sx={{ p: { xs: 2, sm: 3 } }}>
+      <Grid container spacing={3}>
+        {/* Profile Section */}
+        <Grid item xs={12}>
+          <Card>
             <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" component="div">
-                  My Profile
-                </Typography>
-                <PeopleIcon color="primary" fontSize="large" />
-              </Box>
-              
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="h5" gutterBottom>
-                  {getProfileDisplayName(profile)}
-                </Typography>
-                <Typography variant="body2" color="text.secondary" gutterBottom>
-                  {profile.username || 'No username set'}
-                </Typography>
-                {profile.handicap !== null && (
-                  <Typography variant="body1">
-                    Handicap: {profile.handicap}
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <Box sx={{ flexGrow: 1 }}>
+                  <Typography variant="h5" component="h1">
+                    Welcome, {profile ? getProfileDisplayName(profile) : 'Golfer'}!
                   </Typography>
-                )}
-                {profile.is_admin && (
-                  <Chip 
-                    label="Admin" 
-                    color="primary" 
-                    size="small" 
-                    sx={{ mt: 1 }}
-                  />
-                )}
+                </Box>
               </Box>
-            </CardContent>
-            <CardActions>
-              <Button size="small" onClick={() => router.push('/profile')}>
-                Edit Profile
-              </Button>
-            </CardActions>
-          </Card>
-        </Grid>
-
-        {/* Golf Stats */}
-        <Grid item xs={12} md={6}>
-          <Card sx={{ height: '100%' }}>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <Typography variant="h6" component="div">
-                  Golf Equipment
-                </Typography>
-                <GolfCourseIcon color="primary" fontSize="large" />
+              <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
+                <Button
+                  variant="outlined"
+                  startIcon={<GolfCourseIcon />}
+                  onClick={() => router.push('/series')}
+                >
+                  View All Series
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<PeopleIcon />}
+                  onClick={() => router.push('/dashboard/invitations')}
+                >
+                  View Invitations
+                </Button>
+                <Button
+                  variant="outlined"
+                  startIcon={<SettingsIcon />}
+                  onClick={() => router.push('/profile')}
+                >
+                  Profile Settings
+                </Button>
               </Box>
-              
-              <List>
-                <ListItem>
-                  <ListItemIcon>
-                    <GolfCourseIcon />
-                  </ListItemIcon>
-                  <ListItemText 
-                    primary="Club Sets"
-                    secondary={profile.multiple_clubs_sets ? 'Multiple Sets' : 'Single Set'}
-                  />
-                  <Button size="small" onClick={() => router.push('/equipment')}>
-                    Manage
-                  </Button>
-                </ListItem>
-              </List>
             </CardContent>
           </Card>
         </Grid>
       </Grid>
 
-      <Grid container spacing={3}>
+      <Grid container spacing={3} sx={{ mt: 1 }}>
         {/* Series Section */}
         <Grid item xs={12} md={6}>
-          <Card>
-            <CardContent>
-              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">My Series</Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => router.push('/series/new')}
-                >
-                  Create Series
-                </Button>
-              </Box>
-
-              {series.length === 0 ? (
-                <Typography color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
-                  You haven't joined any series yet.
-                </Typography>
-              ) : (
-                <List>
-                  {series.map((series) => (
-                    <ListItem
-                      key={series.id}
-                      divider
-                      secondaryAction={
-                        <IconButton
-                          edge="end"
-                          onClick={(e) => {
-                            setSeriesMenuAnchor(e.currentTarget);
-                            setSelectedSeriesId(series.id);
-                          }}
-                        >
-                          <MoreVertIcon />
-                        </IconButton>
-                      }
-                    >
-                      <ListItemText
-                        primary={series.name}
-                        secondary={
-                          <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 0.5 }}>
-                            <Chip
-                              label={series.status}
-                              size="small"
-                              color={getStatusColor(series.status)}
-                            />
-                            <Typography variant="caption">
-                              {format(new Date(series.start_date), 'MMM d, yyyy')}
-                              {' - '}
-                              {format(new Date(series.end_date), 'MMM d, yyyy')}
-                            </Typography>
-                          </Box>
-                        }
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              )}
-            </CardContent>
-          </Card>
+          <DashboardSeriesSection
+            series={series}
+            loading={loading}
+            error={error}
+            onInvitationResponse={loadData}
+          />
         </Grid>
 
         {/* Events Section */}
@@ -312,19 +220,12 @@ export default function Dashboard() {
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-                <Typography variant="h6">My Events</Typography>
-                <Button
-                  variant="contained"
-                  startIcon={<AddIcon />}
-                  onClick={() => router.push('/events/new')}
-                >
-                  Create Event
-                </Button>
+                <Typography variant="h6">Upcoming Events</Typography>
               </Box>
 
               {events.length === 0 ? (
                 <Typography color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
-                  You haven't joined any events yet.
+                  You have no upcoming events.
                 </Typography>
               ) : (
                 <List>
@@ -410,23 +311,9 @@ export default function Dashboard() {
       >
         <MenuItem onClick={() => {
           setEventMenuAnchor(null);
-          if (selectedEventId) router.push(`/events/${selectedEventId}/edit`);
+          if (selectedEventId) router.push(`/events/${selectedEventId}`);
         }}>
-          <EditIcon fontSize="small" sx={{ mr: 1 }} />
-          Edit
-        </MenuItem>
-        <MenuItem 
-          onClick={() => {
-            setEventMenuAnchor(null);
-            if (selectedEventId) {
-              // TODO: Implement event deletion
-              console.log('Delete event:', selectedEventId);
-            }
-          }}
-          sx={{ color: 'error.main' }}
-        >
-          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
-          Delete
+          View Details
         </MenuItem>
       </Menu>
     </Box>

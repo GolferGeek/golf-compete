@@ -1,9 +1,9 @@
-import { supabase } from '@/lib/supabase';
+import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { Database } from '@/types/supabase';
 import { userServiceForProfile } from './userService';
 
-type Profile = Database['public']['Tables']['profiles']['Row'];
-export type { Profile };
+type DbProfile = Database['public']['Tables']['profiles']['Row'];
+export type Profile = DbProfile;
 
 export interface ProfileWithEmail extends Profile {
   user_email?: string;
@@ -21,6 +21,7 @@ export interface CreateProfileData {
 }
 
 export async function getCurrentProfile(): Promise<Profile | null> {
+  const supabase = getSupabaseBrowserClient();
   const { data: { session }, error: authError } = await supabase.auth.getSession();
   
   if (authError) {
@@ -32,58 +33,62 @@ export async function getCurrentProfile(): Promise<Profile | null> {
     return null;
   }
 
-  const { data: profile, error: profileError } = await supabase
+  const { data, error: profileError } = await supabase
     .from('profiles')
-    .select()
+    .select('*')
     .eq('id', session.user.id)
-    .single()
-    .returns<Profile>();
+    .single();
 
   if (profileError) {
     console.error('Error fetching profile:', profileError);
     throw profileError;
   }
 
-  return profile;
+  return data;
 }
 
 export async function getAllProfiles(): Promise<Profile[]> {
-  const { data: profiles, error } = await supabase
+  const supabase = getSupabaseBrowserClient();
+  const { data, error } = await supabase
     .from('profiles')
-    .select()
-    .returns<Profile[]>();
+    .select('*');
 
   if (error) {
     console.error('Error fetching profiles:', error);
     throw error;
   }
 
-  return profiles || [];
+  return data || [];
 }
 
+type ProfileWithAuthUser = Profile & {
+  auth_user: { email: string } | null;
+};
+
 export async function getProfilesWithEmail(): Promise<ProfileWithEmail[]> {
-  const { data: profiles, error } = await supabase
+  const supabase = getSupabaseBrowserClient();
+  const { data, error } = await supabase
     .from('profiles')
     .select(`
       *,
       auth_user:id (
         email
       )
-    `)
-    .returns<(Profile & { auth_user: { email: string } | null })[]>();
+    `) as unknown as { data: ProfileWithAuthUser[] | null, error: any };
 
   if (error) {
     console.error('Error fetching profiles with email:', error);
     throw error;
   }
 
-  return (profiles || []).map(profile => ({
+  return (data || []).map(profile => ({
     ...profile,
     user_email: profile.auth_user?.email
   }));
 }
 
 export async function createProfile(data: CreateProfileData): Promise<Profile> {
+  const supabase = getSupabaseBrowserClient();
   // Create auth user first
   const user = await userServiceForProfile.createAuthUser({
     email: data.email,
@@ -103,14 +108,17 @@ export async function createProfile(data: CreateProfileData): Promise<Profile> {
         is_admin: data.is_admin || false,
         multiple_clubs_sets: data.multiple_clubs_sets
       })
-      .select()
-      .single()
-      .returns<Profile>();
+      .select('*')
+      .single();
 
     if (error) {
       // If profile creation fails, clean up the auth user
       await userServiceForProfile.deleteAuthUser(user.id);
       throw error;
+    }
+
+    if (!profile) {
+      throw new Error('Failed to create profile');
     }
 
     return profile;
@@ -122,6 +130,7 @@ export async function createProfile(data: CreateProfileData): Promise<Profile> {
 }
 
 export async function deleteProfile(profileId: string): Promise<void> {
+  const supabase = getSupabaseBrowserClient();
   // Delete profile first
   const { error: profileError } = await supabase
     .from('profiles')
@@ -135,18 +144,78 @@ export async function deleteProfile(profileId: string): Promise<void> {
 }
 
 export async function updateProfile(profileId: string, data: Partial<Omit<Profile, 'id' | 'created_at' | 'updated_at'>>): Promise<Profile> {
+  const supabase = getSupabaseBrowserClient();
   const { data: profile, error } = await supabase
     .from('profiles')
     .update(data)
     .eq('id', profileId)
-    .select()
-    .single()
-    .returns<Profile>();
+    .select('*')
+    .single();
 
   if (error) {
     console.error('Error updating profile:', error);
     throw error;
   }
 
+  if (!profile) {
+    throw new Error('Failed to update profile');
+  }
+
   return profile;
+}
+
+/**
+ * Get all profiles that are not participants in a specific series
+ */
+export async function getProfilesNotInSeries(seriesId: string): Promise<ProfileWithEmail[]> {
+  const supabase = getSupabaseBrowserClient();
+  console.log('Fetching profiles not in series:', seriesId);
+  
+  // Use the database function to get non-participants
+  const { data: profiles, error: profilesError } = await supabase
+    .rpc('get_non_series_participants', {
+      p_series_id: seriesId
+    });
+
+  if (profilesError) {
+    console.error('Error fetching profiles:', profilesError);
+    throw profilesError;
+  }
+
+  if (!profiles) {
+    console.log('No profiles found');
+    return [];
+  }
+
+  console.log('Found profiles:', profiles);
+
+  // Get the emails using the same join we use in getProfilesWithEmail
+  const { data, error: emailsError } = await supabase
+    .from('profiles')
+    .select(`
+      *,
+      auth_user:id (
+        email
+      )
+    `)
+    .in('id', profiles.map(p => p.id)) as unknown as { data: ProfileWithAuthUser[] | null, error: any };
+
+  if (emailsError) {
+    console.error('Error fetching user emails:', emailsError);
+    // Continue without emails rather than failing
+    console.log('Continuing without emails');
+    return profiles.map(profile => ({
+      ...profile,
+      user_email: undefined
+    }));
+  }
+
+  // Create a map of profile id to email
+  const emailMap = new Map(data?.map(p => [p.id, p.auth_user?.email]) || []);
+
+  // Combine the data
+  return profiles.map(profile => ({
+    ...profile,
+    user_email: emailMap.get(profile.id)
+  }));
 } 

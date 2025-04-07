@@ -15,19 +15,22 @@ import {
   Alert,
   alpha,
   useTheme,
+  ButtonGroup,
 } from '@mui/material';
 import Link from 'next/link';
 import AddIcon from '@mui/icons-material/Add';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import { format } from 'date-fns';
+import { respondToInvitation } from '@/services/competition/seriesParticipantService';
 
 interface Props {
   series: any[];
   loading: boolean;
   error: string | null;
+  onInvitationResponse?: () => void;
 }
 
-export default function DashboardSeriesSection({ series, loading, error }: Props) {
+export default function DashboardSeriesSection({ series, loading, error, onInvitationResponse }: Props) {
   const theme = useTheme();
 
   const getStatusColor = (status: string) => {
@@ -37,12 +40,23 @@ export default function DashboardSeriesSection({ series, loading, error }: Props
         return 'success';
       case 'invited':
       case 'registered':
-        return 'info';
+        return 'warning';
       case 'withdrawn':
       case 'no_show':
         return 'error';
       default:
         return 'default';
+    }
+  };
+
+  const handleInvitationResponse = async (participantId: string, accept: boolean) => {
+    try {
+      await respondToInvitation(participantId, accept);
+      if (onInvitationResponse) {
+        onInvitationResponse();
+      }
+    } catch (err) {
+      console.error('Error responding to invitation:', err);
     }
   };
 
@@ -118,8 +132,6 @@ export default function DashboardSeriesSection({ series, loading, error }: Props
             {series.slice(0, 3).map((s) => (
               <ListItem
                 key={s.id}
-                component={Link}
-                href={`/series/${s.series_id}`}
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -136,24 +148,45 @@ export default function DashboardSeriesSection({ series, loading, error }: Props
                 }}
               >
                 <ListItemText
-                  primary={s.series.name}
-                  secondary={`${format(new Date(s.series.start_date), 'MMM d')} - ${format(
-                    new Date(s.series.end_date),
+                  primary={
+                    <Link href={s.status === 'invited' ? '#' : `/series/${s.series_id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                      {s.name}
+                    </Link>
+                  }
+                  secondary={`${format(new Date(s.start_date), 'MMM d')} - ${format(
+                    new Date(s.end_date),
                     'MMM d, yyyy'
                   )}`}
                 />
-                <Box sx={{ mt: 1 }}>
+                <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
                   <Chip
                     label={s.role}
                     size="small"
                     color={s.role === 'admin' ? 'primary' : 'default'}
-                    sx={{ mr: 1 }}
                   />
                   <Chip
                     label={s.status}
                     size="small"
-                    color={getStatusColor(s.status) as any}
+                    color={getStatusColor(s.status)}
                   />
+                  {s.status === 'invited' && (
+                    <ButtonGroup size="small" sx={{ ml: 'auto' }}>
+                      <Button
+                        onClick={() => handleInvitationResponse(s.id, true)}
+                        color="success"
+                        variant="outlined"
+                      >
+                        Accept
+                      </Button>
+                      <Button
+                        onClick={() => handleInvitationResponse(s.id, false)}
+                        color="error"
+                        variant="outlined"
+                      >
+                        Decline
+                      </Button>
+                    </ButtonGroup>
+                  )}
                 </Box>
               </ListItem>
             ))}
