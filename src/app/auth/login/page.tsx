@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
 import {
@@ -20,7 +20,22 @@ import EmailIcon from '@mui/icons-material/Email'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
 
-export default function Login() {
+// Loading component for Suspense fallback
+function LoginLoading() {
+  return (
+    <Container maxWidth="sm" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+      <Box sx={{ textAlign: 'center' }}>
+        <CircularProgress size={60} />
+        <Typography variant="h6" sx={{ mt: 2 }}>
+          Loading...
+        </Typography>
+      </Box>
+    </Container>
+  );
+}
+
+// Separate the login form into its own component
+function LoginForm() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -206,124 +221,91 @@ export default function Login() {
   }
 
   if (checkingSession) {
-    return (
-      <Container maxWidth="sm" sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
-        <Box sx={{ textAlign: 'center' }}>
-          <CircularProgress size={60} />
-          <Typography variant="h6" sx={{ mt: 2 }}>
-            Checking authentication status...
-          </Typography>
-        </Box>
-      </Container>
-    )
+    return <LoginLoading />;
   }
 
   return (
     <Container maxWidth="sm" sx={{ py: 8 }}>
       <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center" sx={{ fontWeight: 'bold' }}>
-          Welcome to Golf Compete
-        </Typography>
-        
-        <Typography variant="body1" align="center" sx={{ mb: 4, color: 'text.secondary' }}>
-          Sign in to continue to your account
+        <Typography variant="h4" component="h1" gutterBottom align="center">
+          Welcome Back
         </Typography>
         
         {error && (
-          <Alert 
-            severity="error" 
-            sx={{ mb: 3 }}
-            onClose={() => setError(null)}
-          >
+          <Alert severity="error" sx={{ mb: 3 }}>
             {error}
           </Alert>
         )}
         
-        <Button
-          variant="contained"
-          fullWidth
-          startIcon={<GoogleIcon />}
-          onClick={handleGoogleLogin}
-          disabled={loading}
-          sx={{ 
-            py: 1.5, 
-            mb: 2,
-            bgcolor: '#4285F4',
-            '&:hover': {
-              bgcolor: '#3367D6',
-            }
-          }}
-        >
-          {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign in with Google'}
-        </Button>
-        
-        <Divider sx={{ my: 3 }}>
-          <Typography variant="body2" color="text.secondary">
-            OR
-          </Typography>
-        </Divider>
-        
-        <Box component="form" onSubmit={handleEmailLogin} noValidate>
+        <form onSubmit={handleEmailLogin}>
           <TextField
-            margin="normal"
-            required
             fullWidth
-            id="email"
-            label="Email Address"
-            name="email"
-            autoComplete="email"
-            autoFocus
+            label="Email"
+            type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            disabled={loading}
-          />
-          
-          <TextField
             margin="normal"
             required
+            disabled={loading}
+          />
+          <TextField
             fullWidth
-            name="password"
             label="Password"
             type="password"
-            id="password"
-            autoComplete="current-password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            margin="normal"
+            required
             disabled={loading}
           />
           
           <Button
-            type="submit"
             fullWidth
+            type="submit"
             variant="contained"
             disabled={loading}
             startIcon={<EmailIcon />}
-            sx={{ mt: 3, mb: 2, py: 1.5 }}
+            sx={{ mt: 3, mb: 2 }}
           >
-            {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign in with Email'}
+            {loading ? 'Signing in...' : 'Sign in with Email'}
           </Button>
-        </Box>
+        </form>
         
-        <Box sx={{ mt: 2, textAlign: 'center' }}>
+        <Divider sx={{ my: 3 }}>or</Divider>
+        
+        <Button
+          fullWidth
+          onClick={handleGoogleLogin}
+          variant="outlined"
+          disabled={loading}
+          startIcon={<GoogleIcon />}
+        >
+          Sign in with Google
+        </Button>
+        
+        <Box sx={{ mt: 3, textAlign: 'center' }}>
           <Typography variant="body2">
             Don't have an account?{' '}
-            <Link href="/auth/signup" style={{ textDecoration: 'none' }}>
-              <MuiLink 
-                component="span"
-                sx={{ 
-                  fontWeight: 'medium',
-                  cursor: 'pointer',
-                  '&:hover': {
-                    textDecoration: 'underline',
-                  }
-                }}
-              >
-                Sign up
-              </MuiLink>
-            </Link>
+            <MuiLink component={Link} href="/auth/signup">
+              Sign up
+            </MuiLink>
+          </Typography>
+          <Typography variant="body2" sx={{ mt: 1 }}>
+            <MuiLink component={Link} href="/auth/forgot-password">
+              Forgot your password?
+            </MuiLink>
           </Typography>
         </Box>
       </Paper>
     </Container>
-  )
+  );
+}
+
+// Main login page component with Suspense boundary
+export default function Login() {
+  return (
+    <Suspense fallback={<LoginLoading />}>
+      <LoginForm />
+    </Suspense>
+  );
 }
