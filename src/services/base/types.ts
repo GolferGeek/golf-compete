@@ -32,6 +32,7 @@ export interface QueryParams {
   pagination?: PaginationParams;
   ordering?: OrderingParams;
   filters?: Record<string, any>;
+  orFilter?: string;
 }
 
 /**

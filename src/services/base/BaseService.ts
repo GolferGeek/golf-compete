@@ -217,10 +217,10 @@ export abstract class BaseService {
   ): Promise<PaginatedResponse<T>> {
     try {
       const { useCamelCase = true } = options;
-      const { pagination, ordering, filters } = parseQueryParams(params);
+      const { pagination, ordering, filters, orFilter } = parseQueryParams(params);
       let query = this.client.from(table).select('*', { count: 'exact' });
       
-      // Apply filters
+      // Apply standard AND filters
       if (filters) {
          for (const [key, value] of Object.entries(filters)) {
            if (value === undefined || value === null) continue;
@@ -270,6 +270,12 @@ export abstract class BaseService {
            }
          }
       }
+
+      // Apply OR filter if provided
+      if (orFilter && typeof orFilter === 'string' && orFilter.trim() !== '') {
+          query = query.or(orFilter.trim());
+      }
+      
       // Apply ordering
       if (ordering?.column) {
         query = query.order(ordering.column, { ascending: ordering.direction !== 'desc' });

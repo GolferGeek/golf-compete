@@ -32,6 +32,7 @@ const fetchSeriesQuerySchema = z.object({
   // Add date range filters
   startDateAfter: z.string().datetime({ message: 'Invalid date format for startDateAfter' }).optional(),
   endDateBefore: z.string().datetime({ message: 'Invalid date format for endDateBefore' }).optional(),
+  search: z.string().optional(), // Add search parameter
   // Add other filters as needed (e.g., searchByName)
 });
 
@@ -67,19 +68,26 @@ export async function GET(request: NextRequest) {
     const queryValidation = await validateQueryParams(request, fetchSeriesQuerySchema);
     if (queryValidation instanceof NextResponse) return queryValidation;
 
-    const { limit, page, sortBy, sortDir, status, startDateAfter, endDateBefore } = queryValidation;
+    const { limit, page, sortBy, sortDir, status, startDateAfter, endDateBefore, search } = queryValidation;
     const offset = (page - 1) * limit;
 
-    // Construct filters with complex operators
+    // Construct standard AND filters
     const filters: Record<string, any> = {};
-    if (status) filters.status = status; // Simple equality remains
+    if (status) filters.status = status;
     if (startDateAfter) {
         filters.start_date = { ...(filters.start_date || {}), gte: startDateAfter };
     }
     if (endDateBefore) {
         filters.end_date = { ...(filters.end_date || {}), lte: endDateBefore };
     }
-    // Add more filters
+    
+    // Construct OR filter string for search
+    let orFilterString: string | undefined = undefined;
+    if (search && search.trim() !== '') {
+        const searchTerm = `%${search.trim()}%`; // Add wildcards
+        // Combine multiple fields with OR logic using ilike
+        orFilterString = `name.ilike.${searchTerm},description.ilike.${searchTerm}`;
+    }
 
     const ordering = sortBy ? { column: sortBy, direction: sortDir } : undefined;
 
@@ -87,15 +95,13 @@ export async function GET(request: NextRequest) {
     const seriesDbService = new SeriesDbService(supabase);
 
     try {
+        // Pass both filters and orFilter to the service method
         const response = await seriesDbService.fetchSeries(
-            { pagination: { limit, offset, page }, ordering, filters }, 
+            { pagination: { limit, offset, page }, ordering, filters, orFilter: orFilterString }, 
             { useCamelCase: true }
         );
-
-        if (response.error) throw response.error; // Handled by catch
-
-        return createSuccessApiResponse(response); // Return the PaginatedResponse directly
-
+        if (response.error) throw response.error;
+        return createSuccessApiResponse(response);
     } catch (error: any) {
         console.error('[API /series GET] Error:', error);
         if (error instanceof ServiceError) {
