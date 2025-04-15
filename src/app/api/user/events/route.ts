@@ -1,9 +1,8 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
 import { createSuccessApiResponse, createErrorApiResponse } from '@/lib/api/utils';
 import { createClient } from '@/lib/supabase/server';
-import DatabaseService from '@/services/internal/DatabaseService';
+import EventDbService from '@/services/internal/EventDbService';
 
 // Define the expected shape of the joined data
 // Adapt this based on your actual table columns and desired output
@@ -77,13 +76,13 @@ const getUserEventsHandler = async (
 ) => {
   const { user } = auth;
   
-  // Await client creation and instantiate service
+  // Create client and instantiate the specific EventDbService
   const supabase = await createClient();
-  const dbService = new DatabaseService(supabase);
+  const eventDbService = new EventDbService(supabase);
 
   try {
-    // Call the dedicated service method
-    const eventsResponse = await dbService.fetchUserEventParticipations(user.id);
+    // Call the method from EventDbService
+    const eventsResponse = await eventDbService.fetchUserEventParticipations(user.id);
 
     if (eventsResponse.error) {
       throw eventsResponse.error;

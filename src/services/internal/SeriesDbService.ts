@@ -11,29 +11,10 @@ import {
     createSuccessResponse,
     keysToCamelCase
 } from '../base'; // Assuming structure src/services/base and src/services/internal
+import { type Series, type SeriesParticipant } from '@/types/database'; // Import shared types
 
-// Define interfaces for Series resources
-// (Could be imported from a shared types file)
-interface Series {
-  id: string;
-  name: string;
-  description?: string;
-  start_date: string;
-  end_date: string;
-  status: string;
-  created_by: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface SeriesParticipant {
-  id: string;
-  user_id: string;
-  series_id: string;
-  role: 'admin' | 'participant';
-  status: 'invited' | 'confirmed' | 'withdrawn';
-  joined_at: string;
-}
+// Explicitly define the type for partial participant updates
+type UpdateSeriesParticipantData = Partial<Omit<SeriesParticipant, 'id' | 'user_id' | 'series_id' | 'joined_at'>>;
 
 /**
  * Database service specifically for Series-related operations.
@@ -46,6 +27,45 @@ class SeriesDbService extends BaseService {
 
   // --- Series Specific Methods --- 
 
+  /**
+   * Creates a new series and adds the creator as an admin participant via RPC.
+   */
+  public async createSeriesAndAddAdmin(seriesData: Omit<Series, 'id' | 'created_at' | 'updated_at'>): Promise<ServiceResponse<{ created_series_id: string }>> {
+    try {
+      // RPC requires exact parameter names as defined in the SQL function
+      const params = {
+        p_name: seriesData.name,
+        p_description: seriesData.description,
+        p_start_date: seriesData.start_date,
+        p_end_date: seriesData.end_date,
+        p_status: seriesData.status,
+        p_created_by: seriesData.created_by,
+      };
+      
+      // Call the PostgreSQL function
+      const { data, error } = await this.client.rpc('create_series_and_add_admin', params);
+
+      if (error) {
+        // Handle potential RPC errors (permissions, function not found, SQL errors)
+        console.error('RPC create_series_and_add_admin Error:', error);
+        // Map to a DatabaseError or specific RPCError
+        throw new DatabaseError(error.message, 'DB_RPC_ERROR', new Error(JSON.stringify(error)));
+      }
+
+      // Check if data is returned as expected (should be an array with one object)
+      if (!data || !Array.isArray(data) || data.length === 0 || !data[0].created_series_id) {
+          console.error('RPC create_series_and_add_admin: Unexpected response format', data);
+          throw new DatabaseError('Failed to create series: Unexpected response from database function.', ErrorCodes.DB_QUERY_ERROR);
+      }
+
+      // Return the ID returned by the function
+      return createSuccessResponse({ created_series_id: data[0].created_series_id });
+
+    } catch (error) {
+      return this.handleDatabaseError(error, 'Failed to create series via RPC');
+    }
+  }
+
   public async createSeries(seriesData: Omit<Series, 'id' | 'created_at' | 'updated_at'>): Promise<ServiceResponse<Series>> {
     return this.insertRecord<Series>('series', seriesData);
   }
@@ -54,8 +74,10 @@ class SeriesDbService extends BaseService {
     return this.fetchById<Series>('series', seriesId);
   }
 
-  // Using Omit without Partial as potential workaround for previous type issues
-  public async updateSeries(seriesId: string, updateData: Omit<Series, 'id' | 'created_by' | 'created_at' | 'updated_at'>): Promise<ServiceResponse<Series>> {
+  /**
+   * Updates an existing series.
+   */
+  public async updateSeries(seriesId: string, updateData: Partial<Omit<Series, 'id' | 'created_by' | 'created_at' | 'updated_at'>>): Promise<ServiceResponse<Series>> {
     return this.updateRecord<Series>('series', seriesId, updateData);
   }
 
@@ -75,8 +97,11 @@ class SeriesDbService extends BaseService {
     return this.insertRecord<SeriesParticipant>('series_participants', participantData);
   }
 
-  // Using Omit without Partial
-  public async updateSeriesParticipant(participantId: string, updateData: Omit<SeriesParticipant, 'id' | 'user_id' | 'series_id' | 'joined_at'>): Promise<ServiceResponse<SeriesParticipant>> {
+  /**
+   * Updates a series participant's details (e.g., role, status).
+   */
+  // Use the explicitly defined type
+  public async updateSeriesParticipant(participantId: string, updateData: UpdateSeriesParticipantData): Promise<ServiceResponse<SeriesParticipant>> {
     return this.updateRecord<SeriesParticipant>('series_participants', participantId, updateData);
   }
 
@@ -146,6 +171,33 @@ class SeriesDbService extends BaseService {
     } catch (error) {
       return this.handleDatabaseError(error, `Failed to fetch series participations for user ${userId}`);
     }
+  }
+
+  public async getUserSeriesRole(userId: string, seriesId: string): Promise<ServiceResponse<{ role: string | null }>> {
+    try {
+      const { data, error } = await this.client
+        .from('series_participants')
+        .select('role')
+        .eq('user_id', userId)
+        .eq('series_id', seriesId)
+        .maybeSingle(); // Use maybeSingle as user might not be participant
+
+      if (error) {
+        throw this.createDatabaseError(error, ErrorCodes.DB_QUERY_ERROR);
+      }
+      
+      return createSuccessResponse({ role: data?.role || null });
+
+    } catch (error) {
+      return this.handleDatabaseError(error, `Failed to fetch user role for series ${seriesId}`);
+    }
+  }
+
+  /**
+   * Gets a specific series participant by their ID.
+   */
+  public async getSeriesParticipantById(participantId: string): Promise<ServiceResponse<SeriesParticipant>> {
+    return this.fetchById<SeriesParticipant>('series_participants', participantId);
   }
 }
 

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Box, CircularProgress } from '@mui/material';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/lib/supabase/client';
 import { Database } from '@/types/supabase';
 
 interface EventAuthGuardProps {
@@ -19,7 +19,7 @@ export function EventAuthGuard({ children, eventId }: EventAuthGuardProps) {
   useEffect(() => {
     const checkEventAccess = async () => {
       try {
-        const supabase = createClientComponentClient<Database>();
+        const supabase = createClient();
 
         // Get the current user's profile
         const { data: profile, error: profileError } = await supabase

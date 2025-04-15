@@ -1,115 +1,140 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
-import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
+import { type NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { createClient } from '@/lib/supabase/server';
+import CourseDbService from '@/services/internal/CourseDbService';
+import { 
+    validateRequestBody, 
+    validateQueryParams, 
+    createSuccessApiResponse, 
+    createErrorApiResponse 
+} from '@/lib/api/utils';
+import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
+import { ServiceError } from '@/services/base';
+import { type Course } from '@/types/database';
 
-export async function POST(request: NextRequest) {
-  try {
-    const data = await request.json();
-    
-    console.log('Creating course with data:', JSON.stringify(data.courseSubmitData));
-    
-    // Insert course
-    const { data: insertedCourse, error: courseError } = await supabase
-      .from('courses')
-      .insert(data.courseSubmitData)
-      .select()
-      .single();
-    
-    if (courseError) {
-      console.error('Failed to insert course:', courseError);
-      return NextResponse.json(
-        { error: 'Failed to insert course: ' + courseError.message },
-        { status: 500 }
-      );
+// Schema for creating/updating a course
+const courseSchema = z.object({
+  name: z.string().min(3, { message: 'Course name must be at least 3 characters' }),
+  address: z.string().optional().nullable(),
+  city: z.string().optional().nullable(),
+  state: z.string().optional().nullable(),
+  zip_code: z.string().optional().nullable(),
+  phone: z.string().optional().nullable(),
+  website: z.string().url().optional().nullable(),
+  // created_by might be set automatically based on auth
+});
+
+const createCourseSchema = courseSchema; // Use the same for create
+const updateCourseSchema = courseSchema.partial(); // All fields optional for update
+
+// Schema for query parameters when fetching courses
+const fetchCoursesQuerySchema = z.object({
+  limit: z.coerce.number().int().positive().optional().default(20),
+  page: z.coerce.number().int().positive().optional().default(1),
+  sortBy: z.string().optional().default('name'),
+  sortDir: z.enum(['asc', 'desc']).optional().default('asc'),
+  search: z.string().optional(), // Search by name, city, etc.
+  // Add other filters as needed (e.g., state)
+});
+
+/**
+ * @swagger
+ * /api/courses:
+ *   get:
+ *     summary: List golf courses
+ *     description: Retrieves a paginated list of golf courses, optionally filtered and sorted.
+ *     tags: [Courses]
+ *     parameters: # Add query params like limit, page, sortBy, search etc.
+ *       # ... (schema based on fetchCoursesQuerySchema)
+ *     responses:
+ *       200: { description: List of courses }
+ *       400: { description: Invalid query parameters }
+ *       500: { description: Internal server error }
+ */
+export async function GET(request: NextRequest) {
+    const queryValidation = await validateQueryParams(request, fetchCoursesQuerySchema);
+    if (queryValidation instanceof NextResponse) return queryValidation;
+
+    const { limit, page, sortBy, sortDir, search } = queryValidation;
+    const offset = (page - 1) * limit;
+
+    const filters: Record<string, any> = {};
+    if (search) filters.name = { ilike: search }; // Simple name search example
+    // Add more filters
+
+    const ordering = sortBy ? { column: sortBy, direction: sortDir } : undefined;
+
+    const supabase = await createClient();
+    const courseDbService = new CourseDbService(supabase);
+
+    try {
+        const response = await courseDbService.fetchCourses(
+            { pagination: { limit, offset, page }, ordering, filters }, 
+            { useCamelCase: true }
+        );
+        if (response.error) throw response.error;
+        return createSuccessApiResponse(response);
+    } catch (error: any) {
+        console.error('[API /courses GET] Error:', error);
+        return createErrorApiResponse('Failed to fetch courses', 'FETCH_COURSES_ERROR', 500);
     }
-    
-    console.log('Course inserted successfully:', insertedCourse);
-    
-    // Insert tee sets
-    const teeSetInsertPromises = data.teeSets.map((teeSet: any) => {
-      const teeSetData = {
-        courseId: insertedCourse.id,
-        name: teeSet.name,
-        color: teeSet.color,
-        rating: teeSet.rating,
-        slope: teeSet.slope,
-        distance: teeSet.distance || 0,
-        imageUrl: data.teeSetImageUrl || data.courseInfoImageUrl
-      };
-      
-      console.log('Inserting tee set:', teeSetData);
-      
-      return supabase
-        .from('tee_sets')
-        .insert(teeSetData)
-        .select()
-        .single();
-    });
-    
-    const teeSetResults = await Promise.all(teeSetInsertPromises);
-    const teeSetErrors = teeSetResults.filter(result => result.error);
-    
-    if (teeSetErrors.length > 0) {
-      console.error('Failed to insert tee sets:', teeSetErrors[0].error);
-      return NextResponse.json(
-        { error: 'Failed to insert tee sets: ' + teeSetErrors[0].error.message },
-        { status: 500 }
-      );
-    }
-    
-    const insertedTeeSets = teeSetResults.map(result => result.data);
-    console.log('Tee sets inserted successfully:', insertedTeeSets);
-    
-    // Insert holes
-    const holeInsertPromises = data.holes.map((hole: any) => {
-      const holeData = {
-        course_id: insertedCourse.id,
-        hole_number: hole.number,
-        par: hole.par,
-        handicap_index: hole.handicapIndex || hole.number,
-        imageUrl: data.scorecardImageUrl || data.teeSetImageUrl || data.courseInfoImageUrl
-      };
-      
-      console.log('Inserting hole:', holeData);
-      
-      return supabase
-        .from('holes')
-        .insert(holeData)
-        .select()
-        .single();
-    });
-    
-    const holeResults = await Promise.all(holeInsertPromises);
-    const holeErrors = holeResults.filter(result => result.error);
-    
-    if (holeErrors.length > 0) {
-      console.error('Failed to insert holes:', holeErrors[0].error);
-      return NextResponse.json(
-        { error: 'Failed to insert holes: ' + holeErrors[0].error.message },
-        { status: 500 }
-      );
-    }
-    
-    const insertedHoles = holeResults.map(result => result.data);
-    console.log('Holes inserted successfully:', insertedHoles);
-    
-    // No distance results to check since we're not inserting distances anymore
-    
-    return NextResponse.json(
-      { 
-        course: insertedCourse, 
-        teeSets: insertedTeeSets, 
-        holes: insertedHoles 
-      },
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error('Error creating course:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    return NextResponse.json(
-      { error: 'Failed to create course: ' + errorMessage },
-      { status: 500 }
-    );
-  }
 }
+
+/**
+ * @swagger
+ * /api/courses:
+ *   post:
+ *     summary: Create a new course
+ *     description: Adds a new golf course to the database.
+ *     tags: [Courses]
+ *     security: [{ bearerAuth: [] }] # Assuming only logged-in users can add
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { $ref: '#/components/schemas/CreateCourseInput' } # Based on createCourseSchema
+ *     responses:
+ *       201: { description: Course created successfully }
+ *       400: { description: Validation error }
+ *       401: { description: Unauthorized }
+ *       500: { description: Internal server error }
+ */
+const createCourseHandler = async (
+    request: NextRequest, 
+    context: { params?: any }, 
+    auth: AuthenticatedContext
+) => {
+    const validationResult = await validateRequestBody(request, createCourseSchema);
+    if (validationResult instanceof NextResponse) return validationResult;
+
+    // Construct payload, handling nulls and adding creator
+    const coursePayload: Omit<Course, 'id' | 'created_at' | 'updated_at'> = {
+        ...validationResult,
+        address: validationResult.address ?? undefined,
+        city: validationResult.city ?? undefined,
+        state: validationResult.state ?? undefined,
+        zip_code: validationResult.zip_code ?? undefined,
+        phone: validationResult.phone ?? undefined,
+        website: validationResult.website ?? undefined,
+        created_by: auth.user.id, 
+    };
+
+    const supabase = await createClient();
+    const courseDbService = new CourseDbService(supabase);
+
+    try {
+        const createResponse = await courseDbService.createCourse(coursePayload);
+        if (createResponse.error || !createResponse.data) {
+            throw createResponse.error || new Error('Failed to create course, no data returned');
+        }
+        return createSuccessApiResponse(createResponse.data, 201);
+    } catch (error: any) {
+        console.error('[API /courses POST] Error:', error);
+        if (error instanceof ServiceError) {
+            return createErrorApiResponse(error.message, error.code, 400);
+        }
+        return createErrorApiResponse('Failed to create course', 'CREATE_COURSE_ERROR', 500);
+    }
+};
+
+export const POST = withAuth(createCourseHandler);

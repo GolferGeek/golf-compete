@@ -1,9 +1,12 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
-import { createSuccessApiResponse, createErrorApiResponse } from '@/lib/api/utils'; // Import the response utilities
+import { createSuccessApiResponse, createErrorApiResponse, validateRequestBody } from '@/lib/api/utils'; // Import the response utilities
 import { createClient } from '@/lib/supabase/server'; // Need this to create client
 import AuthService from '@/services/internal/AuthService'; // Import service class
+import { type AuthProfile } from '@/services/internal/AuthService'; // Import type
+import { ServiceError } from '@/services/base'; // Import ServiceError
+import { z } from 'zod';
 
 /**
  * @swagger
@@ -102,3 +105,76 @@ const getProfileHandler = async (
 
 // Wrap the handler with withAuth to protect the route
 export const GET = withAuth(getProfileHandler); 
+
+// Schema for updating profile
+const updateProfileSchema = z.object({
+    // Allow updating specific fields
+    first_name: z.string().optional().nullable(),
+    last_name: z.string().optional().nullable(),
+    username: z.string().min(3).optional().nullable(),
+    handicap: z.number().optional().nullable(),
+    // is_admin, role etc. should likely NOT be updatable by user directly
+    // multiple_clubs_sets: z.boolean().optional(), // Example
+}).partial(); // Allow partial updates
+
+/**
+ * @swagger
+ * /api/user/profile:
+ *   put:
+ *     summary: Update authenticated user's profile
+ *     description: Updates profile details for the currently logged-in user.
+ *     tags: [User, Profile]
+ *     security: [{ bearerAuth: [] }]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema: { $ref: '#/components/schemas/UpdateProfileInput' } # Based on updateProfileSchema
+ *     responses:
+ *       200: { description: Profile updated successfully }
+ *       400: { description: Validation error }
+ *       401: { description: Unauthorized }
+ *       500: { description: Internal server error }
+ */
+const updateProfileHandler = async (
+    request: NextRequest, 
+    context: { params?: any }, 
+    auth: AuthenticatedContext
+) => {
+    const validationResult = await validateRequestBody(request, updateProfileSchema);
+    if (validationResult instanceof NextResponse) return validationResult;
+    if (Object.keys(validationResult).length === 0) {
+         return createErrorApiResponse('No update data provided', 'VALIDATION_ERROR', 400);
+    }
+
+    // Construct payload, handling nulls -> undefined
+    const updatePayload: Partial<Omit<AuthProfile, 'id' | 'is_admin' | 'created_at' | 'updated_at'> > = {
+        first_name: validationResult.first_name ?? undefined,
+        last_name: validationResult.last_name ?? undefined,
+        username: validationResult.username ?? undefined,
+        handicap: validationResult.handicap ?? undefined,
+        // Add other updatable fields here
+    };
+    
+    const userId = auth.user.id;
+    const supabase = await createClient(); 
+    const authService = new AuthService(supabase);
+
+    try {
+        const updateResponse = await authService.updateProfile(userId, updatePayload);
+
+        if (updateResponse.error) throw updateResponse.error;
+        if (!updateResponse.data) throw new Error('Profile data missing after update');
+
+        return createSuccessApiResponse(updateResponse.data);
+
+    } catch (error: any) {
+        console.error('[API /user/profile PUT] Error:', error);
+        if (error instanceof ServiceError) {
+            return createErrorApiResponse(error.message, error.code, 400); // Likely DB constraint
+        }
+        return createErrorApiResponse('Failed to update profile', 'UPDATE_PROFILE_ERROR', 500);
+    }
+};
+
+export const PUT = withAuth(updateProfileHandler); 
