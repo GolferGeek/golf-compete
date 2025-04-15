@@ -23,8 +23,25 @@ import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import { format } from 'date-fns';
 import { respondToInvitation } from '@/services/competition/seriesParticipantService';
 
+// Define the UserSeries interface matching the API response
+// (Ideally, import from a shared types location)
+interface UserSeries {
+  participantId: string;
+  userId: string;
+  seriesId: string;
+  role: string;
+  participantStatus: string;
+  joinedAt: string;
+  seriesName: string;
+  seriesDescription?: string;
+  seriesStartDate: string;
+  seriesEndDate: string;
+  seriesStatus: string;
+  seriesCreatedBy?: string;
+}
+
 interface Props {
-  series: any[];
+  series: UserSeries[]; // Use the specific type
   loading: boolean;
   error: string | null;
   onInvitationResponse?: () => void;
@@ -131,7 +148,7 @@ export default function DashboardSeriesSection({ series, loading, error, onInvit
           <List>
             {series.slice(0, 3).map((s) => (
               <ListItem
-                key={s.id}
+                key={s.participantId}
                 sx={{
                   display: 'flex',
                   flexDirection: 'column',
@@ -149,12 +166,12 @@ export default function DashboardSeriesSection({ series, loading, error, onInvit
               >
                 <ListItemText
                   primary={
-                    <Link href={s.status === 'invited' ? '#' : `/series/${s.series_id}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                      {s.name}
+                    <Link href={s.participantStatus === 'invited' ? '#' : `/series/${s.seriesId}`} style={{ textDecoration: 'none', color: 'inherit' }}>
+                      {s.seriesName}
                     </Link>
                   }
-                  secondary={`${format(new Date(s.start_date), 'MMM d')} - ${format(
-                    new Date(s.end_date),
+                  secondary={`${format(new Date(s.seriesStartDate), 'MMM d')} - ${format(
+                    new Date(s.seriesEndDate),
                     'MMM d, yyyy'
                   )}`}
                 />
@@ -165,21 +182,21 @@ export default function DashboardSeriesSection({ series, loading, error, onInvit
                     color={s.role === 'admin' ? 'primary' : 'default'}
                   />
                   <Chip
-                    label={s.status}
+                    label={s.participantStatus}
                     size="small"
-                    color={getStatusColor(s.status)}
+                    color={getStatusColor(s.participantStatus)}
                   />
-                  {s.status === 'invited' && (
+                  {s.participantStatus === 'invited' && (
                     <ButtonGroup size="small" sx={{ ml: 'auto' }}>
                       <Button
-                        onClick={() => handleInvitationResponse(s.id, true)}
+                        onClick={() => handleInvitationResponse(s.participantId, true)}
                         color="success"
                         variant="outlined"
                       >
                         Accept
                       </Button>
                       <Button
-                        onClick={() => handleInvitationResponse(s.id, false)}
+                        onClick={() => handleInvitationResponse(s.participantId, false)}
                         color="error"
                         variant="outlined"
                       >

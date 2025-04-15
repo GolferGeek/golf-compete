@@ -1,0 +1,165 @@
+# Overview
+Golf Compete is transitioning to an API-based architecture to improve scalability, maintainability, and prepare for future AI integration. This conversion will separate front-end and back-end concerns while maintaining a clean, organized codebase structure.
+
+# Core Features
+1. API Endpoint Layer
+   - Provides RESTful endpoints for all application functionality
+   - Centralizes authentication and authorization
+   - Handles request validation and error responses
+   - Enables consistent data access patterns
+
+2. Internal Tool/Service Layer
+   - Encapsulates all Supabase interactions
+   - Provides type-safe function interfaces
+   - Maintains single responsibility principle
+   - Enables future extensibility for AI integration
+
+3. Authentication System
+   - Comprehensive auth endpoint coverage
+   - Session management
+   - OAuth integration
+   - Admin user management
+
+4. Resource Management
+   - Series, Events, and Courses management
+   - Round tracking and scoring
+   - User profiles and notes
+   - Image and file storage
+
+# User Experience
+User Personas:
+1. Front-end Developers
+   - Need clear, well-documented API endpoints
+   - Require consistent error handling
+   - Expect type-safe interfaces
+
+2. Back-end Developers
+   - Need organized service layer
+   - Require clear separation of concerns
+   - Expect maintainable code structure
+
+Key Flows:
+1. Authentication Flow
+   - Login/Register
+   - Password reset
+   - OAuth authentication
+   - Session management
+
+2. Data Management Flow
+   - CRUD operations for all resources
+   - File upload/download
+   - Admin operations
+
+# Technical Architecture
+System Components:
+1. API Layer (/api/*)
+   - Route handlers
+   - Request validation
+   - Response formatting
+   - Error handling
+
+2. Service Layer
+   - AuthService
+   - DatabaseService
+   - StorageService
+   - Feature-specific services
+
+3. Data Models
+   - User/Profile
+   - Series/Events
+   - Courses/Rounds
+   - Notes/Storage
+
+Integration Points:
+- Supabase Auth
+- Supabase Database
+- Supabase Storage
+- OAuth Providers
+
+# Development Roadmap
+Phase 1: Foundation
+- Implement internal service layer
+- Create base API structure
+- Set up authentication endpoints
+- Establish error handling patterns
+
+Phase 2: Core Resources
+- Implement Series/Events endpoints
+- Add Courses/Rounds management
+- Create Notes system
+- Set up file storage endpoints
+
+Phase 3: Front-end Integration
+- Update components to use new API
+- Implement proper data fetching
+- Add loading states
+- Error boundary implementation
+
+Phase 4: Admin & Enhancement
+- Add admin endpoints
+- Implement advanced queries
+- Add batch operations
+- Optimize performance
+
+# Logical Dependency Chain
+1. Foundation First
+   - Internal service layer
+   - Authentication system
+   - Base API structure
+
+2. Resource Implementation
+   - Core data endpoints
+   - File management
+   - Basic queries
+
+3. Front-end Updates
+   - Component refactoring
+   - Data fetching implementation
+   - Error handling
+
+4. Advanced Features
+   - Admin functionality
+   - Enhanced queries
+   - Performance optimization
+
+# Risks and Mitigations
+Technical Risks:
+1. Data Migration
+   - Risk: Data inconsistency during transition
+   - Mitigation: Comprehensive testing and validation
+
+2. Performance Impact
+   - Risk: Additional network requests
+   - Mitigation: Implement caching and optimization
+
+3. Authentication Complexity
+   - Risk: Session management issues
+   - Mitigation: Thorough testing of auth flows
+
+Resource Risks:
+1. Development Time
+   - Risk: Extended refactoring period
+   - Mitigation: Phased approach with incremental updates
+
+2. Testing Coverage
+   - Risk: Missing edge cases
+   - Mitigation: Comprehensive test suite
+
+# Appendix
+Current Supabase Dependencies:
+- Authentication calls
+- Database operations
+- Storage interactions
+- Client initialization
+
+API Endpoint Structure:
+- Authentication endpoints
+- User management
+- Resource management
+- Admin operations
+
+Internal Tool Layer:
+- Service abstractions
+- Type definitions
+- Utility functions
+- Testing utilities 

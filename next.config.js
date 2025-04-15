@@ -15,10 +15,10 @@ const nextConfig = {
     // Add an alias for the problematic import
     config.resolve.alias['date-fns/_lib/format/longFormatters'] = 'date-fns/format';
     
-    // Add fallback for process module
+    // Add fallback for process module (using string instead of require.resolve)
     config.resolve.fallback = {
       ...config.resolve.fallback,
-      process: require.resolve('process/browser'),
+      process: 'process/browser',
     };
     
     return config;
@@ -41,4 +41,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig; 
+export default nextConfig; 

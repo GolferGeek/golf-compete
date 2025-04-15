@@ -170,8 +170,8 @@ export default function SeriesList() {
       ) : isMobile ? (
         <Grid container spacing={2}>
           {series.map((s) => (
-            <Grid item xs={12} key={s.id}>
-              <Card>
+            <Grid xs={12} key={s.id}>
+              <Card sx={{ mb: 2 }}>
                 <CardContent>
                   <Typography variant="h6" component="div" gutterBottom>
                     {s.name}

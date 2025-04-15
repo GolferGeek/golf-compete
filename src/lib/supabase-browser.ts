@@ -1,4 +1,4 @@
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createBrowserClient } from '@supabase/ssr';
 import type { Database } from '@/types/supabase';
 
 // Initialize Supabase client for browser-only use
@@ -12,7 +12,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase browser client credentials')
 }
 
-let browserClient: ReturnType<typeof createClientComponentClient<Database>> | null = null;
+let browserClient: ReturnType<typeof createBrowserClient<Database>> | null = null;
 
 export const getSupabaseBrowserClient = () => {
   if (typeof window === 'undefined') {
@@ -20,7 +20,7 @@ export const getSupabaseBrowserClient = () => {
   }
   
   if (!browserClient) {
-    browserClient = createClientComponentClient<Database>();
+    browserClient = createBrowserClient<Database>(supabaseUrl, supabaseAnonKey);
   }
   
   return browserClient;
