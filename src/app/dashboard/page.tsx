@@ -32,7 +32,6 @@ import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { getEventParticipantsByUserId } from '@/lib/events';
 import { format } from 'date-fns';
 import DashboardSeriesSection from '@/components/series/DashboardSeriesSection';
 
@@ -67,23 +66,25 @@ interface UserSeries {
   seriesCreatedBy?: string;
 }
 
-type EventParticipant = {
-  id: string;
-  user_id: string;
-  event_id: string;
-  status: string;
-  registration_date: string;
-  name: string;
-  description?: string;
-  event_date: string;
-  event_format?: string;
-  event_status: string;
-  course_id?: string;
-  tee_time?: string;
-  starting_hole?: number;
-  group_number?: number;
-  handicap_index?: number;
-};
+// Define Event type locally based on expected API response from /api/user/events
+// Matches the UserEventData interface defined in the API route
+interface UserEvent {
+  participantId: string;
+  userId: string;
+  eventId: string;
+  participantStatus: string;
+  registrationDate: string;
+  eventName: string;
+  eventDescription?: string;
+  eventDate: string;
+  eventFormat?: string;
+  eventStatus: string;
+  courseId?: string;
+  teeTime?: string;
+  startingHole?: number;
+  groupNumber?: number;
+  handicapIndex?: number;
+}
 
 export default function Dashboard() {
   const router = useRouter();
@@ -93,7 +94,7 @@ export default function Dashboard() {
   // State Management
   const [profile, setProfile] = useState<Profile | null>(null);
   const [series, setSeries] = useState<UserSeries[]>([]);
-  const [events, setEvents] = useState<EventParticipant[]>([]);
+  const [events, setEvents] = useState<UserEvent[]>([]);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [loadingSeries, setLoadingSeries] = useState(true);
   const [loadingEvents, setLoadingEvents] = useState(true);
@@ -183,28 +184,38 @@ export default function Dashboard() {
   // Only depend on profile - run once when profile is loaded
   }, [profile]); 
 
-  // Fetch Events Data (using old method for now)
+  // Fetch Events Data via API
   useEffect(() => {
     // Only run if profile is successfully loaded
     if (!profile) return; 
 
-    const loadEvents = async () => {
+    const fetchEvents = async () => {
       setLoadingEvents(true);
       try {
-        console.log('Loading events for user:', profile.id);
-        const eventsData = await getEventParticipantsByUserId(profile.id);
-        console.log('Events data loaded:', eventsData);
-        setEvents(eventsData as EventParticipant[]);
+        console.log('Fetching events from API...');
+        const response = await fetch('/api/user/events');
+        
+        if (!response.ok) {
+          const errorData = await response.json();
+          throw new Error(errorData.error?.message || `HTTP error ${response.status}`);
+        }
+
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+          console.log('Events API response:', result.data);
+          setEvents(result.data as UserEvent[]);
+        } else {
+          throw new Error(result.error?.message || 'Failed to fetch events data');
+        }
       } catch (err) {
-        console.error('Error loading events data:', err);
-        // Only set error if not already set
+        console.error('Error fetching events data from API:', err);
         setError(prev => prev ?? (err instanceof Error ? err.message : 'Error fetching events.'));
       } finally {
         setLoadingEvents(false);
       }
     };
-    loadEvents();
-  // Only depend on profile
+    fetchEvents();
   }, [profile]); 
 
   // Combine loading states
@@ -341,14 +352,13 @@ export default function Dashboard() {
           {/* <Typography>Series Section (Temporarily Hidden)</Typography> */}
         </Box>
 
-        {/* Events Section - Re-enabled (leave uncommented) */}
+        {/* Events Section - Updated to use UserEvent type */}
         <Box sx={{ width: { xs: '100%', md: '50%' }, p: 1.5 }}>
           <Card>
             <CardContent>
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h6">Upcoming Events</Typography>
               </Box>
-              {/* <Typography>Events List (Temporarily Hidden)</Typography> */}
               {events.length === 0 ? (
                 <Typography color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
                   You have no upcoming events.
@@ -357,14 +367,14 @@ export default function Dashboard() {
                 <List>
                   {events.map((event) => (
                     <ListItem
-                      key={event.id} // Ensure event has a unique id property
+                      key={event.participantId}
                       divider
                       secondaryAction={
                         <IconButton
                           edge="end"
                           onClick={(e) => {
                             setEventMenuAnchor(e.currentTarget);
-                            setSelectedEventId(event.id); // Ensure event has id
+                            setSelectedEventId(event.eventId);
                           }}
                         >
                           <MoreVertIcon />
@@ -372,16 +382,16 @@ export default function Dashboard() {
                       }
                     >
                       <ListItemText
-                        primary={event.name} // Ensure event has name
+                        primary={event.eventName}
                         secondary={
                           <Box sx={{ display: 'flex', gap: 1, alignItems: 'center', mt: 0.5 }}>
                             <Chip
-                              label={event.status} // Ensure event has status
+                              label={event.participantStatus}
                               size="small"
-                              color={getStatusColor(event.status)} // Ensure event has status
+                              color={getStatusColor(event.participantStatus)}
                             />
                             <Typography variant="caption">
-                              {format(new Date(event.event_date), 'MMM d, yyyy')} {/* Ensure event has event_date */}
+                              {format(new Date(event.eventDate), 'MMM d, yyyy')}
                             </Typography>
                           </Box>
                         }

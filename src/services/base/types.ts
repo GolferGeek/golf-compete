@@ -76,6 +76,16 @@ export interface TransactionConfig {
 }
 
 /**
+ * Options for database table operations (e.g., case conversion)
+ */
+export interface TableOptions {
+  /**
+   * Whether to return results with camelCase keys (default: true)
+   */
+  useCamelCase?: boolean;
+}
+
+/**
  * Constants for error codes
  */
 export const ErrorCodes = {

@@ -18,7 +18,6 @@ interface UserEventData {
   eventName: string;
   eventDescription?: string;
   eventDate: string;
-  eventFormat?: string;
   eventStatus: string;
   courseId?: string;
   // Maybe add course name via another join?

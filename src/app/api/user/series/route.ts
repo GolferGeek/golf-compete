@@ -1,9 +1,8 @@
-import { NextResponse } from 'next/server';
-import type { NextRequest } from 'next/server';
+import { type NextRequest, NextResponse } from 'next/server';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
 import { createSuccessApiResponse, createErrorApiResponse } from '@/lib/api/utils';
 import { createClient } from '@/lib/supabase/server'; // Need this
-import DatabaseService from '@/services/internal/DatabaseService'; // Import service class
+import SeriesDbService from '@/services/internal/SeriesDbService'; // Import the new SeriesDbService
 import { keysToCamelCase } from '@/services/base'; // Import utility if needed for consistency
 
 // Define the expected shape of the joined data
@@ -74,13 +73,13 @@ const getUserSeriesHandler = async (
 ) => {
   const { user } = auth;
   
-  // Await client creation and instantiate service
+  // Create client and instantiate the specific SeriesDbService
   const supabase = await createClient();
-  const dbService = new DatabaseService(supabase);
+  const seriesDbService = new SeriesDbService(supabase);
 
   try {
-    // Call the dedicated service method
-    const seriesResponse = await dbService.fetchUserSeriesParticipations(user.id);
+    // Call the method from SeriesDbService
+    const seriesResponse = await seriesDbService.fetchUserSeriesParticipations(user.id);
 
     if (seriesResponse.error) {
       // Let withAuth handle ServiceError instances
