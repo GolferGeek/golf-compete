@@ -1,67 +1,118 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { Session } from '@supabase/supabase-js'
+import { Session, User } from '@supabase/supabase-js'
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
 import { useRouter } from 'next/navigation'
-import { getCurrentProfile, type Profile } from '@/lib/profileService'
+import { getCurrentProfile } from '@/lib/profileService'
+import { type AuthProfile } from '@/types/database'
+import { SupabaseClient } from '@supabase/supabase-js'
+import { Database } from '@/types/supabase'
 
-type AuthContextType = {
-  profile: Profile | null
+export interface AuthContextType {
+  user: User | null
   session: Session | null
-  isLoading: boolean
-  signOut: () => Promise<void>
+  profile: AuthProfile | null
+  loading: boolean
+  error: Error | null
+  supabase: SupabaseClient<Database> | null
   refreshProfile: () => Promise<void>
+  signOut: () => Promise<void>
 }
 
 // Create a default context value to avoid hydration mismatch
 const defaultContextValue: AuthContextType = {
-  profile: null,
+  user: null,
   session: null,
-  isLoading: true,
-  signOut: async () => {},
-  refreshProfile: async () => {}
+  profile: null,
+  loading: true,
+  error: null,
+  supabase: null,
+  refreshProfile: async () => {},
+  signOut: async () => {}
 }
 
 const AuthContext = createContext<AuthContextType>(defaultContextValue)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [profile, setProfile] = useState<Profile | null>(null)
+  const [profile, setProfile] = useState<AuthProfile | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [hasInitialized, setHasInitialized] = useState(false)
+  const [error, setError] = useState<Error | null>(null)
+  const [supabaseClient, setSupabaseClient] = useState<SupabaseClient<Database> | null>(null)
   const router = useRouter()
 
-  // Function to fetch current profile
-  const fetchCurrentProfile = async () => {
+  const fetchAndSetProfile = async () => {
     try {
-      const profileData = await getCurrentProfile()
-      setProfile(profileData)
-      return profileData
-    } catch (error) {
-      console.error('Error fetching current profile:', error)
-      return null
+      const profileData = await getCurrentProfile();
+      if (profileData) {
+        // No need to adapt, since getCurrentProfile now returns AuthProfile directly
+        setProfile(profileData);
+      } else {
+        setProfile(null);
+        console.log('No profile data returned from getCurrentProfile');
+      }
+    } catch (err) {
+      console.error("Error fetching profile in AuthContext:", err);
+      setError(err instanceof Error ? err : new Error('Failed to fetch profile'));
+      setProfile(null);
     }
   }
 
-  // Function to refresh profile
+  useEffect(() => {
+    // Initialize client once
+    const client = getSupabaseBrowserClient()
+    setSupabaseClient(client)
+
+    // Initial session fetch
+    client.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      if (session?.user?.id) {
+        // Call fetchAndSetProfile without userId
+        fetchAndSetProfile()
+      } else {
+        setProfile(null)
+      }
+      setIsLoading(false)
+    })
+
+    // Listener for auth state changes
+    const { data: { subscription } } = client.auth.onAuthStateChange(
+      async (_event, session) => {
+        console.log('Auth state changed:', _event, session?.user?.id)
+        setIsLoading(true)
+        setSession(session)
+        if (session?.user?.id) {
+          // Call fetchAndSetProfile without userId
+          await fetchAndSetProfile()
+        } else {
+          setProfile(null)
+        }
+        setIsLoading(false)
+      }
+    )
+
+    return () => subscription?.unsubscribe()
+  }, [])
+
   const refreshProfile = async () => {
-    if (!session?.user) {
-      console.log('Cannot refresh profile: No session')
-      return
-    }
-    
-    try {
-      await fetchCurrentProfile()
-    } catch (error) {
-      console.error('Error refreshing profile:', error)
+    if (session?.user?.id && supabaseClient) {
+      console.log('Refreshing profile data...')
+      setIsLoading(true)
+      // Call fetchAndSetProfile without userId
+      await fetchAndSetProfile()
+      setIsLoading(false)
+    } else {
+      console.warn('Attempted to refresh profile with no active session.')
     }
   }
 
   // Function to sign out
   const signOut = async () => {
+    if (!supabaseClient) return
     try {
-      const supabase = getSupabaseBrowserClient()
+      // Use the state client
+      const client = supabaseClient
       
       console.log('Signing out...')
       
@@ -76,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       // Now call the Supabase signOut
-      const { error } = await supabase.auth.signOut()
+      const { error } = await client.auth.signOut()
       
       if (error) {
         console.error('Error signing out:', error)
@@ -92,92 +143,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // Initialize auth state
-  useEffect(() => {
-    const initializeAuth = async () => {
-      if (hasInitialized) return
-
-      try {
-        setIsLoading(true)
-        
-        const supabase = getSupabaseBrowserClient()
-        
-        // Get initial session
-        const { data: { session }, error } = await supabase.auth.getSession()
-        
-        if (error) {
-          console.error('Error getting session:', error)
-          setIsLoading(false)
-          setHasInitialized(true)
-          return
-        }
-        
-        console.log('Session retrieved:', session ? 'Valid session' : 'No session')
-        
-        if (session) {
-          // Try to refresh the session
-          console.log('Attempting to refresh session...')
-          const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession()
-          
-          if (refreshError) {
-            console.error('Error refreshing session:', refreshError)
-            setSession(null)
-            setProfile(null)
-            setIsLoading(false)
-            setHasInitialized(true)
-            return
-          }
-          
-          if (refreshData.session) {
-            console.log('Session refreshed successfully')
-            setSession(refreshData.session)
-            await fetchCurrentProfile()
-          }
-        } else {
-          setSession(null)
-          setProfile(null)
-        }
-
-        // Set up auth state listener
-        const { data: { subscription } } = supabase.auth.onAuthStateChange(
-          async (event, session) => {
-            console.log('Auth state changed:', event)
-            
-            if (event === 'SIGNED_OUT') {
-              setSession(null)
-              setProfile(null)
-              return
-            }
-            
-            if (session) {
-              setSession(session)
-              await fetchCurrentProfile()
-            }
-          }
-        )
-
-        return () => {
-          subscription.unsubscribe()
-        }
-      } catch (error) {
-        console.error('Error initializing auth:', error)
-      } finally {
-        setIsLoading(false)
-        setHasInitialized(true)
-      }
-    }
-
-    initializeAuth()
-  }, [hasInitialized, router])
-
   return (
     <AuthContext.Provider
       value={{
-        profile,
+        user: session?.user ?? null,
         session,
-        isLoading,
-        signOut,
-        refreshProfile
+        profile,
+        loading: isLoading,
+        error: error,
+        supabase: supabaseClient,
+        refreshProfile,
+        signOut
       }}
     >
       {children}

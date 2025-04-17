@@ -1,6 +1,8 @@
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
 import { Database } from '@/types/supabase';
 import { userServiceForProfile } from './userService';
+import { fetchUserProfile } from './apiClient/profile'; // Import API client function
+import { AuthProfile } from '@/types/database'; // Import the AuthProfile type
 
 type DbProfile = Database['public']['Tables']['profiles']['Row'];
 export type Profile = DbProfile;
@@ -20,31 +22,76 @@ export interface CreateProfileData {
   multiple_clubs_sets?: boolean;
 }
 
-export async function getCurrentProfile(): Promise<Profile | null> {
-  const supabase = getSupabaseBrowserClient();
-  const { data: { session }, error: authError } = await supabase.auth.getSession();
-  
-  if (authError) {
-    console.error('Error getting session:', authError);
-    throw authError;
+// Export the AuthProfile type for use elsewhere
+export type { AuthProfile };
+
+/**
+ * Gets the current user's profile, using the API client first and then
+ * falling back to direct database access if that fails.
+ */
+export async function getCurrentProfile(): Promise<AuthProfile | null> {
+  try {
+    // First check if there's a valid session
+    const supabase = getSupabaseBrowserClient();
+    const { data: { session }, error: authError } = await supabase.auth.getSession();
+    
+    if (authError) {
+      console.error('Error getting session:', authError);
+      throw authError;
+    }
+
+    if (!session?.user) {
+      console.log('No active session found, returning null profile');
+      return null;
+    }
+
+    // Use API client to fetch profile data
+    console.log('Session found, fetching profile using API client');
+    try {
+      const apiProfile = await fetchUserProfile();
+      console.log('Profile fetched successfully via API:', !!apiProfile);
+      return apiProfile; // Already in AuthProfile format
+    } catch (apiError) {
+      console.error('Error fetching profile via API, falling back to direct DB access:', apiError);
+      
+      // Fallback to direct DB access if API fails
+      const { data, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+      if (profileError) {
+        console.error('Error fetching profile from DB:', profileError);
+        throw profileError;
+      }
+
+      if (!data) {
+        return null;
+      }
+
+      // Convert the DB profile to AuthProfile format
+      const authProfile: AuthProfile = {
+        id: data.id,
+        first_name: data.first_name || undefined,
+        last_name: data.last_name || undefined,
+        username: data.username || undefined,
+        handicap: data.handicap !== null ? data.handicap : undefined,
+        is_admin: data.is_admin !== null ? data.is_admin : undefined,
+        created_at: data.created_at || undefined,
+        updated_at: data.updated_at || undefined,
+        multiple_clubs_sets: data.multiple_clubs_sets || undefined,
+        openai_api_key: data.openai_api_key || undefined,
+        use_own_openai_key: data.use_own_openai_key || undefined,
+        ai_assistant_enabled: data.ai_assistant_enabled !== false ? true : false
+      };
+
+      return authProfile;
+    }
+  } catch (error) {
+    console.error('Error in getCurrentProfile:', error);
+    throw error;
   }
-
-  if (!session?.user) {
-    return null;
-  }
-
-  const { data, error: profileError } = await supabase
-    .from('profiles')
-    .select('*')
-    .eq('id', session.user.id)
-    .single();
-
-  if (profileError) {
-    console.error('Error fetching profile:', profileError);
-    throw profileError;
-  }
-
-  return data;
 }
 
 export async function getAllProfiles(): Promise<Profile[]> {
