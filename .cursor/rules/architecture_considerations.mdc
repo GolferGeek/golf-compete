@@ -1,1 +1,198 @@
- 
+# Architecture Considerations
+
+## Application Architecture
+
+- **Layer Separation**
+  - Maintain clear separation between presentation, business logic, and data access
+  - Components should focus on UI and delegate data/business operations to services
+  - Follow the pattern: UI Components → API Clients → API Routes → Services → Database
+
+- **Service Layer Pattern**
+  - Server-side logic should be organized into service classes
+  - Services handle business logic, validation, and database interactions
+  - Example: `AuthService`, `CourseService`, `EventService`
+  - Services should have single responsibility and clear interfaces
+
+- **Middleware Architecture**
+  - Use middleware for cross-cutting concerns:
+    - Authentication/Authorization
+    - Error handling
+    - Logging
+    - Request validation
+  - Middleware must be lightweight and specialized
+
+## API-First Architecture
+
+- **Client-Server Separation**
+  - All client-server communication must go through API endpoints
+  - No direct database access from client components
+  - Consistent API interface for all data operations
+
+- **Always Use API Endpoints Instead of Direct Supabase Calls**
+  - ✅ DO: Route all client authentication and data operations through API endpoints
+  - ❌ DON'T: Use Supabase client directly in page or component files
+  - Example:
+  ```typescript
+  // ✅ DO: Use the API client
+  import { login, logout, getSession } from '@/lib/apiClient/auth';
+  
+  // Use in components
+  const session = await getSession();
+  await login({ email, password });
+  
+  // ❌ DON'T: Use Supabase directly in components/pages
+  import { supabaseClient } from '@/lib/auth';
+  
+  // Don't use direct Supabase methods in components
+  const { data } = await supabaseClient.auth.getSession();
+  await supabaseClient.auth.signInWithPassword({ email, password });
+  ```
+
+- **Use Typed API Clients**
+  - All API interactions should use typed API client functions
+  - API clients are located in `@/lib/apiClient/` directory
+  - Each domain has its own client (auth, courses, events, etc.)
+  - Example import patterns:
+  ```typescript
+  import { login, logout, getSession } from '@/lib/apiClient/auth';
+  import { fetchCoursesList, getCourseById } from '@/lib/apiClient/courses';
+  import { createEvent, updateEvent } from '@/lib/apiClient/events';
+  ```
+
+- **Authentication Operations**
+  - Always use appropriate API endpoints for:
+    - Login: `/api/auth/login`
+    - Registration: `/api/auth/register`
+    - OAuth flows: `/api/auth/generate-oauth-url`
+    - Session management: `/api/auth/session`
+    - Password reset: `/api/auth/reset-password`
+  - Use methods from `@/lib/apiClient/auth.ts` which abstract these API calls
+
+- **OAuth Authentication Flow**
+  - Use the secure API-based OAuth flow:
+    - Generate OAuth URL through the API, not directly with Supabase
+    - Always use server-side callback endpoint `/api/auth/callback`
+    - Verify user authentication before processing session data
+  - Example:
+  ```typescript
+  // ✅ DO: Use our API client for OAuth flows
+  import { signInWithGoogle } from '@/lib/apiClient/auth';
+  
+  // In component:
+  await signInWithGoogle();
+  
+  // ❌ DON'T: Use Supabase OAuth directly
+  const { data } = await supabaseClient.auth.signInWithOAuth({
+    provider: 'google'
+  });
+  ```
+
+- **Server-Side Supabase Usage**
+  - In API routes, create Supabase clients using `createClient` from `@/lib/supabase/server`
+  - Use service layer (like `AuthService`) instead of direct Supabase calls
+  - Always handle authentication securely by calling `getUser()` before `getSession()`
+
+## Component Architecture
+
+- **Component Composition**
+  - Prefer composition over inheritance
+  - Break complex components into smaller, focused components
+  - Use props to pass data and callbacks between components
+  - Implement container/presentational pattern for complex UI sections
+
+- **State Management**
+  - Use local component state for UI-specific state
+  - Use context for shared state that spans multiple components
+  - Keep context providers as close as possible to where they're needed
+  - Consider state locality when designing components
+
+- **API Data Management**
+  - Keep API data in component state or context
+  - Implement proper loading/error states for all API operations
+  - Use React Query or SWR for complex caching needs
+  - Avoid storing API data in global state unless specifically needed
+
+- **MUI Layout Patterns**
+  - ❌ DON'T: Nest MUI Grid components inside other Grid components
+    - Nested grids cause layout issues and unpredictable behavior
+  - ✅ DO: Use Box, Stack, or Container with flexbox properties instead
+    - Example:
+    ```jsx
+    // ✅ DO: Use Box with flexbox for layouts
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+        {/* Content */}
+      </Box>
+    </Box>
+    
+    // ❌ DON'T: Nest Grid components
+    <Grid container>
+      <Grid item>
+        <Grid container> {/* Avoid this nesting */}
+          <Grid item></Grid>
+        </Grid>
+      </Grid>
+    </Grid>
+    ```
+  - When creating complex layouts, prefer composition of Box and Stack components
+  - For responsive layouts, use the sx prop with responsive arrays or objects
+
+## Error Handling Architecture
+
+- **Consistent Error Pattern**
+  - Use a consistent error handling strategy across the application
+  - API routes should return standardized error responses
+  - Client components should handle and display errors appropriately
+  - Implement proper logging for server-side errors
+
+- **Client-Side Error Handling**
+  - Use the `handleApiResponse` utility for consistent API response handling
+  - Properly handle loading and error states for all API operations
+  - Log meaningful error messages for debugging
+  - Example:
+  ```typescript
+  // Using handleApiResponse in API clients
+  export async function fetchUserProfile(): Promise<UserProfile> {
+    const response = await fetch('/api/user/profile');
+    return handleApiResponse<UserProfile>(response);
+  }
+  
+  // Using in components with proper error handling
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    async function loadProfile() {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await fetchUserProfile();
+        setProfile(data);
+      } catch (err) {
+        setError(err.message || "Failed to load profile");
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    loadProfile();
+  }, []);
+  ```
+
+- **Error Types and Status Codes**
+  - Use appropriate HTTP status codes in API responses
+  - Create typed error objects with clear error codes
+  - Include enough detail for debugging without exposing sensitive information
+  - Example:
+    ```typescript
+    // API response error structure
+    {
+      status: "error",
+      error: {
+        code: "AUTH_INVALID_CREDENTIALS",
+        message: "Invalid email or password",
+        details: {} // Optional additional details
+      }
+    }
+    ``` 

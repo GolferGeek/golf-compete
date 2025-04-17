@@ -19,6 +19,27 @@ alwaysApply: false
 - Implement proper error boundaries for component errSor handling
 - Use React.memo() for performance optimization only when necessary
 
+## Simplicity Principles
+- **Prefer Simple Solutions**: Always choose the simplest implementation that correctly solves the problem
+- **Avoid Over-Engineering**: 
+  - No premature optimization
+  - No excessive debouncing, throttling, or caching unless clearly needed and proven necessary
+  - No complex state management patterns if simple state works
+- **Minimize Side Effects**: 
+  - Avoid background polling, timers, and intervals when possible
+  - Prefer explicit user-triggered updates over automatic background updates
+- **Direct Over Indirect**: 
+  - Aim for clear, direct code paths
+  - A function should do one thing and do it well
+  - Avoid unnecessary abstraction layers
+- **Readable Code is Maintainable Code**: 
+  - New developers should understand what code does at a glance
+  - Good naming is better than comments explaining complex logic
+- **API-First but API-Simple**: 
+  - Follow API-driven architecture
+  - Keep API interfaces focused on business functions
+  - Maintain clean separation between client and server concerns
+
 ## TypeScript
 - Maintain strict TypeScript typing (noImplicitAny: false is set, but prefer explicit types)
 - Create proper interfaces and types for all data structures

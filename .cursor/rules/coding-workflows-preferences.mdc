@@ -7,3 +7,57 @@ alwaysApply: false
 - Do not touch code that is unrelated to the task
 - Avoid mking major changes to the patterns and arctecture of how a feature works, after it has shown to work well, unless explitictly instructed
 - Always think about what other methods and areas of code might be affected by code changes
+
+# Coding Workflows and Preferences
+
+## Git and Commit Practices
+
+- **Commit Frequently at Logical Endpoints**
+  - Always commit all changes (`git add .`) when reaching a logical end point of effort
+  - Include descriptive commit messages that summarize the changes made
+  - No need to selectively commit files - include everything in the working directory
+  - This approach preserves work at meaningful increments and makes rollbacks more manageable
+  - Example: `git add . && git commit -m "General API refactoring for authentication" && git push`
+
+- **Commit Messages**
+  - Use present tense (e.g., "Add feature" not "Added feature")
+  - Keep messages concise but descriptive
+  - Include the area of change (e.g., "Auth: Fix Google login redirect")
+  - For larger changes, use a multi-line commit message with details in the body
+
+## Code Style Preferences
+
+- **Simplicity Over Complexity**
+  - Always prefer the simplest solution that meets requirements
+  - Avoid overengineering or premature optimization
+  - If multiple approaches exist, choose the one that's easier to understand and maintain
+
+- **Code Organization**
+  - Keep files under 200-300 lines - refactor when they grow beyond this
+  - Avoid duplicate code - check if similar functionality exists elsewhere before implementing
+  - Place related functionality in the same module/directory
+
+- **Environment Awareness**
+  - Write code that handles different environments (dev, test, prod) appropriately
+  - Use environment variables for configuration that varies between environments
+  - Avoid hardcoding values that change between environments
+
+## Development Patterns
+
+- **API-First Approach**
+  - All client-side code should interact with backend services via API clients
+  - Avoid direct database access from client components
+  - Centralize API logic in dedicated client modules
+
+- **Careful Change Management**
+  - Make only requested changes or changes well understood and related to the task
+  - When fixing issues, try to work within existing patterns before introducing new ones
+  - Remove old implementations when replacing with new approaches to avoid duplicated logic
+
+- **No Stubbing in Production Code**
+  - Never include fake data or stub implementations in code affecting dev or prod environments
+  - Use proper testing frameworks for test environments instead
+
+- **Environment File Protection**
+  - Never overwrite .env files without explicit confirmation
+  - Treat environment configuration with care
