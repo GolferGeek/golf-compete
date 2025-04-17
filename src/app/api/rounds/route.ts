@@ -33,6 +33,8 @@ const fetchRoundsQuerySchema = z.object({
   userId: z.string().uuid().optional(),
   eventId: z.string().uuid().optional(),
   status: z.string().optional(),
+  dateAfter: z.string().datetime({ message: 'Invalid date format for dateAfter' }).optional(),
+  dateBefore: z.string().datetime({ message: 'Invalid date format for dateBefore' }).optional(),
 });
 
 /**
@@ -53,13 +55,30 @@ export async function GET(request: NextRequest) {
     const queryValidation = await validateQueryParams(request, fetchRoundsQuerySchema);
     if (queryValidation instanceof NextResponse) return queryValidation;
 
-    const { limit, page, sortBy, sortDir, userId, eventId, status } = queryValidation;
+    const { 
+        limit, 
+        page, 
+        sortBy, 
+        sortDir, 
+        userId, 
+        eventId, 
+        status, 
+        dateAfter,
+        dateBefore
+    } = queryValidation;
     const offset = (page - 1) * limit;
 
+    // Construct filters
     const filters: Record<string, any> = {};
     if (userId) filters.user_id = userId;
     if (eventId) filters.event_id = eventId;
     if (status) filters.status = status;
+    if (dateAfter) {
+        filters.round_date = { ...(filters.round_date || {}), gte: dateAfter };
+    }
+    if (dateBefore) {
+        filters.round_date = { ...(filters.round_date || {}), lte: dateBefore };
+    }
 
     const ordering = sortBy ? { column: sortBy, direction: sortDir } : undefined;
 

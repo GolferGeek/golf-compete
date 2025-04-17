@@ -28,12 +28,15 @@ const createEventSchema = z.object({
 const fetchEventsQuerySchema = z.object({
   limit: z.coerce.number().int().positive().optional().default(20),
   page: z.coerce.number().int().positive().optional().default(1),
-  sortBy: z.string().optional(), // e.g., 'name', 'event_date'
-  sortDir: z.enum(['asc', 'desc']).optional().default('asc'),
-  status: z.string().optional(), // Filter by status
-  seriesId: z.string().uuid().optional(), // Filter by series_id
-  courseId: z.string().uuid().optional(), // Filter by course_id
-  // Add other filters as needed
+  sortBy: z.string().optional().default('event_date'), // Default sort by date
+  sortDir: z.enum(['asc', 'desc']).optional().default('asc'), // Default asc for dates
+  status: z.string().optional(),
+  seriesId: z.string().uuid().optional(),
+  courseId: z.string().uuid().optional(),
+  // Add date range and search
+  startDateAfter: z.string().datetime({ message: 'Invalid date format for startDateAfter' }).optional(),
+  endDateBefore: z.string().datetime({ message: 'Invalid date format for endDateBefore' }).optional(),
+  search: z.string().optional(),
 });
 
 /**
@@ -54,15 +57,38 @@ export async function GET(request: NextRequest) {
     const queryValidation = await validateQueryParams(request, fetchEventsQuerySchema);
     if (queryValidation instanceof NextResponse) return queryValidation;
 
-    const { limit, page, sortBy, sortDir, status, seriesId, courseId } = queryValidation;
+    const { 
+        limit, 
+        page, 
+        sortBy, 
+        sortDir, 
+        status, 
+        seriesId, 
+        courseId, 
+        startDateAfter, 
+        endDateBefore, 
+        search 
+    } = queryValidation;
     const offset = (page - 1) * limit;
 
-    // Construct filters and ordering
+    // Construct filters
     const filters: Record<string, any> = {};
     if (status) filters.status = status;
     if (seriesId) filters.series_id = seriesId;
     if (courseId) filters.course_id = courseId;
-    // Add more filters
+    if (startDateAfter) {
+        filters.event_date = { ...(filters.event_date || {}), gte: startDateAfter };
+    }
+    if (endDateBefore) {
+        filters.event_date = { ...(filters.event_date || {}), lte: endDateBefore };
+    }
+
+    // Construct OR filter for search
+    let orFilterString: string | undefined = undefined;
+    if (search && search.trim() !== '') {
+        const searchTerm = `%${search.trim()}%`;
+        orFilterString = `name.ilike.${searchTerm},description.ilike.${searchTerm}`;
+    }
 
     const ordering = sortBy ? { column: sortBy, direction: sortDir } : undefined;
 
@@ -71,14 +97,11 @@ export async function GET(request: NextRequest) {
 
     try {
         const response = await eventDbService.fetchEvents(
-            { pagination: { limit, offset, page }, ordering, filters }, 
+            { pagination: { limit, offset, page }, ordering, filters, orFilter: orFilterString }, 
             { useCamelCase: true }
         );
-
         if (response.error) throw response.error;
-
         return createSuccessApiResponse(response);
-
     } catch (error: any) {
         console.error('[API /events GET] Error:', error);
         return createErrorApiResponse('Failed to fetch events', 'FETCH_EVENTS_ERROR', 500);

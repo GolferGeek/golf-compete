@@ -3,7 +3,61 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import type { Database } from '@/types/supabase'; // Ensure this path is correct
 
+// List of valid/known routes in the app
+const VALID_ROUTES = [
+  '/',
+  '/about',
+  '/contact',
+  '/dashboard',
+  '/profile',
+  '/onboarding',
+  '/competitions',
+  '/tracking',
+  '/improvement',
+  '/coaching',
+  '/courses',
+  '/games',
+  '/privacy',
+  '/terms',
+];
+
+// Routes with prefixes (paths that start with these are valid)
+const VALID_PREFIXES = [
+  '/auth/',
+  '/api/',
+  '/profile/',
+  '/admin/',
+  '/dashboard/',
+  '/competitions/',
+  '/events/'
+];
+
+// Static assets prefixes to ignore
+const STATIC_ASSET_PREFIXES = [
+  '/_next/',
+  '/favicon.ico',
+  '/assets/',
+  '/images/',
+];
+
 export async function middleware(request: NextRequest) {
+  // Check if the route is a static asset - if so, skip all checks
+  const pathName = request.nextUrl.pathname;
+  if (STATIC_ASSET_PREFIXES.some(prefix => pathName.startsWith(prefix))) {
+    return NextResponse.next();
+  }
+  
+  // Check if the route is valid
+  const isValidRoute = 
+    VALID_ROUTES.includes(pathName) || 
+    VALID_PREFIXES.some(prefix => pathName.startsWith(prefix));
+  
+  // If it's not a valid route, redirect to the home page
+  if (!isValidRoute) {
+    console.log(`Middleware: Invalid route detected (${pathName}), redirecting to home page`);
+    return NextResponse.redirect(new URL('/', request.url));
+  }
+
   let response = NextResponse.next({
     request: {
       headers: new Headers(request.headers),
@@ -15,38 +69,25 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value;
+        getAll: () => {
+          return request.cookies.getAll().map(cookie => ({
+            name: cookie.name,
+            value: cookie.value,
+          }));
         },
-        set(name: string, value: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value,
-            ...options,
+        setAll: (cookies) => {
+          cookies.forEach(({ name, value, ...options }) => {
+            request.cookies.set({
+              name,
+              value,
+              ...options,
+            });
+            response.cookies.set({
+              name,
+              value,
+              ...options,
+            });
           });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          response.cookies.set({
-            name,
-            value,
-            ...options,
-          });
-        },
-        remove(name: string, options: CookieOptions) {
-          request.cookies.set({
-            name,
-            value: '',
-            ...options,
-          });
-          response = NextResponse.next({
-            request: {
-              headers: request.headers,
-            },
-          });
-          response.cookies.delete({ name, ...options });
         },
       },
     }
@@ -54,11 +95,31 @@ export async function middleware(request: NextRequest) {
 
   // Refresh session if expired - important!
   // This will also update the cookies in the response via the set/remove handlers above
+  
+  // First, authenticate the user securely
+  const { data: { user }, error: userError } = await supabase.auth.getUser();
+  
+  if (userError) {
+    // Only log as error if it's not a "missing session" error, which is expected for anonymous users
+    if (userError.message.includes('missing') || userError.message.includes('session')) {
+      console.log('Middleware: No auth session - anonymous user');
+    } else {
+      console.error('Middleware: Error authenticating user:', userError.message);
+    }
+    // Continue with no user authenticated
+  }
+  
+  // Then get the session, which we need for cookies/refresh
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
   // Centralized logging for session status
   if (sessionError) {
-    console.error('Middleware: Error refreshing session:', sessionError.message);
+    // Only log as error if it's not a "missing session" error, which is expected for anonymous users
+    if (sessionError.message.includes('missing') || sessionError.message.includes('session')) {
+      console.log('Middleware: No session found - anonymous user');
+    } else {
+      console.error('Middleware: Error refreshing session:', sessionError.message);
+    }
     // Potentially handle specific errors differently, but for now, treat as no session
   }
   
@@ -75,7 +136,7 @@ export async function middleware(request: NextRequest) {
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
       } else {
         // For UI routes (like /admin), redirect to login
-        return NextResponse.redirect(new URL('/login', request.url));
+        return NextResponse.redirect(new URL('/auth/login', request.url));
       }
     }
     

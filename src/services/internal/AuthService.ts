@@ -9,17 +9,10 @@ import {
   createSuccessResponse,
   createErrorResponse
 } from '../base';
+import { type AuthProfile as DatabaseAuthProfile } from '@/types/database'; // Import shared type
 
-export interface AuthProfile {
-  id: string;
-  first_name?: string;
-  last_name?: string;
-  username?: string;
-  handicap?: number;
-  is_admin?: boolean;
-  created_at?: string;
-  updated_at?: string;
-}
+// Re-export the AuthProfile type
+export type AuthProfile = DatabaseAuthProfile;
 
 export interface AuthUser {
   user: User | null;
@@ -76,19 +69,45 @@ class AuthService extends BaseService {
    */
   public async getSession(): Promise<SessionResponse> {
     try {
-      const { data, error } = await this.client.auth.getSession();
+      // First get the user data securely
+      const { data: userData, error: userError } = await this.client.auth.getUser();
       
-      if (error) {
+      if (userError) {
+        // Handle common "Missing auth session" error more gracefully
+        if (userError.message.includes('missing') || userError.message.includes('session')) {
+          console.warn('Auth session missing or invalid. Returning null session.');
+          return createSuccessResponse({ session: null, user: null });
+        }
+        
         throw new AuthError(
-          error.message,
-          ErrorCodes.AUTH_SESSION_EXPIRED,
-          error
+          userError.message,
+          ErrorCodes.AUTH_USER_NOT_FOUND,
+          userError
         );
       }
       
+      // Then get the session data
+      const { data: sessionData, error: sessionError } = await this.client.auth.getSession();
+      
+      if (sessionError) {
+        // Handle common session errors more gracefully
+        if (sessionError.message.includes('missing') || sessionError.message.includes('session') || 
+            sessionError.message.includes('expired')) {
+          console.warn('Session missing, invalid or expired. Returning null session.');
+          return createSuccessResponse({ session: null, user: userData.user });
+        }
+        
+        throw new AuthError(
+          sessionError.message,
+          ErrorCodes.AUTH_SESSION_EXPIRED,
+          sessionError
+        );
+      }
+      
+      // Return the authenticated user and session
       return createSuccessResponse({
-        session: data.session,
-        user: data.session?.user || null
+        session: sessionData.session,
+        user: userData.user
       });
     } catch (error) {
       return this.handleAuthError(error, 'Failed to get session');
@@ -103,6 +122,12 @@ class AuthService extends BaseService {
       const { data, error } = await this.client.auth.getUser();
       
       if (error) {
+        // Handle common "Missing auth session" error more gracefully
+        if (error.message.includes('missing') || error.message.includes('session')) {
+          console.warn('Auth session missing or invalid. Returning null user.');
+          return createSuccessResponse(null);
+        }
+        
         throw new AuthError(
           error.message,
           ErrorCodes.AUTH_USER_NOT_FOUND,
@@ -291,19 +316,62 @@ class AuthService extends BaseService {
   /**
    * Sign in with OAuth provider
    */
-  public async signInWithOAuth(params: OAuthProvider): Promise<ServiceResponse<null>> {
+  public async signInWithOAuth(params: OAuthProvider): Promise<ServiceResponse<{ url: string } | null>> {
     try {
       const { provider, redirectTo, scopes } = params;
       
-      const { error } = await this.client.auth.signInWithOAuth({
+      console.log(`[AuthService] Starting OAuth sign-in for ${provider}`);
+      console.log(`[AuthService] Original redirect URL: ${redirectTo}`);
+      
+      // Ensure we're using localhost in development
+      let finalRedirectTo = redirectTo;
+      if (process.env.NODE_ENV === 'development') {
+        // Force localhost URL
+        if (finalRedirectTo?.includes('golfcompete.com') || finalRedirectTo?.includes('golfcompete.app')) {
+          finalRedirectTo = finalRedirectTo.replace(
+            /(https?:\/\/)?(www\.)?(golfcompete\.com|golfcompete\.app)/g, 
+            'http://localhost:3000'
+          );
+          console.log(`[AuthService] Forced redirect URL to: ${finalRedirectTo}`);
+        }
+      }
+      
+      // Construct query params to prevent unwanted redirects
+      const queryParams: Record<string, string> = {
+        prompt: 'select_account', // Always prompt for account selection
+        access_type: 'offline'
+      };
+      
+      // In development, add additional parameters to prevent domain switching
+      if (process.env.NODE_ENV === 'development') {
+        // Add timestamp to prevent caching issues
+        queryParams.ts = Date.now().toString();
+        // Add development flag to help track origin
+        queryParams.env = 'development';
+      }
+      
+      console.log(`[AuthService] Final redirect URL: ${finalRedirectTo}`);
+      console.log(`[AuthService] Using query params:`, queryParams);
+      
+      const { data, error } = await this.client.auth.signInWithOAuth({
         provider,
         options: {
-          redirectTo: redirectTo || `${window?.location?.origin || ''}/auth/callback`,
-          scopes
+          redirectTo: finalRedirectTo || `${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`,
+          scopes,
+          queryParams,
+          skipBrowserRedirect: false
         }
       });
       
+      console.log(`[AuthService] OAuth response:`, {
+        success: !error,
+        errorMessage: error?.message,
+        hasData: !!data,
+        hasUrl: !!data?.url,
+      });
+      
       if (error) {
+        console.error(`[AuthService] OAuth error for ${provider}:`, error);
         throw new AuthError(
           error.message,
           ErrorCodes.AUTH_INVALID_CREDENTIALS,
@@ -311,8 +379,22 @@ class AuthService extends BaseService {
         );
       }
       
-      return createSuccessResponse(null);
+      // Add a local development warning parameter to the URL in development
+      let finalUrl = data.url;
+      if (process.env.NODE_ENV === 'development' && finalUrl) {
+        // Parse the URL
+        const url = new URL(finalUrl);
+        // Add a development flag parameter
+        url.searchParams.append('dev_mode', 'true');
+        // Convert back to string
+        finalUrl = url.toString();
+        console.log(`[AuthService] Modified OAuth URL with dev flag: ${finalUrl}`);
+      }
+      
+      // Return the OAuth URL that was generated
+      return createSuccessResponse({ url: finalUrl });
     } catch (error) {
+      console.error(`[AuthService] Failed to sign in with OAuth:`, error);
       return this.handleAuthError(error, 'Failed to sign in with OAuth');
     }
   }

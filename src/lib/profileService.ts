@@ -1,8 +1,11 @@
 import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
-import { Database } from '@/types/supabase';
+import { type Database } from '@/types/supabase';
 import { userServiceForProfile } from './userService';
-import { fetchUserProfile } from './apiClient/profile'; // Import API client function
-import { AuthProfile } from '@/types/database'; // Import the AuthProfile type
+import { fetchUserProfile } from './apiClient/profile';
+import { type AuthProfile } from '@/services/internal/AuthService'; // Import from AuthService only once
+import axios from 'axios';
+import { delay } from '@/lib/utils';
+import { ApiResponse } from '@/lib/apiClient/apiClient';
 
 type DbProfile = Database['public']['Tables']['profiles']['Row'];
 export type Profile = DbProfile;

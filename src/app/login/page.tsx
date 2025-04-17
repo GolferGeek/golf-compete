@@ -12,7 +12,11 @@ import {
   CircularProgress
 } from '@mui/material';
 import { useRouter, useSearchParams } from 'next/navigation';
+import AuthService from '@/services/internal/AuthService';
 import { supabaseClient } from '@/lib/auth';
+
+// Create an instance of AuthService
+const authService = new AuthService(supabaseClient);
 
 function LoginContent() {
   const [email, setEmail] = useState('');
@@ -26,9 +30,14 @@ function LoginContent() {
   useEffect(() => {
     // Check if user is already logged in
     const checkSession = async () => {
-      const { data: { session } } = await supabaseClient.auth.getSession();
-      if (session) {
-        router.push(redirectTo);
+      try {
+        const response = await authService.getSession();
+        if (response?.data?.session) {
+          router.push(redirectTo);
+        }
+      } catch (err) {
+        console.error('Error checking session:', err);
+        // Continue showing login page if there's an error
       }
     };
     
@@ -41,7 +50,7 @@ function LoginContent() {
     setError(null);
     
     try {
-      const { data, error } = await supabaseClient.auth.signInWithPassword({
+      const { data, error } = await authService.signInWithEmail({
         email,
         password
       });
@@ -50,7 +59,7 @@ function LoginContent() {
         throw error;
       }
       
-      if (data.session) {
+      if (data?.session) {
         router.push(redirectTo);
       }
     } catch (err: any) {

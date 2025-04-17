@@ -1,8 +1,7 @@
 'use client'
 
-import { useState, useEffect, Suspense } from 'react'
+import { useState, useEffect, Suspense, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { getSupabaseBrowserClient } from '@/lib/supabase-browser'
 import {
   Box,
   Button,
@@ -19,6 +18,7 @@ import GoogleIcon from '@mui/icons-material/Google'
 import EmailIcon from '@mui/icons-material/Email'
 import Link from 'next/link'
 import { useAuth } from '@/contexts/AuthContext'
+import { login, getSession, signInWithGoogle } from '@/lib/apiClient/auth'
 
 // Loading component for Suspense fallback
 function LoginLoading() {
@@ -42,94 +42,86 @@ function LoginForm() {
   const [error, setError] = useState<string | null>(null)
   const [checkingSession, setCheckingSession] = useState(true)
   const [hasCheckedSession, setHasCheckedSession] = useState(false)
+  const redirectTimer = useRef<NodeJS.Timeout | null>(null)
   const router = useRouter()
   const searchParams = useSearchParams()
-  const { profile, session, isLoading: authLoading } = useAuth()
+  const { profile, session, loading: authLoading, refreshProfile } = useAuth()
   const redirectPath = searchParams?.get('redirect') || '/dashboard'
+  const [redirectingToLogin, setRedirectingToLogin] = useState(false)
+  const redirectDebounce = useRef<NodeJS.Timeout | null>(null)
 
-  // Check if user is already logged in
+  const safeRedirect = (path: string) => {
+    if (redirectingToLogin) return;
+
+    if (redirectDebounce.current) {
+      clearTimeout(redirectDebounce.current);
+    }
+
+    setRedirectingToLogin(true);
+    redirectDebounce.current = setTimeout(() => {
+      console.log(`Safe redirect to: ${path}`);
+      router.replace(path);
+    }, 300);
+  };
+
   useEffect(() => {
+    if (hasCheckedSession || redirectingToLogin || authLoading) {
+      return;
+    }
+
     const checkSession = async () => {
-      // Prevent recursive checks
-      if (hasCheckedSession) {
-        return
-      }
-
       try {
-        console.log('Checking for existing session...')
-        const supabase = getSupabaseBrowserClient()
+        console.log('Checking for existing session...');
+        setHasCheckedSession(true);
         
-        // Clear any stale auth data first
-        if (typeof window !== 'undefined') {
-          const hasStaleToken = localStorage.getItem('sb-refresh-token') || 
-                               localStorage.getItem('sb-access-token') ||
-                               localStorage.getItem('supabase.auth.token')
-          
-          if (hasStaleToken) {
-            console.log('Found stale auth tokens, clearing them...')
-            await supabase.auth.signOut()
-            
-            // Clear local storage manually as well
-            localStorage.removeItem('supabase.auth.token')
-            localStorage.removeItem('sb-refresh-token')
-            localStorage.removeItem('sb-access-token')
-            localStorage.removeItem('sb-auth-token')
-          }
-        }
-        
-        const { data: { session: currentSession }, error } = await supabase.auth.getSession()
-        
-        if (error) {
-          console.error('Error checking session:', error)
-          setCheckingSession(false)
-          setHasCheckedSession(true)
-          return
-        }
-        
-        if (currentSession?.user) {
-          console.log('Active session found, checking for profile...')
-          // Wait for profile to be loaded
-          await new Promise(resolve => setTimeout(resolve, 500))
-          
+        if (session) {
+          console.log('Session detected in context');
           if (profile) {
-            console.log('Profile found, redirecting to:', redirectPath)
-            router.replace(redirectPath)
+            console.log('Profile found, redirecting to:', redirectPath);
+            safeRedirect(redirectPath);
           } else {
-            console.log('No profile found, redirecting to onboarding')
-            router.replace('/onboarding')
+            console.log('No profile found, redirecting to onboarding');
+            safeRedirect('/onboarding');
           }
-          return
+          return;
         }
         
-        console.log('No active session found, showing login form')
-        setCheckingSession(false)
-        setHasCheckedSession(true)
-      } catch (err) {
-        console.error('Unexpected error checking session:', err)
-        setCheckingSession(false)
-        setHasCheckedSession(true)
-      }
-    }
-
-    // Only check session if:
-    // 1. We haven't checked before
-    // 2. We're not already loading auth state
-    // 3. We don't already have a session and profile
-    if (!hasCheckedSession && !authLoading) {
-      if (session) {
-        console.log('Session already in context, checking profile...')
-        if (profile) {
-          console.log('Profile found, redirecting to:', redirectPath)
-          router.replace(redirectPath)
-        } else {
-          console.log('No profile found, redirecting to onboarding')
-          router.replace('/onboarding')
+        try {
+          const sessionData = await getSession();
+          
+          if (sessionData?.session?.user) {
+            console.log('Session detected from API');
+            await refreshProfile();
+            
+            if (profile) {
+              console.log('Profile found after refresh, redirecting to:', redirectPath);
+              safeRedirect(redirectPath);
+            } else {
+              console.log('No profile found after refresh, redirecting to onboarding');
+              safeRedirect('/onboarding');
+            }
+            return;
+          }
+        } catch (err) {
+          console.error('Error checking session:', err);
         }
-      } else {
-        checkSession()
+        
+        console.log('No session found, showing login form');
+        setCheckingSession(false);
+      } catch (err) {
+        console.error('Unexpected error in session check:', err);
+        setCheckingSession(false);
       }
-    }
-  }, [router, session, profile, redirectPath, hasCheckedSession, authLoading])
+    };
+
+    checkSession();
+
+    return () => {
+      if (redirectDebounce.current) {
+        clearTimeout(redirectDebounce.current);
+      }
+    };
+  }, [session, profile, redirectPath, hasCheckedSession, router, refreshProfile, authLoading, redirectingToLogin]);
 
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -138,39 +130,27 @@ function LoginForm() {
     
     try {
       console.log('Attempting email login...')
-      const supabase = getSupabaseBrowserClient()
       
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Use API client for login
+      await login({
         email,
         password
       })
       
-      if (error) {
-        console.error('Email login error:', error)
-        setError('Failed to sign in with email. Please check your credentials and try again.')
-        setLoading(false)
-        return
-      }
+      console.log('Email login successful, waiting for profile...')
+      // Wait for profile to be loaded
+      await refreshProfile()
       
-      if (data.session) {
-        console.log('Email login successful, waiting for profile...')
-        // Wait for profile to be loaded
-        await new Promise(resolve => setTimeout(resolve, 500))
-        
-        if (profile) {
-          console.log('Profile found, redirecting to:', redirectPath)
-          router.push(redirectPath)
-        } else {
-          console.log('No profile found, redirecting to onboarding')
-          router.push('/onboarding')
-        }
+      if (profile) {
+        console.log('Profile found, redirecting to:', redirectPath)
+        router.push(redirectPath)
       } else {
-        setError('No session established after login. Please try again.')
-        setLoading(false)
+        console.log('No profile found, redirecting to onboarding')
+        router.push('/onboarding')
       }
     } catch (err) {
       console.error('Unexpected error during email login:', err)
-      setError('An unexpected error occurred. Please try again.')
+      setError('Failed to sign in with email. Please check your credentials and try again.')
       setLoading(false)
     }
   }
@@ -181,131 +161,120 @@ function LoginForm() {
     
     try {
       console.log('Initiating Google login...')
-      const supabase = getSupabaseBrowserClient()
       
-      // Clear any existing session first
-      await supabase.auth.signOut()
+      // Use the API client which handles the redirect
+      await signInWithGoogle();
       
-      const { data, error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          }
-        }
-      })
-      
-      if (error) {
-        console.error('Google login error:', error)
-        setError('Failed to sign in with Google. Please try again.')
-        setLoading(false)
-        return
-      }
-      
-      if (!data.url) {
-        console.error('No OAuth URL returned')
-        setError('Failed to initiate Google sign in. Please try again.')
-        setLoading(false)
-        return
-      }
-      
-      // Redirect to the OAuth URL
-      window.location.href = data.url
+      // Note: The function above will redirect the browser
+      // This code likely won't be reached unless there's an error
     } catch (err) {
-      console.error('Unexpected error during Google login:', err)
-      setError('An unexpected error occurred. Please try again.')
+      console.error('Unexpected error initiating Google login:', err)
+      setError('Failed to initiate Google login. Please try again.')
       setLoading(false)
     }
   }
 
   if (checkingSession) {
-    return <LoginLoading />;
+    return <LoginLoading />
   }
 
   return (
-    <Container maxWidth="sm" sx={{ py: 8 }}>
-      <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
-        <Typography variant="h4" component="h1" gutterBottom align="center">
-          Welcome Back
-        </Typography>
-        
-        {error && (
-          <Alert severity="error" sx={{ mb: 3 }}>
-            {error}
-          </Alert>
-        )}
-        
-        <form onSubmit={handleEmailLogin}>
-          <TextField
-            fullWidth
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            margin="normal"
-            required
-            disabled={loading}
-          />
-          <TextField
-            fullWidth
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            margin="normal"
-            required
-            disabled={loading}
-          />
+    <Container maxWidth="sm">
+      <Box sx={{ mt: 8, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        <Paper elevation={3} sx={{ p: 4, width: '100%' }}>
+          <Typography component="h1" variant="h4" align="center" gutterBottom>
+            Welcome to Golf Compete
+          </Typography>
           
-          <Button
-            fullWidth
-            type="submit"
-            variant="contained"
-            disabled={loading}
-            startIcon={<EmailIcon />}
-            sx={{ mt: 3, mb: 2 }}
-          >
-            {loading ? 'Signing in...' : 'Sign in with Email'}
-          </Button>
-        </form>
-        
-        <Divider sx={{ my: 3 }}>or</Divider>
-        
-        <Button
-          fullWidth
-          onClick={handleGoogleLogin}
-          variant="outlined"
-          disabled={loading}
-          startIcon={<GoogleIcon />}
-        >
-          Sign in with Google
-        </Button>
-        
-        <Box sx={{ mt: 3, textAlign: 'center' }}>
-          <Typography variant="body2">
-            Don't have an account?{' '}
-            <MuiLink component={Link} href="/auth/signup">
-              Sign up
-            </MuiLink>
+          <Typography variant="body1" align="center" sx={{ mb: 4 }}>
+            Please sign in to continue
           </Typography>
-          <Typography variant="body2" sx={{ mt: 1 }}>
-            <MuiLink component={Link} href="/auth/forgot-password">
-              Forgot your password?
-            </MuiLink>
-          </Typography>
-        </Box>
-      </Paper>
+          
+          {error && (
+            <Alert severity="error" sx={{ mb: 3 }}>
+              {error}
+            </Alert>
+          )}
+          
+          <Box sx={{ mb: 3 }}>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<GoogleIcon />}
+              onClick={handleGoogleLogin}
+              disabled={loading}
+              sx={{ py: 1.5 }}
+            >
+              {loading ? <CircularProgress size={24} /> : 'Continue with Google'}
+            </Button>
+          </Box>
+          
+          <Divider sx={{ my: 3 }}>
+            <Typography variant="body2" color="text.secondary">
+              OR
+            </Typography>
+          </Divider>
+          
+          <Box component="form" onSubmit={handleEmailLogin} noValidate>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="email"
+              label="Email Address"
+              name="email"
+              autoComplete="email"
+              autoFocus
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={loading}
+            />
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              name="password"
+              label="Password"
+              type="password"
+              id="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+            />
+            <Button
+              type="submit"
+              fullWidth
+              variant="contained"
+              startIcon={<EmailIcon />}
+              disabled={loading}
+              sx={{ mt: 3, mb: 2, py: 1.5 }}
+            >
+              {loading ? <CircularProgress size={24} /> : 'Sign In with Email'}
+            </Button>
+            <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 2 }}>
+              <Link href="/auth/signup" passHref legacyBehavior>
+                <MuiLink variant="body2">
+                  {"Don't have an account? Sign Up"}
+                </MuiLink>
+              </Link>
+              <Link href="/auth/forgot-password" passHref legacyBehavior>
+                <MuiLink variant="body2">
+                  Forgot password?
+                </MuiLink>
+              </Link>
+            </Box>
+          </Box>
+        </Paper>
+      </Box>
     </Container>
-  );
+  )
 }
 
-// Main login page component with Suspense boundary
 export default function Login() {
   return (
     <Suspense fallback={<LoginLoading />}>
       <LoginForm />
     </Suspense>
-  );
+  )
 }

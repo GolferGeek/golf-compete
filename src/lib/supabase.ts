@@ -1,4 +1,5 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
+import { Database } from '@/types/supabase'
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
@@ -383,6 +384,109 @@ export const refreshSchemaCache = async () => {
     }
   } catch (error) {
     console.error('Error refreshing schema cache:', error);
+    return false;
+  }
+};
+
+// --- Permissions --- 
+
+export const checkEventAccess = async (
+  client: SupabaseClient<Database>,
+  userId: string, 
+  eventId: string
+): Promise<boolean> => {
+  if (!client) {
+    console.error('Supabase client not provided for checkEventAccess');
+    return false; 
+  }
+  if (!userId || !eventId) {
+    console.error('User ID or Event ID missing for checkEventAccess');
+    return false;
+  }
+
+  try {
+    console.log(`Checking access for user ${userId} to event ${eventId}`);
+
+    // Get the event and its series info
+    const { data: eventData, error: eventError } = await client
+      .from('events')
+      .select(`
+        created_by,
+        series_events!inner (
+          series_id
+        )
+      `)
+      .eq('id', eventId)
+      .single();
+
+    if (eventError) {
+      console.error('Error getting event in checkEventAccess:', eventError);
+      return false; // Treat errors as lack of access
+    }
+    if (!eventData) {
+        console.log('Event not found in checkEventAccess');
+        return false; // Event doesn't exist
+    }
+    
+    // Define expected type for the joined data and assert it
+    type SeriesEventLink = { series_id: string };
+    // Use unknown assertion as suggested by linter for complex inferred types
+    const seriesEvents = eventData.series_events as unknown as SeriesEventLink[] | null;
+
+    // 1. Check if user is the event creator
+    if (eventData.created_by === userId) {
+      console.log('Access granted: User is event creator');
+      return true;
+    }
+
+    // Ensure series_events is valid and has data
+    if (!seriesEvents || seriesEvents.length === 0 || !seriesEvents[0].series_id) { // Use typed variable
+        console.warn('Event data missing series information in checkEventAccess');
+        // Continue to check direct participation, but cannot check series admin
+    } else {
+        const seriesId = seriesEvents[0].series_id; // Use typed variable
+        // 2. Check if user is a series admin
+        const { data: seriesAdminData, error: seriesAdminError } = await client
+          .from('series_participants')
+          .select('role', { count: 'exact' }) // Use count for efficiency
+          .eq('series_id', seriesId)
+          .eq('user_id', userId)
+          .eq('role', 'admin')
+          .maybeSingle(); // Use maybeSingle as admin status might not exist
+          
+        if (seriesAdminError) {
+            console.error('Error checking series admin status:', seriesAdminError);
+            // Continue checking other access rules
+        } else if (seriesAdminData) {
+            console.log('Access granted: User is series admin');
+            return true;
+        }
+    }
+
+    // 3. Check if user is an event participant
+    const { data: eventParticipantData, error: eventParticipantError } = await client
+      .from('event_participants')
+      .select('id', { count: 'exact' }) // Use count for efficiency
+      .eq('event_id', eventId)
+      .eq('user_id', userId)
+      .maybeSingle(); // Use maybeSingle as participation might not exist
+
+    if (eventParticipantError) {
+      console.error('Error checking event participant status:', eventParticipantError);
+      return false; // Treat error as lack of access
+    }
+
+    if (eventParticipantData) {
+        console.log('Access granted: User is event participant');
+        return true;
+    }
+
+    // If none of the above, deny access
+    console.log('Access denied: User does not meet criteria');
+    return false;
+
+  } catch (error) {
+    console.error('Unexpected error in checkEventAccess:', error);
     return false;
   }
 }; 

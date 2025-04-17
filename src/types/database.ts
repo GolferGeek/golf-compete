@@ -111,4 +111,22 @@ export interface UserNote {
     updated_at: string;
 }
 
+// Profile information linked to Supabase Auth user
+export interface AuthProfile {
+  id: string; // Corresponds to Supabase user ID
+  first_name?: string;
+  last_name?: string;
+  username?: string;
+  handicap?: number;
+  is_admin?: boolean;
+  created_at?: string;
+  updated_at?: string;
+  // Add AI fields from profile page state
+  multiple_clubs_sets?: boolean; // From form state
+  openai_api_key?: string; 
+  use_own_openai_key?: boolean;
+  ai_assistant_enabled?: boolean;
+  // Add any other fields from your 'profiles' table
+}
+
 // Add other shared database types here 

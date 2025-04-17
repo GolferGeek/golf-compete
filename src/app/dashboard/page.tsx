@@ -8,7 +8,6 @@ import {
   Grid,
   Card,
   CardContent,
-  CardActions,
   Button,
   Divider,
   CircularProgress,
@@ -26,7 +25,6 @@ import {
 } from '@mui/material';
 import PeopleIcon from '@mui/icons-material/People';
 import SettingsIcon from '@mui/icons-material/Settings';
-import SecurityIcon from '@mui/icons-material/Security';
 import GolfCourseIcon from '@mui/icons-material/GolfCourse';
 import AddIcon from '@mui/icons-material/Add';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
@@ -34,6 +32,8 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { format } from 'date-fns';
 import DashboardSeriesSection from '@/components/series/DashboardSeriesSection';
+import ProtectedRoute from '@/components/auth/ProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
 
 // Define Profile type locally based on expected API response
 // (Ideally, this would come from a shared types definition, perhaps generated from OpenAPI)
@@ -87,9 +87,20 @@ interface UserEvent {
 }
 
 export default function Dashboard() {
+  // This is now the wrapped component
+  return (
+    <ProtectedRoute>
+      <DashboardContent />
+    </ProtectedRoute>
+  );
+}
+
+// Separate the content into its own component to avoid authentication/routing issues
+function DashboardContent() {
   const router = useRouter();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const { profile: authProfile, session } = useAuth();
   
   // State Management
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -106,8 +117,19 @@ export default function Dashboard() {
   const [eventMenuAnchor, setEventMenuAnchor] = useState<null | HTMLElement>(null);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
 
-  // Fetch Profile Data via API
+  // Use the profile from AuthContext if available (this will avoid additional API call)
   useEffect(() => {
+    if (authProfile) {
+      setProfile(authProfile);
+      setLoadingProfile(false);
+    }
+  }, [authProfile]);
+
+  // Fetch Profile Data via API only if not already loaded from AuthContext
+  useEffect(() => {
+    // Skip if we already have the profile from AuthContext
+    if (profile || !session) return;
+
     const fetchProfile = async () => {
       setLoadingProfile(true);
       setError(null);
@@ -117,8 +139,8 @@ export default function Dashboard() {
         
         if (!response.ok) {
           if (response.status === 401) {
-            console.log('Profile API: Unauthorized, redirecting to signin');
-            router.push('/auth/signin');
+            console.log('Profile API: Unauthorized, redirecting to login');
+            router.push('/auth/login');
             return; // Stop further execution
           }
           // Handle other non-ok responses
@@ -144,12 +166,12 @@ export default function Dashboard() {
     };
 
     fetchProfile();
-  }, [router]);
+  }, [router, profile, session]);
 
   // Fetch Series Data via API
   useEffect(() => {
-    // Only run if profile is successfully loaded
-    if (!profile) return; 
+    // Only run if we have session and at least one profile source is loaded
+    if (!session || (!profile && !authProfile)) return; 
 
     const fetchSeries = async () => {
       setLoadingSeries(true);
@@ -181,13 +203,12 @@ export default function Dashboard() {
     };
 
     fetchSeries();
-  // Only depend on profile - run once when profile is loaded
-  }, [profile]); 
+  }, [session, profile, authProfile]); 
 
   // Fetch Events Data via API
   useEffect(() => {
-    // Only run if profile is successfully loaded
-    if (!profile) return; 
+    // Only run if we have session and at least one profile source is loaded
+    if (!session || (!profile && !authProfile)) return; 
 
     const fetchEvents = async () => {
       setLoadingEvents(true);
@@ -216,14 +237,13 @@ export default function Dashboard() {
       }
     };
     fetchEvents();
-  }, [profile]); 
+  }, [session, profile, authProfile]); 
 
   // Combine loading states
-  // We might need a slight adjustment here if profile load fails
-  // If loadingProfile is false but profile is null (due to error), 
-  // series/events loading might not start. Let's keep isLoading as is for now
-  // but the error display logic should handle the !profile case.
   const isLoading = loadingProfile || loadingSeries || loadingEvents;
+
+  // Use authProfile as fallback if profile is not loaded
+  const activeProfile = profile || authProfile;
 
   const getProfileDisplayName = (profile: Profile) => {
     if (profile.first_name && profile.last_name) {
@@ -263,24 +283,25 @@ export default function Dashboard() {
   }
 
   // Display general error if profile didn't load or other errors occurred
-  if (error && !profile) {
+  if (error && !activeProfile) {
       return (
           <Box sx={{ p: 3 }}>
               <Alert severity="error">{error}</Alert>
-              <Button variant="contained" sx={{ mt: 2 }} onClick={() => router.push('/auth/signin')}>
-                  Go to Sign In
+              <Button variant="contained" sx={{ mt: 2 }} onClick={() => router.push('/auth/login')}>
+                  Go to Login
               </Button>
           </Box>
       );
   }
   
   // If profile loading failed but we proceed, ensure profile is not null
-  // This case might need refinement based on desired UX
-  if (!profile) {
-      // This shouldn't be reached if loading is false and error is handled, but as a fallback:
+  if (!activeProfile) {
       return (
           <Box sx={{ p: 3 }}>
-              <Alert severity="warning">Could not load profile information.</Alert>
+              <Alert severity="warning">Could not load profile information. Please try refreshing the page.</Alert>
+              <Button variant="contained" sx={{ mt: 2 }} onClick={() => router.push('/auth/login')}>
+                  Return to Login
+              </Button>
           </Box>
       );
   }
@@ -290,7 +311,6 @@ export default function Dashboard() {
       {/* Display general error if it occurred */}
       {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
-              {/* Display single error message */} 
               {error}
           </Alert>
       )}
@@ -302,7 +322,7 @@ export default function Dashboard() {
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                 <Box sx={{ flexGrow: 1 }}>
                   <Typography variant="h5" component="h1">
-                    Welcome, {getProfileDisplayName(profile)}!
+                    Welcome, {getProfileDisplayName(activeProfile)}!
                   </Typography>
                 </Box>
               </Box>
@@ -342,14 +362,19 @@ export default function Dashboard() {
             loading={loadingSeries}
             error={null}
             onInvitationResponse={() => { 
-                // Placeholder re-fetch logic
-                const fetchProfile = async () => { /* ... */ };
-                fetchProfile();
-                const fetchSeries = async () => { /* ... */ };
-                fetchSeries();
+                // Refresh the series data
+                setLoadingSeries(true);
+                fetch('/api/user/series')
+                  .then(response => response.json())
+                  .then(result => {
+                    if (result.status === 'success') {
+                      setSeries(result.data as UserSeries[]);
+                    }
+                  })
+                  .catch(err => console.error('Error refreshing series data:', err))
+                  .finally(() => setLoadingSeries(false));
             }}
           /> 
-          {/* <Typography>Series Section (Temporarily Hidden)</Typography> */}
         </Box>
 
         {/* Events Section - Updated to use UserEvent type */}
@@ -359,7 +384,11 @@ export default function Dashboard() {
               <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
                 <Typography variant="h6">Upcoming Events</Typography>
               </Box>
-              {events.length === 0 ? (
+              {loadingEvents ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                  <CircularProgress size={24} />
+                </Box>
+              ) : events.length === 0 ? (
                 <Typography color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
                   You have no upcoming events.
                 </Typography>

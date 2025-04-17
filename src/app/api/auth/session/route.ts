@@ -1,9 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import AuthService from '@/services/internal/AuthService';
+import AuthService, { type AuthProfile } from '@/services/internal/AuthService';
 import { createSuccessApiResponse, createErrorApiResponse } from '@/lib/api/utils';
 import { ServiceError } from '@/services/base';
-import { type AuthProfile } from '@/services/internal/AuthService';
 import { type User, type Session } from '@supabase/supabase-js';
 
 // Define the structure for the session response data
@@ -61,20 +60,31 @@ export async function GET(request: NextRequest) {
   const authService = new AuthService(supabase);
 
   try {
-    // Use getSession to retrieve session without throwing error if none exists
+    // First, securely get the authenticated user
+    const userResponse = await authService.getCurrentUser();
+    
+    if (userResponse.error) {
+      // Authentication failed, return null data - no session
+      // Don't log as warning since this is expected for anonymous users
+      console.log('[API /auth/session] User not authenticated:', userResponse.error.message);
+      return createSuccessApiResponse<SessionData | null>(null);
+    }
+    
+    // If we have a valid user, get the session
     const sessionResponse = await authService.getSession();
     
     if (sessionResponse.error) {
       // Log the error but return null data, as no session is not necessarily a 500 error for this endpoint
-      console.error('[API /auth/session] Error getting session:', sessionResponse.error);
+      // Don't log as error since this is expected for anonymous users
+      console.log('[API /auth/session] No valid session:', sessionResponse.error.message);
       // Return success with null data matching SessionData structure
       return createSuccessApiResponse<SessionData | null>(null); 
     }
 
     // If session exists, try fetching profile
     let profileData: AuthProfile | null = null;
-    if (sessionResponse.data?.user?.id) {
-        const profileResponse = await authService.getUserProfile(sessionResponse.data.user.id);
+    if (userResponse.data?.id) {
+        const profileResponse = await authService.getUserProfile(userResponse.data.id);
         if (profileResponse.error) {
             console.warn('[API /auth/session] Could not fetch profile for session:', profileResponse.error.message);
             // Proceed without profile data
@@ -85,7 +95,7 @@ export async function GET(request: NextRequest) {
 
     // Construct the data payload according to SessionData
     const responseData: SessionData = {
-        user: sessionResponse.data?.user || null,
+        user: userResponse.data,
         session: sessionResponse.data?.session || null,
         profile: profileData,
     };

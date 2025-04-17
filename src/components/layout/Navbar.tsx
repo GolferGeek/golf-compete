@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import AppBar from '@mui/material/AppBar';
@@ -17,10 +17,8 @@ import MenuItem from '@mui/material/MenuItem';
 import GolfCourseIcon from '@mui/icons-material/GolfCourse';
 import Avatar from '@mui/material/Avatar';
 import Tooltip from '@mui/material/Tooltip';
-import PersonIcon from '@mui/icons-material/Person';
 import { useAuth } from '@/contexts/AuthContext';
-import { signOut } from '@/lib/supabase';
-import { getSupabaseBrowserClient } from '@/lib/supabase-browser';
+import { logout } from '@/lib/apiClient/auth';
 
 const pages = [
   { name: 'About', href: '/about' },
@@ -28,11 +26,25 @@ const pages = [
 ];
 
 export default function Navbar() {
-  const { session, profile } = useAuth();
+  const { session, profile, loading, signOut } = useAuth();
   const router = useRouter();
-  const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(null);
-  const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(null);
+  const [anchorElNav, setAnchorElNav] = useState<null | HTMLElement>(null);
+  const [anchorElUser, setAnchorElUser] = useState<null | HTMLElement>(null);
   const [mounted, setMounted] = useState(false);
+  
+  // Memoize user initials calculation
+  const userInitials = useMemo(() => {
+    if (!mounted) return '';
+    
+    if (profile?.first_name || profile?.last_name) {
+      const firstInitial = profile.first_name ? profile.first_name.charAt(0) : '';
+      const lastInitial = profile.last_name ? profile.last_name.charAt(0) : '';
+      return (firstInitial + lastInitial).toUpperCase();
+    } else if (session?.user?.email) {
+      return session.user.email.charAt(0).toUpperCase();
+    }
+    return '?';
+  }, [profile?.first_name, profile?.last_name, session?.user?.email, mounted]);
 
   // Set mounted flag to true when component mounts (client-side only)
   useEffect(() => {
@@ -61,113 +73,84 @@ export default function Navbar() {
     router.push('/');
   };
 
-  // Get user initials for avatar
-  const getUserInitials = () => {
-    if (profile) {
-      const firstInitial = profile.first_name ? profile.first_name.charAt(0) : '';
-      const lastInitial = profile.last_name ? profile.last_name.charAt(0) : '';
-      return (firstInitial + lastInitial).toUpperCase();
-    }
-    return session?.user?.email?.charAt(0).toUpperCase() || '?';
-  };
-
-  // Add the checkAuthState function
-  const checkAuthState = async () => {
-    try {
-      // Get the current Supabase client
-      const supabase = getSupabaseBrowserClient();
-      
-      if (!supabase) {
-        console.error('Supabase client is null');
-        return;
-      }
-      
-      // Check Supabase session
-      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
-      console.log('=== AUTH DEBUG ===');
-      console.log('Supabase Session:', currentSession ? 'Active' : 'None');
-      if (currentSession) {
-        console.log('User ID:', currentSession.user.id);
-        console.log('User Email:', currentSession.user.email);
-        console.log('Session Expires:', currentSession.expires_at ? new Date(currentSession.expires_at * 1000).toLocaleString() : 'Unknown');
-      }
-      if (sessionError) {
-        console.error('Session Error:', sessionError);
-      }
-      
-      // Check for user profile if session exists
-      if (currentSession) {
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', currentSession.user.id)
-          .single();
-          
-        console.log('Profile Data:', profileData);
-        if (profileError) {
-          console.error('Profile Error:', profileError);
-        }
-      }
-      
-      // Check AuthContext state
-      console.log('AuthContext State:');
-      console.log('Session:', session ? 'Present' : 'None');
-      console.log('Profile:', profile ? 'Present' : 'None');
-      if (profile) {
-        console.log('Is Admin:', profile.is_admin ? 'Yes' : 'No');
-      }
-      
-      console.log('==================');
-    } catch (error) {
-      console.error('Error checking auth state:', error);
-    }
-  };
-
-  // Generate menu items based on authentication status
-  const getUserMenuItems = () => {
-    if (mounted && session) {
-      // Logged in user menu items
-      const menuItems = [
-        <MenuItem key="dashboard" component={Link} href="/dashboard" onClick={handleCloseUserMenu}>
-          <Typography textAlign="center">Dashboard</Typography>
-        </MenuItem>
-      ];
-      
-      // Add admin menu item if user is admin
-      if (profile?.is_admin) {
-        menuItems.push(
-          <MenuItem key="admin" component={Link} href="/admin" onClick={handleCloseUserMenu}>
-            <Typography textAlign="center">Admin</Typography>
-          </MenuItem>
-        );
-      }
-      
-      // Add profile and logout items
+  // Update the getUserMenuItems function to only handle authenticated users
+  const getUserMenuItems = useCallback(() => {
+    if (!mounted || !session) return [];
+    
+    // Logged in user menu items
+    const menuItems = [
+      <MenuItem key="dashboard" component={Link} href="/dashboard" onClick={handleCloseUserMenu}>
+        <Typography textAlign="center">Dashboard</Typography>
+      </MenuItem>
+    ];
+    
+    // Add admin menu item if user is admin
+    if (profile?.is_admin) {
       menuItems.push(
-        <MenuItem key="profile" component={Link} href="/profile" onClick={handleCloseUserMenu}>
-          <Typography textAlign="center">Profile</Typography>
-        </MenuItem>,
-        <MenuItem key="logout" onClick={handleLogout}>
-          <Typography textAlign="center">Logout</Typography>
+        <MenuItem key="admin" component={Link} href="/admin" onClick={handleCloseUserMenu}>
+          <Typography textAlign="center">Admin</Typography>
         </MenuItem>
       );
-      
-      return menuItems;
-    } else {
-      // Not logged in - show Login button
-      return [
-        <MenuItem 
-          key="login" 
-          onClick={() => {
-            handleCloseUserMenu();
-            window.location.href = '/auth/login';
-          }}
-        >
-          <Typography textAlign="center">Login</Typography>
-        </MenuItem>
-      ];
     }
-  };
+    
+    // Add profile and logout items
+    menuItems.push(
+      <MenuItem key="profile" component={Link} href="/profile" onClick={handleCloseUserMenu}>
+        <Typography textAlign="center">Profile</Typography>
+      </MenuItem>,
+      <MenuItem key="logout" onClick={handleLogout}>
+        <Typography textAlign="center">Logout</Typography>
+      </MenuItem>
+    );
+    
+    return menuItems;
+  }, [mounted, session, profile?.is_admin, handleCloseUserMenu, handleLogout]);
+
+  // Show placeholder during loading
+  if (!mounted || loading) {
+    return (
+      <AppBar position="static" color="default" elevation={1}>
+        <Container maxWidth="xl">
+          <Toolbar disableGutters>
+            <GolfCourseIcon sx={{ display: { xs: 'none', md: 'flex' }, mr: 1 }} />
+            <Typography
+              variant="h6"
+              noWrap
+              component="div"
+              sx={{
+                mr: 2,
+                display: { xs: 'none', md: 'flex' },
+                fontWeight: 700,
+                color: 'inherit',
+                textDecoration: 'none',
+              }}
+            >
+              GolfCompete
+            </Typography>
+            {/* Mobile content */}
+            <Box sx={{ flexGrow: 1, display: { xs: 'flex', md: 'none' } }} />
+            <GolfCourseIcon sx={{ display: { xs: 'flex', md: 'none' }, mr: 1 }} />
+            <Typography
+              variant="h5"
+              noWrap
+              component="div"
+              sx={{
+                mr: 2,
+                display: { xs: 'flex', md: 'none' },
+                flexGrow: 1,
+                fontWeight: 700,
+                color: 'inherit',
+                textDecoration: 'none',
+              }}
+            >
+              GolfCompete
+            </Typography>
+            <Box sx={{ flexGrow: 1, display: { xs: 'none', md: 'flex' } }} />
+          </Toolbar>
+        </Container>
+      </AppBar>
+    );
+  }
 
   return (
     <AppBar position="static" color="default" elevation={1}>
@@ -270,7 +253,7 @@ export default function Navbar() {
               <>
                 <Tooltip title="Open settings">
                   <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                    <Avatar>{getUserInitials()}</Avatar>
+                    <Avatar>{userInitials}</Avatar>
                   </IconButton>
                 </Tooltip>
                 <Menu
@@ -293,13 +276,13 @@ export default function Navbar() {
                 </Menu>
               </>
             ) : (
-              // User is not logged in - show login button
+              // User is not logged in - show login button directly
               <Button 
-                variant="outlined" 
+                variant="contained"
                 color="primary"
                 component={Link} 
                 href="/auth/login"
-                sx={{ my: 1 }}
+                sx={{ my: 1, ml: 1 }}
               >
                 Login
               </Button>

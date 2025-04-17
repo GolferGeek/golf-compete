@@ -33,7 +33,7 @@ const fetchCoursesQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   sortBy: z.string().optional().default('name'),
   sortDir: z.enum(['asc', 'desc']).optional().default('asc'),
-  search: z.string().optional(), // Search by name, city, etc.
+  search: z.string().optional(), // Add search parameter
   // Add other filters as needed (e.g., state)
 });
 
@@ -62,6 +62,13 @@ export async function GET(request: NextRequest) {
     if (search) filters.name = { ilike: search }; // Simple name search example
     // Add more filters
 
+    let orFilterString: string | undefined = undefined;
+    if (search && search.trim() !== '') {
+        const searchTerm = `%${search.trim()}%`;
+        orFilterString = `name.ilike.${searchTerm},city.ilike.${searchTerm},state.ilike.${searchTerm}`;
+        // Add zip_code if needed, careful with ilike on non-text
+    }
+
     const ordering = sortBy ? { column: sortBy, direction: sortDir } : undefined;
 
     const supabase = await createClient();
@@ -69,7 +76,7 @@ export async function GET(request: NextRequest) {
 
     try {
         const response = await courseDbService.fetchCourses(
-            { pagination: { limit, offset, page }, ordering, filters }, 
+            { pagination: { limit, offset, page }, ordering, filters, orFilter: orFilterString }, 
             { useCamelCase: true }
         );
         if (response.error) throw response.error;

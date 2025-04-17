@@ -9,13 +9,10 @@ import {
   createErrorResponse
 } from '../base';
 
-// Define options for file operations
+// Re-define FileOptions locally (consider moving to shared types)
 export interface FileOptions {
-  /** Cache control header */
   cacheControl?: string;
-  /** Content type header */
   contentType?: string;
-  /** Upsert the file if it already exists */
   upsert?: boolean;
 }
 
@@ -218,6 +215,46 @@ class StorageService extends BaseService {
       return createSuccessResponse({ files: data || [] });
     } catch (error) {
       return this.handleStorageError(error, `Failed to list files in ${bucketName}/${folderPath || ''}`);
+    }
+  }
+
+  /**
+   * Create a signed URL for uploading a file.
+   * @param bucketName The name of the bucket.
+   * @param filePath The path where the file will be stored.
+   * @param options Optional settings (currently only `upsert`).
+   */
+  public async createSignedUploadUrl(
+    bucketName: string,
+    filePath: string,
+    // Only allow upsert option, make it optional
+    options?: { upsert?: boolean } 
+    // Remove expiresIn parameter
+    // expiresIn: number = 60 
+  ): Promise<ServiceResponse<{ signedUrl: string; path: string; token: string }>> {
+    try {
+      // Pass only the options object with upsert (defaulting to false)
+      const uploadOptions = { 
+        upsert: options?.upsert ?? false // Default upsert to false
+      };
+      const { data, error } = await this.client.storage
+        .from(bucketName)
+        .createSignedUploadUrl(filePath, uploadOptions); // Pass options object
+
+      if (error) {
+        throw this.createStorageError(error, ErrorCodes.STORAGE_UPLOAD_ERROR); 
+      }
+      if (!data) {
+        throw new StorageError('Signed upload URL data is null', ErrorCodes.STORAGE_UPLOAD_ERROR); 
+      }
+      
+      return createSuccessResponse({ 
+        signedUrl: data.signedUrl, 
+        path: data.path, 
+        token: (data as any).token 
+      });
+    } catch (error) {
+      return this.handleStorageError(error, `Failed to create signed upload URL for ${bucketName}/${filePath}`);
     }
   }
 

@@ -14,9 +14,8 @@ import {
   CircularProgress,
   Paper
 } from '@mui/material'
-import { signUpWithEmail, signInWithGoogle } from '@/lib/supabase'
 import { AuthError } from '@supabase/supabase-js'
-import { getBrowserClient } from '@/lib/supabase-browser'
+import { register, signInWithGoogle } from '@/lib/apiClient/auth'
 
 export default function SignUpPage() {
   const [email, setEmail] = useState('')
@@ -57,72 +56,65 @@ export default function SignUpPage() {
     setIsLoading(true)
 
     try {
-      const supabase = getBrowserClient()
+      // Use the API client register function
+      const response = await register({
+        email,
+        password,
+        // Can add optional fields here if needed
+        // first_name: firstName,
+        // last_name: lastName,
+        // username: username,
+      });
       
-      if (!supabase) {
-        throw new Error('Failed to initialize Supabase client')
-      }
-
-      const { data, error } = await signUpWithEmail(supabase as any, email, password)
+      setSuccess('Account created successfully! Please check your email for confirmation.');
       
-      if (error) {
-        throw error
-      }
-
-      if (data.user) {
-        setSuccess('Account created successfully! Please check your email for confirmation.')
-        // Wait a moment before redirecting to show success message
-        setTimeout(() => {
-          router.push('/auth/login')
-        }, 2000)
-      } else {
-        throw new Error('No user data returned from sign up')
-      }
+      // Wait a moment before redirecting to show success message
+      setTimeout(() => {
+        router.push('/auth/login');
+      }, 2000);
+      
     } catch (error: unknown) {
-      console.error('Signup error:', error)
+      console.error('Signup error:', error);
       if (error instanceof AuthError) {
-        setError(error.message)
+        setError(error.message);
       } else if (error instanceof Error) {
-        setError(error.message)
+        setError(error.message);
       } else {
-        setError('Failed to sign up. Please try again.')
+        setError('Failed to sign up. Please try again.');
       }
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
   }
 
   const handleGoogleSignUp = async () => {
-    setError(null)
-    setSuccess(null)
-    setIsGoogleLoading(true)
-
+    setIsGoogleLoading(true);
+    setError('');
+    
     try {
-      const supabase = getBrowserClient()
+      console.log('Initiating Google sign-up');
       
-      if (!supabase) {
-        throw new Error('Failed to initialize Supabase client')
-      }
-
-      const { error } = await signInWithGoogle(supabase as any)
+      // Use the API client which handles the redirect
+      await signInWithGoogle();
       
-      if (error) {
-        throw error
-      }
-      
-      // The redirect will happen automatically
+      // The page will be redirected by the signInWithGoogle function
+      // If we're still here after a timeout, show an error
+      setTimeout(() => {
+        if (document.visibilityState !== 'hidden') {
+          setError('Failed to redirect to Google. Please try again.');
+          setIsGoogleLoading(false);
+        }
+      }, 5000);
     } catch (error: unknown) {
-      console.error('Google signup error:', error)
-      if (error instanceof AuthError) {
-        setError(error.message)
-      } else if (error instanceof Error) {
-        setError(error.message)
+      console.error('Google signup error:', error);
+      if (error instanceof Error) {
+        setError(error.message);
       } else {
-        setError('Failed to sign up with Google. Please try again.')
+        setError('Failed to sign up with Google. Please try again.');
       }
-      setIsGoogleLoading(false)
+      setIsGoogleLoading(false);
     }
-  }
+  };
 
   return (
     <Container maxWidth="sm">

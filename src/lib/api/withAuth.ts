@@ -36,6 +36,25 @@ export function withAuth(handler: AuthenticatedRouteHandler) {
   ): Promise<Response> => {
     const supabase = await createClient();
 
+    // First, validate user authentication securely
+    const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+    if (userError) {
+      console.error('API Auth Error (getUser):', userError.message);
+      return createErrorApiResponse(
+        'Authentication failed',
+        'UNAUTHORIZED',
+        401
+      );
+    }
+
+    // User doesn't exist (not authenticated)
+    if (!user) {
+      console.warn('API Auth: No authenticated user found.');
+      return createErrorApiResponse('Unauthorized', 'UNAUTHORIZED', 401);
+    }
+
+    // Get session data for cookies
     const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
     if (sessionError) {
@@ -47,13 +66,13 @@ export function withAuth(handler: AuthenticatedRouteHandler) {
       );
     }
 
-    if (!session?.user) {
-      console.warn('API Auth: No active session found in route handler.');
+    if (!session) {
+      console.warn('API Auth: No active session found.');
       return createErrorApiResponse('Unauthorized', 'UNAUTHORIZED', 401);
     }
 
     try {
-      return await handler(request, context, { user: session.user, session });
+      return await handler(request, context, { user, session });
     } catch (error: any) {
       console.error('API Route Handler Error:', error);
       

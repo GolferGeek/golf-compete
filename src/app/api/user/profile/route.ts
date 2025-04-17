@@ -4,8 +4,8 @@ import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
 import { createSuccessApiResponse, createErrorApiResponse, validateRequestBody } from '@/lib/api/utils'; // Import the response utilities
 import { createClient } from '@/lib/supabase/server'; // Need this to create client
 import AuthService from '@/services/internal/AuthService'; // Import service class
-import { type AuthProfile } from '@/services/internal/AuthService'; // Import type
-import { ServiceError } from '@/services/base'; // Import ServiceError
+import { type AuthProfile } from '@/services/internal/AuthService'; // Import from AuthService
+import { ServiceError, ErrorCodes } from '@/services/base'; // Import ServiceError and ErrorCodes
 import { z } from 'zod';
 
 /**
@@ -161,6 +161,36 @@ const updateProfileHandler = async (
     const authService = new AuthService(supabase);
 
     try {
+        // First check if the profile exists
+        const profileResponse = await authService.getUserProfile(userId);
+        
+        if (profileResponse.error && 
+            profileResponse.error instanceof ServiceError && 
+            profileResponse.error.code === ErrorCodes.DB_NOT_FOUND) {
+            console.log('Profile not found, creating new profile');
+            
+            // Create a full profile payload with the user's ID
+            const createPayload: Partial<AuthProfile> = {
+                id: userId,
+                ...updatePayload,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+            };
+            
+            // Use the private createUserProfile method via a workaround
+            // We need to access the method using indexing since it's private
+            const createResponse = await (authService as any).createUserProfile(createPayload);
+            
+            if (createResponse.error) throw createResponse.error;
+            if (!createResponse.data) throw new Error('Profile data missing after creation');
+            
+            return createSuccessApiResponse(createResponse.data);
+        } else if (profileResponse.error) {
+            // If there was an error but not DB_NOT_FOUND
+            throw profileResponse.error;
+        }
+
+        // Profile exists, update it
         const updateResponse = await authService.updateProfile(userId, updatePayload);
 
         if (updateResponse.error) throw updateResponse.error;
@@ -171,7 +201,11 @@ const updateProfileHandler = async (
     } catch (error: any) {
         console.error('[API /user/profile PUT] Error:', error);
         if (error instanceof ServiceError) {
-            return createErrorApiResponse(error.message, error.code, 400); // Likely DB constraint
+            // Check for unique constraint violations (usually username)
+            if (error.message && error.message.includes('unique constraint')) {
+                return createErrorApiResponse('Username already taken', 'USERNAME_TAKEN', 400);
+            }
+            return createErrorApiResponse(error.message, error.code, 400);
         }
         return createErrorApiResponse('Failed to update profile', 'UPDATE_PROFILE_ERROR', 500);
     }

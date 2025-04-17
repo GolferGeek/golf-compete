@@ -171,15 +171,22 @@ export default function ProfilePage() {
             </Box>
             
             <Box component="form" onSubmit={handleSubmit} noValidate>
-              <Grid container spacing={3}>
-                <Grid item xs={12}>
+              <Box sx={theme => ({
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: theme.spacing(3),
+              })}>
+                <Box sx={{ width: '100%' }}>
                   <Typography variant="h6" gutterBottom>
                     Personal Information
                   </Typography>
                   <Divider sx={{ mb: 2 }} />
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12} sm={6}>
+                <Box sx={theme => ({
+                  width: '100%', 
+                  [theme.breakpoints.up('sm')]: { width: `calc(50% - ${theme.spacing(1.5)})` }
+                })}>
                   <TextField
                     required
                     fullWidth
@@ -190,9 +197,12 @@ export default function ProfilePage() {
                     onChange={(e) => setFirstName(e.target.value)}
                     disabled={isLoading}
                   />
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12} sm={6}>
+                <Box sx={theme => ({
+                  width: '100%', 
+                  [theme.breakpoints.up('sm')]: { width: `calc(50% - ${theme.spacing(1.5)})` }
+                })}>
                   <TextField
                     required
                     fullWidth
@@ -203,9 +213,9 @@ export default function ProfilePage() {
                     onChange={(e) => setLastName(e.target.value)}
                     disabled={isLoading}
                   />
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12}>
+                <Box sx={{ width: '100%' }}>
                   <TextField
                     required
                     fullWidth
@@ -216,16 +226,19 @@ export default function ProfilePage() {
                     onChange={(e) => setUsername(e.target.value)}
                     disabled={isLoading}
                   />
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12}>
+                <Box sx={{ width: '100%' }}>
                   <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                     Golf Equipment
                   </Typography>
                   <Divider sx={{ mb: 2 }} />
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12} sm={6}>
+                <Box sx={theme => ({
+                  width: '100%', 
+                  [theme.breakpoints.up('sm')]: { width: `calc(50% - ${theme.spacing(1.5)})` }
+                })}>
                   <Card sx={{ height: '100%' }}>
                     <CardContent>
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -246,9 +259,12 @@ export default function ProfilePage() {
                       </Button>
                     </CardActions>
                   </Card>
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12} sm={6}>
+                <Box sx={theme => ({
+                  width: '100%', 
+                  [theme.breakpoints.up('sm')]: { width: `calc(50% - ${theme.spacing(1.5)})` }
+                })}>
                   <Card sx={{ height: '100%' }}>
                     <CardContent>
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
@@ -269,17 +285,20 @@ export default function ProfilePage() {
                       </Button>
                     </CardActions>
                   </Card>
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12}>
+                <Box sx={{ width: '100%' }}>
                   <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                     Golf Information
                   </Typography>
                   <Divider sx={{ mb: 2 }} />
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12} sm={6}>
-                  <Card sx={{ height: '100%' }}>
+                <Box sx={theme => ({
+                  width: '100%', 
+                  [theme.breakpoints.up('sm')]: { width: `calc(50% - ${theme.spacing(1.5)})` }
+                })}>
+                   <Card sx={{ height: '100%' }}>
                     <CardContent>
                       <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
                         <SmartToyIcon color="primary" sx={{ mr: 1 }} />
@@ -299,9 +318,12 @@ export default function ProfilePage() {
                       </Button>
                     </CardActions>
                   </Card>
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12} sm={6}>
+                <Box sx={theme => ({
+                  width: '100%', 
+                  [theme.breakpoints.up('sm')]: { width: `calc(50% - ${theme.spacing(1.5)})` }
+                })}>
                   <TextField
                     fullWidth
                     id="handicap"
@@ -315,9 +337,12 @@ export default function ProfilePage() {
                       ? "This handicap will be associated with your default bag" 
                       : "Leave blank if you do not have a handicap"}
                   />
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12} sm={6}>
+                <Box sx={theme => ({
+                  width: '100%', 
+                  [theme.breakpoints.up('sm')]: { width: `calc(50% - ${theme.spacing(1.5)})` }
+                })}>
                   <FormControlLabel
                     control={
                       <Checkbox
@@ -330,16 +355,16 @@ export default function ProfilePage() {
                     }
                     label="I carry multiple sets of clubs"
                   />
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12}>
+                <Box sx={{ width: '100%' }}>
                   <Typography variant="h6" gutterBottom sx={{ mt: 2 }}>
                     AI Golf Assistant
                   </Typography>
                   <Divider sx={{ mb: 2 }} />
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12}>
+                <Box sx={{ width: '100%' }}>
                   <FormControlLabel
                     control={
                       <Switch
@@ -412,9 +437,9 @@ export default function ProfilePage() {
                       </Typography>
                     </Alert>
                   </Collapse>
-                </Grid>
+                </Box>
                 
-                <Grid item xs={12} sx={{ mt: 3 }}>
+                <Box sx={{ width: '100%', mt: 3 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
                     <Button
                       onClick={handleCancel}
@@ -433,8 +458,8 @@ export default function ProfilePage() {
                       {isLoading ? <CircularProgress size={24} /> : 'Save Changes'}
                     </Button>
                   </Box>
-                </Grid>
-              </Grid>
+                </Box>
+              </Box>
             </Box>
           </Paper>
         </Box>

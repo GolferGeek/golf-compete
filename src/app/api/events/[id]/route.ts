@@ -25,14 +25,14 @@ const updateEventSchema = z.object({
 
 /**
  * @swagger
- * /api/events/{eventId}:
+ * /api/events/{id}:
  *   get:
  *     summary: Get a specific event by ID
  *     description: Retrieves details for a single event, potentially including participants.
  *     tags: [Events]
  *     parameters:
  *       - in: path
- *         name: eventId
+ *         name: id
  *         required: true
  *         schema: { type: string, format: uuid }
  *       - in: query
@@ -43,8 +43,8 @@ const updateEventSchema = z.object({
  *       404: { description: Event not found }
  *       500: { description: Internal server error }
  */
-export async function GET(request: NextRequest, { params }: { params: { eventId: string } }) {
-    const { eventId } = params;
+export async function GET(request: NextRequest, { params }: { params: { id: string } }) {
+    const { id: eventId } = params;
     const { searchParams } = new URL(request.url);
     const includeParticipants = searchParams.get('include_participants') === 'true';
 
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest, { params }: { params: { eventId:
 
 /**
  * @swagger
- * /api/events/{eventId}:
+ * /api/events/{id}:
  *   put:
  *     summary: Update an event
  *     description: Updates details for a specific event.
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest, { params }: { params: { eventId:
  *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - in: path
- *         name: eventId
+ *         name: id
  *         required: true
  *         schema: { type: string, format: uuid }
  *     requestBody:
@@ -113,7 +113,7 @@ const updateEventHandler = async (
     context: { params?: any }, 
     auth: AuthenticatedContext
 ) => {
-    const eventId = context.params?.eventId as string | undefined;
+    const eventId = context.params?.id as string | undefined;
     if (!eventId) {
         return createErrorApiResponse('Event ID is required', 'VALIDATION_ERROR', 400);
     }
@@ -191,7 +191,7 @@ export const PUT = withAuth(updateEventHandler);
 
 /**
  * @swagger
- * /api/events/{eventId}:
+ * /api/events/{id}:
  *   delete:
  *     summary: Delete an event
  *     description: Deletes a specific event. Requires ownership/admin rights.
@@ -199,7 +199,7 @@ export const PUT = withAuth(updateEventHandler);
  *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - in: path
- *         name: eventId
+ *         name: id
  *         required: true
  *         schema: { type: string, format: uuid }
  *     responses:
@@ -214,7 +214,7 @@ const deleteEventHandler = async (
     context: { params?: any }, 
     auth: AuthenticatedContext
 ) => {
-    const eventId = context.params?.eventId as string | undefined;
+    const eventId = context.params?.id as string | undefined;
     if (!eventId) {
         return createErrorApiResponse('Event ID is required', 'VALIDATION_ERROR', 400);
     }

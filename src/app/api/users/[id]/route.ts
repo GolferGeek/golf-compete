@@ -27,14 +27,20 @@ export async function GET(
       process.env.SUPABASE_SERVICE_ROLE_KEY,
       {
         cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
+          getAll: () => {
+            return cookieStore.getAll().map(cookie => ({
+              name: cookie.name,
+              value: cookie.value,
+            }));
           },
-          set(name: string, value: string, options: any) {
-            cookieStore.set(name, value, options);
-          },
-          remove(name: string, options: any) {
-            cookieStore.set(name, '', { ...options, maxAge: 0 });
+          setAll: (cookies) => {
+            cookies.forEach((cookie) => {
+              cookieStore.set({
+                name: cookie.name,
+                value: cookie.value,
+                ...cookie.options
+              });
+            });
           },
         },
       }
@@ -126,14 +132,20 @@ export async function PATCH(
       process.env.SUPABASE_SERVICE_ROLE_KEY,
       {
         cookies: {
-          get(name: string) {
-            return cookieStore.get(name)?.value;
+          getAll: () => {
+            return cookieStore.getAll().map(cookie => ({
+              name: cookie.name,
+              value: cookie.value,
+            }));
           },
-          set(name: string, value: string, options: any) {
-            cookieStore.set(name, value, options);
-          },
-          remove(name: string, options: any) {
-            cookieStore.set(name, '', { ...options, maxAge: 0 });
+          setAll: (cookies) => {
+            cookies.forEach((cookie) => {
+              cookieStore.set({
+                name: cookie.name,
+                value: cookie.value,
+                ...cookie.options
+              });
+            });
           },
         },
       }
