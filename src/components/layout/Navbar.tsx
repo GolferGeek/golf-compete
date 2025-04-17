@@ -265,33 +265,45 @@ export default function Navbar() {
 
           {/* User Menu */}
           <Box sx={{ flexGrow: 0 }}>
-            <Tooltip title="Open settings">
-              <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
-                {mounted && session ? (
-                  <Avatar>{getUserInitials()}</Avatar>
-                ) : (
-                  <PersonIcon />
-                )}
-              </IconButton>
-            </Tooltip>
-            <Menu
-              sx={{ mt: '45px' }}
-              id="menu-appbar"
-              anchorEl={anchorElUser}
-              anchorOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-              keepMounted
-              transformOrigin={{
-                vertical: 'top',
-                horizontal: 'right',
-              }}
-              open={Boolean(anchorElUser)}
-              onClose={handleCloseUserMenu}
-            >
-              {getUserMenuItems()}
-            </Menu>
+            {mounted && session ? (
+              // User is logged in - show avatar with dropdown menu
+              <>
+                <Tooltip title="Open settings">
+                  <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
+                    <Avatar>{getUserInitials()}</Avatar>
+                  </IconButton>
+                </Tooltip>
+                <Menu
+                  sx={{ mt: '45px' }}
+                  id="menu-appbar"
+                  anchorEl={anchorElUser}
+                  anchorOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                  }}
+                  keepMounted
+                  transformOrigin={{
+                    vertical: 'top',
+                    horizontal: 'right',
+                  }}
+                  open={Boolean(anchorElUser)}
+                  onClose={handleCloseUserMenu}
+                >
+                  {getUserMenuItems()}
+                </Menu>
+              </>
+            ) : (
+              // User is not logged in - show login button
+              <Button 
+                variant="outlined" 
+                color="primary"
+                component={Link} 
+                href="/auth/login"
+                sx={{ my: 1 }}
+              >
+                Login
+              </Button>
+            )}
           </Box>
         </Toolbar>
       </Container>
