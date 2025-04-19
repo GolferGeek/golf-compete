@@ -66,6 +66,34 @@ alwaysApply: false
 - Cache API responses appropriately to minimize redundant requests
 - Implement proper loading and error states for all data fetching operations
 
+## API Client Patterns
+- **Use Functional Approach**: 
+  - Implement API clients using functional patterns instead of classes
+  - Export individual functions for API operations
+  - Use factory functions if shared configuration is needed
+  - Avoid class-based implementations unless absolutely necessary
+- **Keep It Simple**: 
+  - Each function should handle one API operation
+  - Use consistent error handling and response types
+  - Share common utilities through helper functions
+  - Maintain clear type definitions for requests and responses
+- **Examples**:
+  ```typescript
+  // ✅ DO: Use functional exports
+  export async function getUsers(): Promise<ApiResponse<User[]>> {
+    const response = await fetch('/api/users');
+    return handleApiResponse<User[]>(response);
+  }
+
+  // ❌ DON'T: Use class-based pattern
+  export class UsersApiClient {
+    static async getUsers(): Promise<ApiResponse<User[]>> {
+      const response = await fetch('/api/users');
+      return handleApiResponse<User[]>(response);
+    }
+  }
+  ```
+
 ## Database (Supabase)
 - Follow the established database schema design
 - Use Row Level Security (RLS) policies for data access control

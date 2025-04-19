@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Box, Container, Typography, Button } from '@mui/material';
+import { Box, Container, Typography } from '@mui/material';
 import UserNotesManager from '@/components/notes/UserNotesManager';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -37,8 +37,7 @@ export default function GolfNotesPage() {
           Golf Notes
         </Typography>
         <Typography variant="body1" color="text.secondary">
-          Manage all your golf notes in one place. This includes notes from specific rounds and holes, 
-          as well as general notes you've created. Use the filters and search to find specific notes.
+          Manage all your golf notes in one place. Use the filters and search to find specific notes.
         </Typography>
       </Box>
       
@@ -46,15 +45,6 @@ export default function GolfNotesPage() {
         userId={user.id} 
         onNotesUpdated={handleNotesUpdated} 
       />
-      
-      <Box sx={{ mt: 2 }}>
-        <Button 
-          variant="outlined" 
-          href="/profile"
-        >
-          Back to Profile
-        </Button>
-      </Box>
     </Container>
   );
 } 

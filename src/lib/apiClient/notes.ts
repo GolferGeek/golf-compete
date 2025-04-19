@@ -9,6 +9,7 @@ export interface ApiResponse {
 }
 
 import { type UserNote } from '@/types/database';
+import { z } from 'zod';
 
 /**
  * Data transfer object for Note entities
@@ -148,6 +149,122 @@ async function handleResponse<T>(response: Response): Promise<T> {
     throw new Error(errorData.message || `HTTP error ${response.status}`);
   }
   return await response.json();
+}
+
+// Types
+export interface Note {
+  id: string;
+  note_text: string;
+  category: string;
+  round_id: string | null;
+  hole_number: number | null;
+  tags: string[];
+  metadata: Record<string, unknown>;
+  status: 'added' | 'working_on' | 'implemented';
+  created_at: string;
+  updated_at: string | null;
+  profile_id: string;
+}
+
+export interface NotesResponse {
+  data: Note[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+// Validation schemas
+const noteSchema = z.object({
+  note_text: z.string().min(1, 'Note text is required'),
+  category: z.string().default('general'),
+  round_id: z.string().uuid().nullable().optional(),
+  hole_number: z.number().min(1).max(18).nullable().optional(),
+  tags: z.array(z.string()).default([]),
+  metadata: z.record(z.unknown()).optional(),
+  status: z.enum(['added', 'working_on', 'implemented']).default('added')
+});
+
+export type CreateNoteData = z.infer<typeof noteSchema>;
+export type UpdateNoteData = Partial<CreateNoteData>;
+
+// API Functions
+export async function fetchNotesList(params: {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+  search?: string;
+  category?: string;
+  status?: 'added' | 'working_on' | 'implemented';
+  roundId?: string;
+  holeNumber?: number;
+  tags?: string[];
+  fromDate?: Date;
+  toDate?: Date;
+}): Promise<NotesResponse> {
+  const searchParams = new URLSearchParams();
+  
+  // Add all params to search params
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined) {
+      if (key === 'tags' && Array.isArray(value)) {
+        searchParams.append(key, JSON.stringify(value));
+      } else if (value instanceof Date) {
+        searchParams.append(key, value.toISOString());
+      } else {
+        searchParams.append(key, String(value));
+      }
+    }
+  });
+
+  const response = await fetch(`/api/notes?${searchParams.toString()}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch notes');
+  }
+  return response.json();
+}
+
+export async function createNote(data: CreateNoteData): Promise<Note> {
+  const response = await fetch('/api/notes', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to create note');
+  }
+  return response.json();
+}
+
+export async function updateNote(noteId: string, data: UpdateNoteData): Promise<Note> {
+  const response = await fetch(`/api/notes/${noteId}`, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(data),
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to update note');
+  }
+  return response.json();
+}
+
+export async function deleteNote(noteId: string): Promise<void> {
+  const response = await fetch(`/api/notes/${noteId}`, {
+    method: 'DELETE',
+  });
+  
+  if (!response.ok) {
+    throw new Error('Failed to delete note');
+  }
 }
 
 /**

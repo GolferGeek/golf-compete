@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -40,46 +40,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import SortIcon from '@mui/icons-material/Sort';
 import { useRouter } from 'next/navigation';
-// Import API client functions instead of using Supabase directly
 import * as notesApi from '@/lib/apiClient/notes';
-
-// Type definitions
-// Extended UserNote type to match what the component needs
-interface UserNote {
-  id: string;
-  user_id: string;
-  note_text: string;
-  category: string;
-  round_id: string | null;
-  hole_number: number | null;
-  created_at: string;
-  updated_at: string | null;
-  tags: string[];
-  metadata: Record<string, any>;
-  
-  // Joined data
-  round_date?: string;
-  course_name?: string;
-}
-
-// API response type
-interface ApiUserNote {
-  id: string;
-  user_id: string;
-  content: string;
-  related_resource_id?: string | null;
-  related_resource_type?: string | null;
-  created_at: string;
-  updated_at: string | null;
-  
-  // Potential joined data
-  rounds?: {
-    date?: string;
-    courses?: {
-      name?: string;
-    }
-  };
-}
+import type { Note } from '@/lib/apiClient/notes';
 
 interface UserNotesManagerProps {
   userId: string;
@@ -89,314 +51,172 @@ interface UserNotesManagerProps {
   maxHeight?: string | number;
 }
 
-// Interfaces for API params
-interface ListNotesParams {
-  userId?: string;
-  roundId?: string;
-  holeNumber?: number;
-  category?: string[];
-  search?: string;
-  sortBy?: 'created_at' | 'updated_at';
-  sortOrder?: 'asc' | 'desc';
-  page?: number;
-  limit?: number;
-}
+const NOTES_PER_PAGE = 10;
+const CATEGORIES = ['general', 'swing', 'putting', 'strategy', 'equipment'];
+const NOTE_STATUSES = ['added', 'working_on', 'implemented'] as const;
 
-/**
- * Component for managing all user notes
- */
 export default function UserNotesManager({ 
   userId, 
   roundId,
   holeNumber,
   onNotesUpdated,
-  maxHeight
+  maxHeight = 600
 }: UserNotesManagerProps) {
   // State for notes and UI
-  const [notes, setNotes] = useState<UserNote[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
   const [editNoteText, setEditNoteText] = useState('');
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [noteToDeleteId, setNoteToDeleteId] = useState<string | null>(null);
-  const [deleteAllDialogOpen, setDeleteAllDialogOpen] = useState(false);
+  const [editNoteCategory, setEditNoteCategory] = useState('general');
+  const [editNoteTags, setEditNoteTags] = useState<string[]>([]);
+  const [editNoteStatus, setEditNoteStatus] = useState<typeof NOTE_STATUSES[number]>('added');
+  
+  // Filters and sorting
   const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState<string[]>([]);
-  const [availableCategories, setAvailableCategories] = useState<string[]>([]);
-  const [sortOrder, setSortOrder] = useState<'newest' | 'oldest'>('newest');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedStatus, setSelectedStatus] = useState<typeof NOTE_STATUSES[number] | ''>('');
+  const [sortBy, setSortBy] = useState<'created_at' | 'updated_at'>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   
   // Pagination
   const [page, setPage] = useState(1);
-  const notesPerPage = 10;
+  const [totalPages, setTotalPages] = useState(1);
+  
+  // Dialogs
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [noteToDeleteId, setNoteToDeleteId] = useState<string | null>(null);
+  const [newNoteDialogOpen, setNewNoteDialogOpen] = useState(false);
   
   const router = useRouter();
   
-  // Load notes from API
+  // Load notes
   useEffect(() => {
     loadNotes();
-  }, [userId, roundId, holeNumber, categoryFilter, sortOrder, searchTerm]);
+  }, [userId, roundId, holeNumber, selectedCategories, selectedStatus, sortBy, sortOrder, searchTerm, page]);
   
-  // Reset pagination when filters change
-  useEffect(() => {
-    setPage(1);
-  }, [categoryFilter, sortOrder, searchTerm]);
-  
-  // Load notes using API client
   async function loadNotes() {
     try {
       setLoading(true);
       setError(null);
       
-      // Build the query parameters
-      const params: ListNotesParams = {
-        userId: userId,
-        sortOrder: sortOrder === 'newest' ? 'desc' : 'asc',
-        sortBy: 'created_at',
-        search: searchTerm || undefined
-      };
+      const response = await notesApi.fetchNotesList({
+        page,
+        limit: NOTES_PER_PAGE,
+        sortBy,
+        sortOrder,
+        search: searchTerm || undefined,
+        category: selectedCategories.length > 0 ? selectedCategories.join(',') : undefined,
+        status: selectedStatus || undefined,
+        roundId,
+        holeNumber,
+      });
       
-      // Apply roundId filter if provided
-      if (roundId) {
-        params.roundId = roundId;
-      }
-      
-      // Apply holeNumber filter if provided
-      if (holeNumber) {
-        params.holeNumber = holeNumber;
-      }
-      
-      // Apply category filter if selected
-      if (categoryFilter.length > 0) {
-        params.category = categoryFilter;
-      }
-      
-      const notesResponse = await notesApi.fetchNotesList(params);
-      
-      // Process and enhance the data
-      const processedNotes = notesResponse.data?.map((apiNote: ApiUserNote) => {
-        // Map API response to our UserNote structure
-        const processedNote: UserNote = {
-          id: apiNote.id,
-          user_id: apiNote.user_id,
-          note_text: apiNote.content || '',  // API returns 'content' which we map to 'note_text'
-          category: apiNote.related_resource_type || '',
-          round_id: apiNote.related_resource_type === 'round' ? apiNote.related_resource_id || null : null,
-          hole_number: null, // Set default value
-          created_at: apiNote.created_at,
-          updated_at: apiNote.updated_at || null,
-          tags: [],  // Default empty array
-          metadata: {},  // Default empty object
-          round_date: undefined,
-          course_name: undefined
-        };
-        
-        // Add any additional processing of fields based on the API response
-        if (apiNote.rounds?.date) {
-          processedNote.round_date = apiNote.rounds.date;
-        }
-        
-        if (apiNote.rounds?.courses?.name) {
-          processedNote.course_name = apiNote.rounds.courses.name;
-        }
-        
-        return processedNote;
-      }) || [];
-      
-      setNotes(processedNotes);
-      
-      // Extract available categories for the filter
-      const categories = Array.from(new Set(processedNotes.map(note => note.category)))
-        .filter(Boolean) as string[];
-      setAvailableCategories(categories);
-      
+      setNotes(response.data);
+      setTotalPages(response.pagination.totalPages);
     } catch (err) {
+      setError('Failed to load notes');
       console.error('Error loading notes:', err);
-      setError('Failed to load notes. Please try again.');
     } finally {
       setLoading(false);
     }
   }
   
-  // Compute filtered notes
-  const filteredNotes = notes;
-  const totalPages = Math.ceil(filteredNotes.length / notesPerPage);
-  const paginatedNotes = filteredNotes.slice((page - 1) * notesPerPage, page * notesPerPage);
-  
-  // Update note
-  const handleSaveEdit = async () => {
-    if (!editingNoteId) return;
-    
+  const handleCreateNote = async () => {
     try {
-      setLoading(true);
+      await notesApi.createNote({
+        note_text: editNoteText,
+        category: editNoteCategory,
+        tags: editNoteTags,
+        status: editNoteStatus,
+        round_id: roundId || null,
+        hole_number: holeNumber || null,
+      });
       
-      await notesApi.updateNote(editingNoteId, {
-        note_text: editNoteText
+      setNewNoteDialogOpen(false);
+      setEditNoteText('');
+      setEditNoteCategory('general');
+      setEditNoteTags([]);
+      setEditNoteStatus('added');
+      loadNotes();
+      onNotesUpdated?.();
+    } catch (err) {
+      setError('Failed to create note');
+      console.error('Error creating note:', err);
+    }
+  };
+  
+  const handleUpdateNote = async (noteId: string) => {
+    try {
+      await notesApi.updateNote(noteId, {
+        note_text: editNoteText,
+        category: editNoteCategory,
+        tags: editNoteTags,
+        status: editNoteStatus,
       });
       
       setEditingNoteId(null);
       setEditNoteText('');
-      
-      await loadNotes();
-      
-      if (onNotesUpdated) {
-        onNotesUpdated();
-      }
+      setEditNoteCategory('general');
+      setEditNoteTags([]);
+      setEditNoteStatus('added');
+      loadNotes();
+      onNotesUpdated?.();
     } catch (err) {
+      setError('Failed to update note');
       console.error('Error updating note:', err);
-      setError('Failed to update note. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
   
-  // Delete a note
   const handleDeleteNote = async () => {
     if (!noteToDeleteId) return;
     
     try {
-      setLoading(true);
       await notesApi.deleteNote(noteToDeleteId);
-      
       setDeleteDialogOpen(false);
       setNoteToDeleteId(null);
-      
-      await loadNotes();
-      
-      if (onNotesUpdated) {
-        onNotesUpdated();
-      }
+      loadNotes();
+      onNotesUpdated?.();
     } catch (err) {
+      setError('Failed to delete note');
       console.error('Error deleting note:', err);
-      setError('Failed to delete note. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
   
-  // Delete filtered notes
-  const handleDeleteFilteredNotes = async () => {
-    try {
-      setLoading(true);
-      
-      // Build filter parameters
-      const params: ListNotesParams = {
-        userId: userId,
-        search: searchTerm || undefined
-      };
-      
-      // Apply roundId filter if provided
-      if (roundId) {
-        params.roundId = roundId;
-      }
-      
-      // Apply holeNumber filter if provided
-      if (holeNumber) {
-        params.holeNumber = holeNumber;
-      }
-      
-      // Apply category filter if selected
-      if (categoryFilter.length > 0) {
-        params.category = categoryFilter;
-      }
-      
-      await notesApi.deleteNotes(params);
-      
-      setDeleteAllDialogOpen(false);
-      setPage(1);
-      
-      await loadNotes();
-      
-      if (onNotesUpdated) {
-        onNotesUpdated();
-      }
-    } catch (err) {
-      console.error('Error deleting notes:', err);
-      setError('Failed to delete notes. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  // Edit a note
-  const handleEditNote = (note: UserNote) => {
+  const startEdit = (note: Note) => {
     setEditingNoteId(note.id);
     setEditNoteText(note.note_text);
+    setEditNoteCategory(note.category);
+    setEditNoteTags(note.tags);
+    setEditNoteStatus(note.status);
   };
   
-  // Format date string
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
+  const cancelEdit = () => {
+    setEditingNoteId(null);
+    setEditNoteText('');
+    setEditNoteCategory('general');
+    setEditNoteTags([]);
+    setEditNoteStatus('added');
   };
   
-  // Handle page change
-  const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
-    setPage(value);
-  };
-  
-  // Handle category filter change
-  const handleCategoryChange = (event: SelectChangeEvent<string[]>) => {
-    const value = event.target.value;
-    setCategoryFilter(typeof value === 'string' ? value.split(',') : value);
-  };
-  
-  // Navigate to a round if clicked
   const handleRoundClick = (roundId: string) => {
-    if (roundId) {
-      router.push(`/rounds/${roundId}`);
-    }
+    router.push(`/rounds/${roundId}`);
   };
-  
-  // Loading state
-  if (loading && notes.length === 0) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <CircularProgress />
-      </Box>
-    );
-  }
   
   return (
-    <Paper 
-      sx={{ 
-        p: 3, 
-        mb: 4, 
-        maxHeight: maxHeight || 'auto',
-        overflow: maxHeight ? 'auto' : 'visible'
-      }}
-    >
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
-        <Typography variant="h6">Golf Notes</Typography>
-        
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          {notes.length > 0 && (
-            <Button 
-              color="error" 
-              size="small" 
-              onClick={() => setDeleteAllDialogOpen(true)}
-              startIcon={<DeleteIcon />}
-            >
-              Delete {filteredNotes.length !== notes.length ? 'Filtered' : 'All'}
-            </Button>
-          )}
-        </Box>
-      </Box>
+    <Box sx={{ maxHeight, overflow: 'auto' }}>
+      {error && (
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
+      )}
       
-      {/* Filters and search */}
-      <Box sx={{ mb: 3, display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+      <Box sx={{ mb: 2, display: 'flex', gap: 2, alignItems: 'center' }}>
         <TextField
           size="small"
           placeholder="Search notes..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          sx={{ minWidth: 200, flex: 1 }}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -404,208 +224,170 @@ export default function UserNotesManager({
               </InputAdornment>
             ),
           }}
+          sx={{ flexGrow: 1 }}
         />
         
-        {availableCategories.length > 0 && (
-          <FormControl size="small" sx={{ minWidth: 200, flex: 1 }}>
-            <InputLabel id="category-filter-label">
-              <Box sx={{ display: 'flex', alignItems: 'center' }}>
-                <FilterListIcon fontSize="small" sx={{ mr: 0.5 }} />
-                Filter Category
-              </Box>
-            </InputLabel>
-            <Select
-              labelId="category-filter-label"
-              multiple
-              value={categoryFilter}
-              onChange={handleCategoryChange}
-              input={<OutlinedInput label="Filter Category" />}
-              renderValue={(selected) => (
-                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-                  {selected.map((value) => (
-                    <Chip key={value} label={value} size="small" />
-                  ))}
-                </Box>
-              )}
-            >
-              {availableCategories.map((category) => (
-                <MenuItem key={category} value={category}>
-                  {category}
-                </MenuItem>
-              ))}
-            </Select>
-          </FormControl>
-        )}
-        
-        <FormControl size="small" sx={{ minWidth: 150 }}>
-          <InputLabel id="sort-order-label">
-            <Box sx={{ display: 'flex', alignItems: 'center' }}>
-              <SortIcon fontSize="small" sx={{ mr: 0.5 }} />
-              Sort
-            </Box>
-          </InputLabel>
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Category</InputLabel>
           <Select
-            labelId="sort-order-label"
-            value={sortOrder}
-            onChange={(e) => setSortOrder(e.target.value as 'newest' | 'oldest')}
-            label="Sort"
+            multiple
+            value={selectedCategories}
+            onChange={(e) => setSelectedCategories(typeof e.target.value === 'string' ? e.target.value.split(',') : e.target.value)}
+            input={<OutlinedInput label="Category" />}
+            renderValue={(selected) => (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                {selected.map((value) => (
+                  <Chip key={value} label={value} size="small" />
+                ))}
+              </Box>
+            )}
           >
-            <MenuItem value="newest">Newest First</MenuItem>
-            <MenuItem value="oldest">Oldest First</MenuItem>
+            {CATEGORIES.map((category) => (
+              <MenuItem key={category} value={category}>
+                {category}
+              </MenuItem>
+            ))}
           </Select>
         </FormControl>
+        
+        <FormControl size="small" sx={{ minWidth: 120 }}>
+          <InputLabel>Status</InputLabel>
+          <Select
+            value={selectedStatus}
+            onChange={(e) => setSelectedStatus(e.target.value as typeof NOTE_STATUSES[number] | '')}
+            input={<OutlinedInput label="Status" />}
+          >
+            <MenuItem value="">All</MenuItem>
+            {NOTE_STATUSES.map((status) => (
+              <MenuItem key={status} value={status}>
+                {status.replace('_', ' ')}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+        
+        <Button
+          variant="contained"
+          onClick={() => setNewNoteDialogOpen(true)}
+        >
+          Add Note
+        </Button>
       </Box>
       
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
-      )}
-      
-      {notes.length === 0 ? (
-        <Typography color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
-          No notes found. {searchTerm || categoryFilter.length > 0 ? 'Try adjusting your filters.' : 'Use the Golf Assistant to add notes.'}
-        </Typography>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+          <CircularProgress />
+        </Box>
       ) : (
         <>
-          <List sx={{ width: '100%' }}>
-            {paginatedNotes.map((note, index) => (
-              <Box key={note.id}>
-                {index > 0 && <Divider component="li" />}
+          <List>
+            {notes.map((note) => (
+              <React.Fragment key={note.id}>
                 <ListItem
-                  alignItems="flex-start"
-                  sx={{ 
-                    py: 2,
-                    '&:hover': {
-                      bgcolor: 'rgba(0, 0, 0, 0.04)',
-                    },
-                  }}
                   secondaryAction={
-                    editingNoteId === note.id ? (
-                      <>
-                        <IconButton onClick={handleSaveEdit} title="Save">
-                          <SaveIcon color="primary" />
-                        </IconButton>
-                        <IconButton onClick={() => setEditingNoteId(null)} title="Cancel">
-                          <CancelIcon />
-                        </IconButton>
-                      </>
-                    ) : (
-                      <>
-                        <IconButton 
-                          onClick={() => handleEditNote(note)} 
-                          title="Edit"
-                          sx={{ mr: 1 }}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton 
-                          onClick={() => {
-                            setNoteToDeleteId(note.id);
-                            setDeleteDialogOpen(true);
-                          }}
-                          title="Delete"
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </>
-                    )
+                    <Box>
+                      <IconButton
+                        edge="end"
+                        aria-label="edit"
+                        onClick={() => startEdit(note)}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        edge="end"
+                        aria-label="delete"
+                        onClick={() => {
+                          setNoteToDeleteId(note.id);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </Box>
                   }
                 >
-                  <ListItemIcon sx={{ minWidth: 40 }}>
-                    {note.hole_number ? (
-                      <FlagIcon color="secondary" />
-                    ) : note.round_id ? (
-                      <GolfCourseIcon color="primary" />
-                    ) : (
-                      <NoteIcon color="action" />
-                    )}
+                  <ListItemIcon>
+                    {note.round_id ? <GolfCourseIcon /> : <NoteIcon />}
                   </ListItemIcon>
-                  
                   <ListItemText
                     primary={
                       editingNoteId === note.id ? (
-                        <TextField
-                          fullWidth
-                          multiline
-                          value={editNoteText}
-                          onChange={(e) => setEditNoteText(e.target.value)}
-                          variant="outlined"
-                          size="small"
-                          autoFocus
-                        />
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'flex-start' }}>
+                          <TextField
+                            fullWidth
+                            multiline
+                            value={editNoteText}
+                            onChange={(e) => setEditNoteText(e.target.value)}
+                            size="small"
+                          />
+                          <IconButton
+                            size="small"
+                            onClick={() => handleUpdateNote(note.id)}
+                          >
+                            <SaveIcon />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={cancelEdit}
+                          >
+                            <CancelIcon />
+                          </IconButton>
+                        </Box>
                       ) : (
                         note.note_text
                       )
                     }
                     secondary={
-                      <Box sx={{ mt: 1 }}>
-                        <Typography
-                          component="span"
-                          variant="body2"
-                          color="text.secondary"
-                        >
-                          {formatDate(note.created_at)}
-                          {note.updated_at && ' (edited)'}
+                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', alignItems: 'center' }}>
+                        <Chip
+                          label={note.category}
+                          size="small"
+                          color="primary"
+                          variant="outlined"
+                        />
+                        <Chip
+                          label={note.status.replace('_', ' ')}
+                          size="small"
+                          color="secondary"
+                          variant="outlined"
+                        />
+                        {note.tags.map((tag) => (
+                          <Chip
+                            key={tag}
+                            label={tag}
+                            size="small"
+                            variant="outlined"
+                          />
+                        ))}
+                        {note.round_id && (
+                          <Button
+                            size="small"
+                            onClick={() => handleRoundClick(note.round_id!)}
+                            startIcon={<GolfCourseIcon />}
+                          >
+                            View Round
+                          </Button>
+                        )}
+                        <Typography variant="caption" color="text.secondary">
+                          {new Date(note.created_at).toLocaleDateString()}
                         </Typography>
-                        
-                        {/* Context information */}
-                        <Box sx={{ mt: 0.5, display: 'flex', flexWrap: 'wrap', gap: 0.5, alignItems: 'center' }}>
-                          {note.category && (
-                            <Chip 
-                              label={note.category} 
-                              size="small" 
-                              color="primary"
-                              variant="outlined"
-                            />
-                          )}
-                          
-                          {note.round_id && note.course_name && (
-                            <Chip 
-                              icon={<GolfCourseIcon />}
-                              label={note.course_name}
-                              size="small"
-                              onClick={() => handleRoundClick(note.round_id!)}
-                              clickable
-                            />
-                          )}
-                          
-                          {note.hole_number && (
-                            <Chip 
-                              icon={<FlagIcon />}
-                              label={`Hole ${note.hole_number}`}
-                              size="small"
-                              color="secondary"
-                              variant="outlined"
-                            />
-                          )}
-                          
-                          {note.tags && note.tags.length > 0 && note.tags.map(tag => (
-                            <Chip 
-                              key={tag}
-                              label={tag} 
-                              size="small" 
-                              variant="outlined"
-                            />
-                          ))}
-                        </Box>
                       </Box>
                     }
                   />
                 </ListItem>
-              </Box>
+                <Divider />
+              </React.Fragment>
             ))}
           </List>
           
-          {totalPages > 1 && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-              <Pagination 
-                count={totalPages} 
-                page={page} 
-                onChange={handlePageChange} 
-                color="primary" 
-                size="medium"
-              />
-            </Box>
-          )}
+          <Box sx={{ mt: 2, display: 'flex', justifyContent: 'center' }}>
+            <Pagination
+              count={totalPages}
+              page={page}
+              onChange={(_, value) => setPage(value)}
+              color="primary"
+            />
+          </Box>
         </>
       )}
       
@@ -616,7 +398,7 @@ export default function UserNotesManager({
       >
         <DialogTitle>Delete Note</DialogTitle>
         <DialogContent>
-          Are you sure you want to delete this note? This action cannot be undone.
+          Are you sure you want to delete this note?
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
@@ -624,25 +406,69 @@ export default function UserNotesManager({
         </DialogActions>
       </Dialog>
       
-      {/* Delete All Confirmation Dialog */}
+      {/* New Note Dialog */}
       <Dialog
-        open={deleteAllDialogOpen}
-        onClose={() => setDeleteAllDialogOpen(false)}
+        open={newNoteDialogOpen}
+        onClose={() => setNewNoteDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
       >
-        <DialogTitle>
-          Delete {filteredNotes.length !== notes.length ? 'Filtered' : 'All'} Notes
-        </DialogTitle>
+        <DialogTitle>Add New Note</DialogTitle>
         <DialogContent>
-          Are you sure you want to delete {filteredNotes.length !== notes.length ? 'all filtered' : 'all'} notes? 
-          {filteredNotes.length !== notes.length && 
-            ` This will delete ${filteredNotes.length} note(s) matching your current filters.`}
-          This action cannot be undone.
+          <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 2 }}>
+            <TextField
+              label="Note"
+              multiline
+              rows={4}
+              value={editNoteText}
+              onChange={(e) => setEditNoteText(e.target.value)}
+              fullWidth
+            />
+            
+            <FormControl fullWidth>
+              <InputLabel>Category</InputLabel>
+              <Select
+                value={editNoteCategory}
+                onChange={(e) => setEditNoteCategory(e.target.value)}
+                label="Category"
+              >
+                {CATEGORIES.map((category) => (
+                  <MenuItem key={category} value={category}>
+                    {category}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
+            <FormControl fullWidth>
+              <InputLabel>Status</InputLabel>
+              <Select
+                value={editNoteStatus}
+                onChange={(e) => setEditNoteStatus(e.target.value as typeof NOTE_STATUSES[number])}
+                label="Status"
+              >
+                {NOTE_STATUSES.map((status) => (
+                  <MenuItem key={status} value={status}>
+                    {status.replace('_', ' ')}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            
+            <TextField
+              label="Tags"
+              placeholder="Add tags (comma separated)"
+              value={editNoteTags.join(', ')}
+              onChange={(e) => setEditNoteTags(e.target.value.split(',').map(tag => tag.trim()).filter(Boolean))}
+              fullWidth
+            />
+          </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteAllDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleDeleteFilteredNotes} color="error">Delete</Button>
+          <Button onClick={() => setNewNoteDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleCreateNote} variant="contained">Create</Button>
         </DialogActions>
       </Dialog>
-    </Paper>
+    </Box>
   );
 } 

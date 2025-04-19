@@ -81,6 +81,9 @@ export default function Navbar() {
     const menuItems = [
       <MenuItem key="dashboard" component={Link} href="/dashboard" onClick={handleCloseUserMenu}>
         <Typography textAlign="center">Dashboard</Typography>
+      </MenuItem>,
+      <MenuItem key="notes" component={Link} href="/profile/notes" onClick={handleCloseUserMenu}>
+        <Typography textAlign="center">Notes</Typography>
       </MenuItem>
     ];
     
