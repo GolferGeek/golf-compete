@@ -10,26 +10,27 @@ interface ApiClientOptions {
   defaultHeaders?: Record<string, string>;
 }
 
-class ApiClient {
-  private baseUrl: string;
-  private defaultHeaders: Record<string, string>;
+/**
+ * Creates an API client with the specified configuration
+ */
+function createApiClient(options: ApiClientOptions = {}) {
+  const baseUrl = options.baseUrl || '';
+  const defaultHeaders = {
+    'Content-Type': 'application/json',
+    ...options.defaultHeaders,
+  };
 
-  constructor(options: ApiClientOptions = {}) {
-    this.baseUrl = options.baseUrl || '';
-    this.defaultHeaders = {
-      'Content-Type': 'application/json',
-      ...options.defaultHeaders,
-    };
-  }
-
-  private async request<T>(
+  /**
+   * Makes a request to the API
+   */
+  async function request<T>(
     method: string,
     path: string,
     data?: unknown,
     options: RequestOptions = {}
   ): Promise<ApiResponse<T>> {
-    const url = this.baseUrl + path;
-    const headers = { ...this.defaultHeaders, ...options.headers };
+    const url = baseUrl + path;
+    const headers = { ...defaultHeaders, ...options.headers };
 
     try {
       const response = await fetch(url, {
@@ -66,26 +67,38 @@ class ApiClient {
     }
   }
 
-  async get<T>(path: string, options?: RequestOptions): Promise<ApiResponse<T>> {
-    return this.request<T>('GET', path, undefined, options);
-  }
+  return {
+    /**
+     * Make a GET request
+     */
+    get: <T>(path: string, options?: RequestOptions): Promise<ApiResponse<T>> =>
+      request<T>('GET', path, undefined, options),
 
-  async post<T>(path: string, data?: unknown, options?: RequestOptions): Promise<ApiResponse<T>> {
-    return this.request<T>('POST', path, data, options);
-  }
+    /**
+     * Make a POST request
+     */
+    post: <T>(path: string, data?: unknown, options?: RequestOptions): Promise<ApiResponse<T>> =>
+      request<T>('POST', path, data, options),
 
-  async put<T>(path: string, data?: unknown, options?: RequestOptions): Promise<ApiResponse<T>> {
-    return this.request<T>('PUT', path, data, options);
-  }
+    /**
+     * Make a PUT request
+     */
+    put: <T>(path: string, data?: unknown, options?: RequestOptions): Promise<ApiResponse<T>> =>
+      request<T>('PUT', path, data, options),
 
-  async patch<T>(path: string, data?: unknown, options?: RequestOptions): Promise<ApiResponse<T>> {
-    return this.request<T>('PATCH', path, data, options);
-  }
+    /**
+     * Make a PATCH request
+     */
+    patch: <T>(path: string, data?: unknown, options?: RequestOptions): Promise<ApiResponse<T>> =>
+      request<T>('PATCH', path, data, options),
 
-  async delete<T>(path: string, options?: RequestOptions): Promise<ApiResponse<T>> {
-    return this.request<T>('DELETE', path, undefined, options);
-  }
+    /**
+     * Make a DELETE request
+     */
+    delete: <T>(path: string, options?: RequestOptions): Promise<ApiResponse<T>> =>
+      request<T>('DELETE', path, undefined, options),
+  };
 }
 
 // Create and export a singleton instance
-export const apiClient = new ApiClient(); 
+export const apiClient = createApiClient(); 
