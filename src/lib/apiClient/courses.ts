@@ -1,6 +1,6 @@
 // src/lib/apiClient/courses.ts
 import { type Course, type CourseTee } from '@/types/database';
-import { type PaginatedResponse } from '@/services/base';
+import { type PaginatedResponse } from '@/api/base';
 import { handleApiResponse, buildQueryString } from './utils';
 
 interface ListCoursesParams { /* Define params */ }

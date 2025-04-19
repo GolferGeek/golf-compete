@@ -27,7 +27,7 @@ import {
   CreateRoundInput,
   EventRoundSummary 
 } from '@/types/round';
-import { createRound, getEventRounds } from '@/services/roundService';
+import { createRound, getEventRounds } from '@/api/competition/roundService';
 import { format } from 'date-fns';
 import { getEventById } from '@/lib/events';
 import { CoursesApiClient } from '@/lib/apiClient/courses';

@@ -23,7 +23,7 @@ import {
 } from '@mui/material';
 import { format } from 'date-fns';
 import { getEventById } from '@/lib/events';
-import { getEventRounds } from '@/services/roundService';
+import { getEventRounds } from '@/api/competition/roundService';
 import { Event } from '@/types/events';
 import { EventRoundSummary } from '@/types/round';
 import Link from 'next/link';

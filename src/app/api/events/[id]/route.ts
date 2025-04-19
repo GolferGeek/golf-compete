@@ -1,16 +1,16 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import EventDbService from '@/services/internal/EventDbService';
-import SeriesDbService from '@/services/internal/SeriesDbService';
-import AuthService from '@/services/internal/AuthService';
+import EventDbService from '@/api/internal/database/EventDbService';
+import SeriesDbService from '@/api/internal/database/SeriesDbService';
+import AuthService from '@/api/internal/database/AuthService';
 import { 
     validateRequestBody,
     createSuccessApiResponse, 
     createErrorApiResponse 
 } from '@/lib/api/utils';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
-import { ServiceError, ErrorCodes } from '@/services/base';
+import { ServiceError, ErrorCodes } from '@/api/base';
 import { type Event } from '@/types/database'; // Import shared type
 
 // Schema for updating an event

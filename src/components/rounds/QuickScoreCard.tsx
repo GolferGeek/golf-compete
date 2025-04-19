@@ -17,7 +17,7 @@ import {
   Alert,
 } from '@mui/material';
 import EditIcon from '@mui/icons-material/Edit';
-import { getRoundWithDetails, createHoleScore, updateRound } from '@/services/roundService';
+import { getRoundWithDetails, createHoleScore, updateRound } from '@/api/competition/roundService';
 import { RoundWithDetails, CreateHoleScoreInput } from '@/types/round';
 import { useRouter } from 'next/navigation';
 import DoneIcon from '@mui/icons-material/Done';

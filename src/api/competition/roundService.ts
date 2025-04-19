@@ -7,8 +7,8 @@ import {
     CreateHoleScoreInput,
     UpdateHoleScoreInput,
     EventRoundSummary
-} from '@/types/round';
-import { Event } from '@/types/events';
+} from '@/types/competition/rounds/types';
+import { Event } from '@/types/competition/events/Event';
 import { supabaseClient } from '@/lib/auth';
 import { getEventById } from '@/lib/events';
 import { getEventParticipants } from '@/lib/participants';

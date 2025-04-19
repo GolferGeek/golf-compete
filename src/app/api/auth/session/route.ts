@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import AuthService, { type AuthProfile } from '@/services/internal/AuthService';
+import AuthService, { type AuthProfile } from '@/api/internal/database/AuthService';
 import { createSuccessApiResponse, createErrorApiResponse } from '@/lib/api/utils';
-import { ServiceError } from '@/services/base';
+import { ServiceError } from '@/api/base';
 import { type User, type Session } from '@supabase/supabase-js';
 
 // Define the structure for the session response data

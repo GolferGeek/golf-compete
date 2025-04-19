@@ -3,8 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
-import { handleAIInteraction, ProcessedCommand } from '@/services/ai/profileAiService';
-import { executeCommand, CommandExecutionResult } from '@/services/ai/commandExecutor';
+import { handleAIInteraction, ProcessedCommand } from '@/api/ai/profileAiService';
+import { executeCommand, CommandExecutionResult } from '@/api/ai/commandExecutor';
 import { logAiStep } from '@/utils/aiDebug';
 
 interface AIProcessorOptions {

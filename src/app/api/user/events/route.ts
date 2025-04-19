@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
 import { createSuccessApiResponse, createErrorApiResponse } from '@/lib/api/utils';
 import { createClient } from '@/lib/supabase/server';
-import EventDbService from '@/services/internal/EventDbService';
+import EventDbService from '@/api/internal/database/EventDbService';
 
 // Define the expected shape of the joined data
 // Adapt this based on your actual table columns and desired output

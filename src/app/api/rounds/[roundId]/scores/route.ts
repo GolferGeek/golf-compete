@@ -1,14 +1,14 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import RoundDbService from '@/services/internal/RoundDbService';
+import RoundDbService from '@/api/internal/database/RoundDbService';
 import { 
     validateRequestBody, 
     createSuccessApiResponse, 
     createErrorApiResponse 
 } from '@/lib/api/utils';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
-import { ServiceError, ErrorCodes } from '@/services/base';
+import { ServiceError, ErrorCodes } from '@/api/base';
 import { type Score } from '@/types/database';
 
 // Schema for creating a score

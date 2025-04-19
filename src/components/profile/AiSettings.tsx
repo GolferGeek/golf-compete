@@ -22,7 +22,7 @@ import InfoIcon from '@mui/icons-material/Info';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import SaveIcon from '@mui/icons-material/Save';
-import { getUserAIPreferences, updateUserAIPreferences, AIPreferences } from '@/services/ai/clientAiService';
+import { getUserAIPreferences, updateUserAIPreferences, AIPreferences } from '@/api/ai/clientAiService';
 
 interface AiSettingsProps {
   userId: string;

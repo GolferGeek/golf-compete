@@ -1,4 +1,4 @@
-import { type AuthProfile } from '@/services/internal/AuthService'; // Import from AuthService
+import { type AuthProfile } from '@/api/internal/database/AuthService'; // Import from AuthService
 import { handleApiResponse } from './utils'; // Import helper
 
 /**

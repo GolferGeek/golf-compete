@@ -3,9 +3,9 @@ import type { NextRequest } from 'next/server';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
 import { createSuccessApiResponse, createErrorApiResponse, validateRequestBody } from '@/lib/api/utils'; // Import the response utilities
 import { createClient } from '@/lib/supabase/server'; // Need this to create client
-import AuthService from '@/services/internal/AuthService'; // Import service class
-import { type AuthProfile } from '@/services/internal/AuthService'; // Import from AuthService
-import { ServiceError, ErrorCodes } from '@/services/base'; // Import ServiceError and ErrorCodes
+import AuthService from '@/api/internal/database/AuthService'; // Import service class
+import { type AuthProfile } from '@/api/internal/database/AuthService'; // Import from AuthService
+import { ServiceError, ErrorCodes } from '@/api/base'; // Import ServiceError and ErrorCodes
 import { z } from 'zod';
 
 /**

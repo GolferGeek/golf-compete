@@ -1,14 +1,14 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import NoteDbService from '@/services/internal/NoteDbService';
+import NoteDbService from '@/api/internal/database/NoteDbService';
 import { 
     validateRequestBody,
     createSuccessApiResponse, 
     createErrorApiResponse 
 } from '@/lib/api/utils';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
-import { ServiceError, ErrorCodes } from '@/services/base';
+import { ServiceError, ErrorCodes } from '@/api/base';
 import { type UserNote } from '@/types/database';
 
 // Schema for updating a note

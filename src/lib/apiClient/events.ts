@@ -1,5 +1,5 @@
 import { type Event, type EventParticipant } from '@/types/database';
-import { type PaginatedResponse } from '@/services/base';
+import { type PaginatedResponse } from '@/api/base';
 import { handleApiResponse, buildQueryString } from './utils';
 
 interface ListEventsParams { /* Define params */ }

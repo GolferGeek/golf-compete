@@ -1,50 +1,5 @@
 import { supabase } from '@/lib/supabase';
-
-// Types
-export interface Event {
-  id: string;
-  series_id: string;
-  name: string;
-  description?: string;
-  event_date: string;
-  registration_open_date?: string;
-  registration_close_date?: string;
-  course_id: string;
-  max_participants?: number;
-  entry_fee?: number;
-  prize_pool?: number;
-  format: string;
-  status: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
-  created_by: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface EventParticipant {
-  id: string;
-  event_id: string;
-  user_id: string;
-  registration_date: string;
-  payment_status?: string;
-  payment_date?: string;
-  status: 'registered' | 'confirmed' | 'checked_in' | 'withdrawn' | 'no_show';
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface EventResult {
-  id: string;
-  event_id: string;
-  user_id: string;
-  gross_score: number;
-  net_score?: number;
-  position?: number;
-  points?: number;
-  disqualified: boolean;
-  disqualification_reason?: string;
-  created_at?: string;
-  updated_at?: string;
-}
+import { Event, EventParticipant } from '@/types/competition/events';
 
 /**
  * Fetches all events for a series
@@ -55,7 +10,10 @@ export const fetchSeriesEvents = async (seriesId: string): Promise<Event[]> => {
   try {
     const { data, error } = await supabase
       .from('events')
-      .select('*')
+      .select(`
+        *,
+        event_participants (*)
+      `)
       .eq('series_id', seriesId)
       .order('event_date', { ascending: true });
 
@@ -82,7 +40,10 @@ export const fetchUpcomingEvents = async (limit?: number): Promise<Event[]> => {
     
     const { data, error } = await supabase
       .from('events')
-      .select('*')
+      .select(`
+        *,
+        event_participants (*)
+      `)
       .gte('event_date', today)
       .order('event_date', { ascending: true })
       .limit(limit || 10);
@@ -108,7 +69,10 @@ export const fetchEventById = async (eventId: string): Promise<Event> => {
   try {
     const { data, error } = await supabase
       .from('events')
-      .select('*')
+      .select(`
+        *,
+        event_participants (*)
+      `)
       .eq('id', eventId)
       .single();
 
@@ -125,17 +89,17 @@ export const fetchEventById = async (eventId: string): Promise<Event> => {
 };
 
 /**
- * Copies participants from a series to an event
+ * Invites series participants to an event
  * @param seriesId The ID of the series
  * @param eventId The ID of the event
  * @returns Promise with the result
  */
-export const copySeriesParticipantsToEvent = async (seriesId: string, eventId: string): Promise<boolean> => {
+export const inviteSeriesParticipantsToEvent = async (seriesId: string, eventId: string): Promise<boolean> => {
   try {
     // First get all series participants
     const { data: seriesParticipants, error: seriesError } = await supabase
       .from('series_participants')
-      .select('user_id')
+      .select('participant_id')
       .eq('series_id', seriesId)
       .eq('status', 'active');
 
@@ -145,15 +109,15 @@ export const copySeriesParticipantsToEvent = async (seriesId: string, eventId: s
     }
 
     if (!seriesParticipants || seriesParticipants.length === 0) {
-      return true; // No participants to copy
+      return true; // No participants to invite
     }
 
     // Create event participants for each series participant
     const eventParticipants = seriesParticipants.map(participant => ({
       event_id: eventId,
-      user_id: participant.user_id,
-      registration_date: new Date().toISOString(),
-      status: 'registered' as const
+      participant_id: participant.participant_id,
+      invitation_status: 'invited',
+      invitation_date: new Date().toISOString()
     }));
 
     const { error: insertError } = await supabase
@@ -161,13 +125,13 @@ export const copySeriesParticipantsToEvent = async (seriesId: string, eventId: s
       .insert(eventParticipants);
 
     if (insertError) {
-      console.error('Error copying participants to event:', insertError);
+      console.error('Error inviting participants to event:', insertError);
       throw insertError;
     }
 
     return true;
   } catch (error) {
-    console.error('Error in copySeriesParticipantsToEvent:', error);
+    console.error('Error in inviteSeriesParticipantsToEvent:', error);
     throw error;
   }
 };
@@ -228,8 +192,8 @@ export const createEvent = async (
       throw seriesEventError;
     }
 
-    // Copy series participants to the event
-    await copySeriesParticipantsToEvent(seriesId, createdEvent.id);
+    // Invite series participants to the event
+    await inviteSeriesParticipantsToEvent(seriesId, createdEvent.id);
 
     return createdEvent;
   } catch (error) {
@@ -248,10 +212,7 @@ export const updateEvent = async (eventId: string, eventData: Partial<Event>): P
   try {
     const { data, error } = await supabase
       .from('events')
-      .update({
-        ...eventData,
-        updated_at: new Date().toISOString()
-      })
+      .update(eventData)
       .eq('id', eventId)
       .select()
       .single();
@@ -271,7 +232,7 @@ export const updateEvent = async (eventId: string, eventData: Partial<Event>): P
 /**
  * Deletes an event
  * @param eventId The ID of the event
- * @returns Promise with the result
+ * @returns Promise indicating success
  */
 export const deleteEvent = async (eventId: string): Promise<boolean> => {
   try {
@@ -301,9 +262,11 @@ export const fetchEventParticipants = async (eventId: string): Promise<EventPart
   try {
     const { data, error } = await supabase
       .from('event_participants')
-      .select('*')
-      .eq('event_id', eventId)
-      .order('registration_date', { ascending: true });
+      .select(`
+        *,
+        rounds (*)
+      `)
+      .eq('event_id', eventId);
 
     if (error) {
       console.error('Error fetching event participants:', error);
@@ -318,14 +281,23 @@ export const fetchEventParticipants = async (eventId: string): Promise<EventPart
 };
 
 /**
- * Registers a participant for an event
- * @param participantData The participant data
- * @returns Promise with the registered participant
+ * Invites a participant to an event
+ * @param eventId The ID of the event
+ * @param participantId The ID of the participant to invite
+ * @returns Promise with the created event participant
  */
-export const registerEventParticipant = async (
-  participantData: Omit<EventParticipant, 'id' | 'created_at' | 'updated_at'>
+export const inviteEventParticipant = async (
+  eventId: string,
+  participantId: string
 ): Promise<EventParticipant> => {
   try {
+    const participantData = {
+      event_id: eventId,
+      participant_id: participantId,
+      invitation_status: 'invited',
+      invitation_date: new Date().toISOString()
+    };
+
     const { data, error } = await supabase
       .from('event_participants')
       .insert([participantData])
@@ -333,22 +305,22 @@ export const registerEventParticipant = async (
       .single();
 
     if (error) {
-      console.error('Error registering event participant:', error);
+      console.error('Error inviting event participant:', error);
       throw error;
     }
 
     return data as unknown as EventParticipant;
   } catch (error) {
-    console.error('Error in registerEventParticipant:', error);
+    console.error('Error in inviteEventParticipant:', error);
     throw error;
   }
 };
 
 /**
- * Updates an event participant
- * @param participantId The ID of the participant
+ * Updates a participant's status in an event
+ * @param participantId The ID of the event participant
  * @param participantData The updated participant data
- * @returns Promise with the updated participant
+ * @returns Promise with the updated event participant
  */
 export const updateEventParticipant = async (
   participantId: string,
@@ -357,10 +329,7 @@ export const updateEventParticipant = async (
   try {
     const { data, error } = await supabase
       .from('event_participants')
-      .update({
-        ...participantData,
-        updated_at: new Date().toISOString()
-      })
+      .update(participantData)
       .eq('id', participantId)
       .select()
       .single();
@@ -379,8 +348,8 @@ export const updateEventParticipant = async (
 
 /**
  * Removes a participant from an event
- * @param participantId The ID of the participant
- * @returns Promise with the result
+ * @param participantId The ID of the event participant to remove
+ * @returns Promise indicating success
  */
 export const removeEventParticipant = async (participantId: string): Promise<boolean> => {
   try {
@@ -402,153 +371,34 @@ export const removeEventParticipant = async (participantId: string): Promise<boo
 };
 
 /**
- * Checks if a user is registered for an event
+ * Checks if a user is invited to an event
  * @param eventId The ID of the event
- * @param userId The ID of the user
- * @returns Promise with the result
+ * @param participantId The ID of the participant
+ * @returns Promise with boolean indicating if user is invited
  */
-export const isUserRegisteredForEvent = async (eventId: string, userId: string): Promise<boolean> => {
+export const isUserInvitedToEvent = async (eventId: string, participantId: string): Promise<boolean> => {
   try {
     const { data, error } = await supabase
       .from('event_participants')
       .select('id')
       .eq('event_id', eventId)
-      .eq('user_id', userId)
-      .single();
+      .eq('participant_id', participantId)
+      .maybeSingle();
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        // No rows returned, user is not registered
-        return false;
-      }
-      console.error('Error checking event registration:', error);
+      console.error('Error checking event invitation:', error);
       throw error;
     }
 
     return !!data;
   } catch (error) {
-    console.error('Error in isUserRegisteredForEvent:', error);
+    console.error('Error in isUserInvitedToEvent:', error);
     throw error;
   }
 };
 
 /**
- * Fetches results for an event
- * @param eventId The ID of the event
- * @returns Promise with the event results
- */
-export const fetchEventResults = async (eventId: string): Promise<EventResult[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('event_results')
-      .select('*')
-      .eq('event_id', eventId)
-      .order('position', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching event results:', error);
-      throw error;
-    }
-
-    return data as unknown as EventResult[];
-  } catch (error) {
-    console.error('Error in fetchEventResults:', error);
-    throw error;
-  }
-};
-
-/**
- * Creates or updates an event result
- * @param resultData The result data
- * @returns Promise with the saved result
- */
-export const saveEventResult = async (
-  resultData: Omit<EventResult, 'id' | 'created_at' | 'updated_at'>
-): Promise<EventResult> => {
-  try {
-    // Check if result already exists
-    const { data: existingData, error: existingError } = await supabase
-      .from('event_results')
-      .select('id')
-      .eq('event_id', resultData.event_id)
-      .eq('user_id', resultData.user_id)
-      .single();
-
-    if (existingError && existingError.code !== 'PGRST116') {
-      console.error('Error checking existing result:', existingError);
-      throw existingError;
-    }
-
-    // Define the type for existingData
-    interface ExistingData {
-      id: string;
-    }
-
-    if (existingData) {
-      // Update existing result
-      const { data, error } = await supabase
-        .from('event_results')
-        .update({
-          ...resultData,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', (existingData as ExistingData).id)
-        .select()
-        .single();
-        
-      if (error) {
-        console.error('Error updating event result:', error);
-        throw error;
-      }
-      
-      return data as unknown as EventResult;
-    } else {
-      // Create new result
-      const { data, error } = await supabase
-        .from('event_results')
-        .insert([resultData])
-        .select()
-        .single();
-        
-      if (error) {
-        console.error('Error creating event result:', error);
-        throw error;
-      }
-      
-      return data as unknown as EventResult;
-    }
-  } catch (error) {
-    console.error('Error in saveEventResult:', error);
-    throw error;
-  }
-};
-
-/**
- * Deletes an event result
- * @param resultId The ID of the result
- * @returns Promise with the result
- */
-export const deleteEventResult = async (resultId: string): Promise<boolean> => {
-  try {
-    const { error } = await supabase
-      .from('event_results')
-      .delete()
-      .eq('id', resultId);
-
-    if (error) {
-      console.error('Error deleting event result:', error);
-      throw error;
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Error in deleteEventResult:', error);
-    throw error;
-  }
-};
-
-/**
- * Updates event status
+ * Updates an event's status
  * @param eventId The ID of the event
  * @param status The new status
  * @returns Promise with the updated event
@@ -557,5 +407,22 @@ export const updateEventStatus = async (
   eventId: string,
   status: Event['status']
 ): Promise<Event> => {
-  return updateEvent(eventId, { status });
+  try {
+    const { data, error } = await supabase
+      .from('events')
+      .update({ status })
+      .eq('id', eventId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('Error updating event status:', error);
+      throw error;
+    }
+
+    return data as unknown as Event;
+  } catch (error) {
+    console.error('Error in updateEventStatus:', error);
+    throw error;
+  }
 }; 

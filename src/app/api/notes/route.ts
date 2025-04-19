@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
 import { createSuccessApiResponse, createErrorApiResponse, validateRequestBody } from '@/lib/api/utils';
-import { ServiceError, ErrorCodes } from '@/services/base';
+import { ServiceError, ErrorCodes } from '@/api/base';
 
 // Schema for creating/updating a note
 const noteSchema = z.object({

@@ -18,7 +18,7 @@ import {
   CircularProgress,
   Alert,
 } from '@mui/material';
-import { getRoundWithDetails } from '@/services/roundService';
+import { getRoundWithDetails } from '@/api/competition/roundService';
 import { RoundWithDetails } from '@/types/round';
 import { format } from 'date-fns';
 

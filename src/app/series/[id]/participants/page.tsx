@@ -1,6 +1,6 @@
 'use client';
 
-import { getSeriesParticipants } from '@/services/competition/seriesParticipantService';
+import { getSeriesParticipants } from '@/api/competition/seriesParticipantService';
 import { getAllProfiles } from '@/lib/profileService';
 import SeriesParticipantsManagement from '@/components/series/SeriesParticipantsManagement';
 import { SeriesAuthGuard } from '@/components/auth/SeriesAuthGuard';

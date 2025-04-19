@@ -1,8 +1,8 @@
-import { ServiceManager } from '@/services/base';
+import { ServiceManager } from '@/api/base';
 // Remove service imports - they will be instantiated in routes
-// import AuthService from '@/services/internal/AuthService';
-// import DatabaseService from '@/services/internal/DatabaseService';
-// import StorageService from '@/services/internal/StorageService';
+// import AuthService from '@/api/internal/database/AuthService';
+// import DatabaseService from '@/api/internal/database/DatabaseService';
+// import StorageService from '@/api/internal/database/StorageService';
 // Remove client import - it will be created in routes
 // import { createClient } from '@/lib/supabase/server';
 

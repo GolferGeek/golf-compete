@@ -1,9 +1,9 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import AuthService from '@/services/internal/AuthService';
+import AuthService from '@/api/internal/database/AuthService';
 import { validateRequestBody, createSuccessApiResponse, createErrorApiResponse } from '@/lib/api/utils';
-import { ServiceError } from '@/services/base';
+import { ServiceError } from '@/api/base';
 
 // Validation schema for login
 const loginSchema = z.object({

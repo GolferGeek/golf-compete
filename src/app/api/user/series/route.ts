@@ -2,8 +2,8 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
 import { createSuccessApiResponse, createErrorApiResponse } from '@/lib/api/utils';
 import { createClient } from '@/lib/supabase/server'; // Need this
-import SeriesDbService from '@/services/internal/SeriesDbService'; // Import the new SeriesDbService
-import { keysToCamelCase } from '@/services/base'; // Import utility if needed for consistency
+import SeriesDbService from '@/api/internal/database/SeriesDbService'; // Import the new SeriesDbService
+import { keysToCamelCase } from '@/api/base'; // Import utility if needed for consistency
 
 // Define the expected shape of the joined data
 // Adapt this based on your actual table columns and desired output

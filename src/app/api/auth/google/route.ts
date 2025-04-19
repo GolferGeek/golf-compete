@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import AuthService from '@/services/internal/AuthService';
+import AuthService from '@/api/internal/database/AuthService';
 
 export async function GET(request: NextRequest): Promise<Response> {
   try {

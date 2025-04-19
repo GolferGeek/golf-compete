@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import EventDbService from '@/services/internal/EventDbService';
+import EventDbService from '@/api/internal/database/EventDbService';
 import { 
     validateRequestBody, 
     validateQueryParams, 
@@ -9,7 +9,7 @@ import {
     createErrorApiResponse 
 } from '@/lib/api/utils';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
-import { ServiceError } from '@/services/base';
+import { ServiceError } from '@/api/base';
 import { type Event } from '@/types/database'; // Import shared type
 
 // Schema for creating an event

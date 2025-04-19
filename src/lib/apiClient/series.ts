@@ -1,5 +1,5 @@
 import { type Series, type SeriesParticipant } from '@/types/database';
-import { type PaginatedResponse } from '@/services/base'; // Need for list response type
+import { type PaginatedResponse } from '@/api/base'; // Need for list response type
 import { handleApiResponse, buildQueryString } from './utils'; // Import helpers
 import { ApiResponse } from '@/types/api';
 import { apiClient } from './apiClient';

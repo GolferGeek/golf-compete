@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { type NextRequest, NextResponse } from 'next/server';
 import type { User, Session } from '@supabase/supabase-js';
-import { ServiceError } from '@/services/base';
+import { ServiceError } from '@/api/base';
 import { createErrorApiResponse } from './utils';
 
 /**

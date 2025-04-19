@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import RoundDbService from '@/services/internal/RoundDbService';
+import RoundDbService from '@/api/internal/database/RoundDbService';
 import { 
     validateRequestBody, 
     validateQueryParams, 
@@ -9,7 +9,7 @@ import {
     createErrorApiResponse 
 } from '@/lib/api/utils';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
-import { ServiceError } from '@/services/base';
+import { ServiceError } from '@/api/base';
 import { type Round } from '@/types/database';
 
 // Schema for creating a round

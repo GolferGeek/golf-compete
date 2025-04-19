@@ -7,8 +7,8 @@ import {
     createErrorApiResponse 
 } from '@/lib/api/utils';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
-import { ServiceError, ErrorCodes } from '@/services/base';
-import AuthService from '@/services/internal/AuthService';
+import { ServiceError, ErrorCodes } from '@/api/base';
+import AuthService from '@/api/internal/database/AuthService';
 
 // Schema for creating/updating a hole
 const holeSchema = z.object({

@@ -37,7 +37,7 @@ import Link from 'next/link';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
-import { getSeriesParticipants, inviteUsers, removeParticipant } from '@/services/competition/seriesParticipantService';
+import { getSeriesParticipants, inviteUsers, removeParticipant } from '@/api/competition/seriesParticipantService';
 import { SeriesParticipant } from '@/types/series';
 import { useAuth } from '@/contexts/AuthContext';
 import { getProfilesWithEmail, getProfilesNotInSeries, ProfileWithEmail } from '@/lib/profileService';

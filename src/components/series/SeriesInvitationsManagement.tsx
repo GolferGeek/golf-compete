@@ -23,7 +23,7 @@ import {
   Chip,
 } from '@mui/material';
 import { useRouter } from 'next/navigation';
-import { getUserInvitations, respondToInvitation } from '@/services/competition/seriesParticipantService';
+import { getUserInvitations, respondToInvitation } from '@/api/competition/seriesParticipantService';
 import { SeriesParticipant } from '@/types/series';
 
 export default function SeriesInvitationsManagement() {

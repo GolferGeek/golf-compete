@@ -13,15 +13,15 @@ export type SeriesInvitationStatus = 'pending' | 'accepted' | 'declined' | 'expi
 export interface Series {
   id: string;
   name: string;
-  description: string | null;
-  start_date: string;
-  end_date: string;
+  description?: string;
+  start_date: Date;
+  end_date: Date;
   series_type: SeriesType;
   scoring_system: Record<string, any> | null;
   status: SeriesStatus;
-  created_at: string;
+  created_at: Date;
   created_by: string;
-  updated_at: string;
+  updated_at: Date;
   is_active: boolean;
 }
 
@@ -47,24 +47,11 @@ export interface Event {
 // Series Participant interface
 export interface SeriesParticipant {
   id: string;
-  series_id: string;
   user_id: string;
-  role: 'admin' | 'participant';
-  status: 'active' | 'withdrawn' | 'invited';
-  created_at: string;
-  updated_at: string;
-  // Additional fields for invitations
-  series_name?: string;
-  invited_by?: string;
-  invited_by_name?: string;
-  invited_at?: string;
-  responded_at?: string;
-  // User profile fields
-  first_name?: string;
-  last_name?: string;
-  username?: string;
-  handicap?: number;
-  is_admin?: boolean;
+  series_id: string;
+  role: string;
+  status: string;
+  joined_at?: Date | null;
 }
 
 // Series Event junction interface
@@ -143,4 +130,7 @@ export interface EventWithParticipants extends Event {
 
 export interface EventWithResults extends Event {
   results: EventResult[];
-} 
+}
+
+// Type for partial participant updates
+export type UpdateSeriesParticipantData = Partial<Omit<SeriesParticipant, 'id' | 'user_id' | 'series_id' | 'joined_at'>>; 

@@ -21,7 +21,7 @@ import Link from 'next/link';
 import AddIcon from '@mui/icons-material/Add';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import { format } from 'date-fns';
-import { respondToInvitation } from '@/services/competition/seriesParticipantService';
+import { respondToInvitation } from '@/api/competition/seriesParticipantService';
 
 // Define the UserSeries interface matching the API response
 // (Ideally, import from a shared types location)

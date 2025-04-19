@@ -1,15 +1,15 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import CourseDbService from '@/services/internal/CourseDbService';
-import AuthService from '@/services/internal/AuthService';
+import CourseDbService from '@/api/internal/database/CourseDbService';
+import AuthService from '@/api/internal/database/AuthService';
 import { 
     validateRequestBody, 
     createSuccessApiResponse, 
     createErrorApiResponse 
 } from '@/lib/api/utils';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
-import { ServiceError, ErrorCodes } from '@/services/base';
+import { ServiceError, ErrorCodes } from '@/api/base';
 
 // Schema for bulk hole operations - an array of holes
 const bulkHoleSchema = z.array(

@@ -24,8 +24,8 @@ import {
 } from '@mui/material';
 import NavigateNextIcon from '@mui/icons-material/NavigateNext';
 import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore';
-import { getRoundWithDetails } from '@/services/roundService';
-import { createHoleScore, updateRound } from '@/services/roundService';
+import { getRoundWithDetails } from '@/api/competition/roundService';
+import { createHoleScore, updateRound } from '@/api/competition/roundService';
 import { RoundWithDetails, CreateHoleScoreInput } from '@/types/round';
 
 interface ScoreEntryFormProps {

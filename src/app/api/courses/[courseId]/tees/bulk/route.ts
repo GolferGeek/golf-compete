@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import AuthService from '@/services/internal/AuthService';
+import AuthService from '@/api/internal/database/AuthService';
 import { 
     validateRequestBody, 
     createSuccessApiResponse, 

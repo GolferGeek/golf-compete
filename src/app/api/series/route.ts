@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import SeriesDbService from '@/services/internal/SeriesDbService';
+import SeriesDbService from '@/api/internal/database/SeriesDbService';
 import { 
     validateRequestBody, 
     validateQueryParams, 
@@ -9,7 +9,7 @@ import {
     createErrorApiResponse 
 } from '@/lib/api/utils';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
-import { ServiceError } from '@/services/base';
+import { ServiceError } from '@/api/base';
 import { type Series } from '@/types/database'; // Import type
 
 // Schema for creating a series

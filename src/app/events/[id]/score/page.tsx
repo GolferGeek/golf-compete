@@ -24,7 +24,7 @@ import { useRouter } from 'next/navigation';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import EditIcon from '@mui/icons-material/Edit';
 import { getEventById } from '@/lib/events';
-import { createRound, getEventRounds } from '@/services/roundService';
+import { createRound, getEventRounds } from '@/api/competition/roundService';
 import { Event } from '@/types/events';
 import { EventRoundSummary } from '@/types/round';
 import { useAuth } from '@/contexts/AuthContext';

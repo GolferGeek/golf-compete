@@ -1,14 +1,14 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import StorageService from '@/services/internal/StorageService';
+import StorageService from '@/api/internal/database/StorageService';
 import { 
     validateRequestBody,
     createSuccessApiResponse, 
     createErrorApiResponse 
 } from '@/lib/api/utils';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
-import { ServiceError } from '@/services/base';
+import { ServiceError } from '@/api/base';
 
 // Schema for requesting an upload URL
 const uploadUrlSchema = z.object({

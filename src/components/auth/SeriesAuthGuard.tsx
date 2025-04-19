@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Box, CircularProgress } from '@mui/material';
 import { seriesApi } from '@/lib/apiClient/series';
-import { useAuth } from '@/services/auth/AuthContext';
+import { useAuth } from '@/api/auth/AuthContext';
 
 interface SeriesAuthGuardProps {
   children: React.ReactNode;

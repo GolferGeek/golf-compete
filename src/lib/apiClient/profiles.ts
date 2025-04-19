@@ -1,4 +1,4 @@
-import { type AuthProfile } from '@/services/internal/AuthService';
+import { type AuthProfile } from '@/api/internal/database/AuthService';
 import { handleApiResponse, buildQueryString } from './utils';
 
 export interface ProfileWithEmail extends AuthProfile {

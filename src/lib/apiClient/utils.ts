@@ -1,4 +1,4 @@
-import { type PaginatedResponse } from '@/services/base';
+import { type PaginatedResponse } from '@/api/base';
 
 /**
  * Standardized handler for API responses.

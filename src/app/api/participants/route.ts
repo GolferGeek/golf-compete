@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import { validateRequestBody, createSuccessApiResponse, createErrorApiResponse, type ErrorResponse } from '@/lib/api/utils';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
-import { ServiceError, ErrorCodes } from '@/services/base';
+import { ServiceError, ErrorCodes } from '@/api/base';
 
 // Schema for getting non-participants
 const getNonParticipantsSchema = z.object({

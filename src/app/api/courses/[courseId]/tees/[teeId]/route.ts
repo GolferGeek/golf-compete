@@ -7,7 +7,7 @@ import {
     createErrorApiResponse 
 } from '@/lib/api/utils';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
-import AuthService from '@/services/internal/AuthService';
+import AuthService from '@/api/internal/database/AuthService';
 
 // Schema for updating a course tee
 const updateTeeSchema = z.object({

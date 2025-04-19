@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { useRouter } from 'next/navigation'
-import { type AuthProfile } from '@/services/internal/AuthService'
+import { type AuthProfile } from '@/api/internal/database/AuthService'
 import { getSession } from '@/lib/apiClient/auth'
 import { fetchUserProfile } from '@/lib/apiClient/profile'
 import { type User, type Session } from '@/types/auth'
