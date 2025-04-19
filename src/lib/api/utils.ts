@@ -4,7 +4,7 @@ import { ZodError, z } from 'zod';
 /**
  * Standard success response format
  */
-interface SuccessResponse<T> {
+export interface SuccessResponse<T> {
   status: 'success';
   data: T;
   timestamp: string;
@@ -13,7 +13,7 @@ interface SuccessResponse<T> {
 /**
  * Standard error response format
  */
-interface ErrorResponse {
+export interface ErrorResponse {
   status: 'error';
   error: {
     code: string; // e.g., 'VALIDATION_ERROR', 'UNAUTHORIZED', 'INTERNAL_SERVER_ERROR'
@@ -33,6 +33,21 @@ export function createSuccessApiResponse<T>(
   data: T,
   status: number = 200
 ): NextResponse<SuccessResponse<T>> {
+  // When data is an object with nested data and metadata properties,
+  // avoid double nesting and directly use the data property
+  if (data && typeof data === 'object' && 'data' in data && 'metadata' in data) {
+    return NextResponse.json(
+      {
+        status: 'success' as const,
+        data: (data as any).data,
+        metadata: (data as any).metadata,
+        timestamp: new Date().toISOString(),
+      },
+      { status }
+    );
+  }
+  
+  // For other data types, keep the standard format
   return NextResponse.json(
     {
       status: 'success' as const,

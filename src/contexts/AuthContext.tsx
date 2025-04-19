@@ -1,11 +1,11 @@
 'use client'
 
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
-import { Session, User } from '@supabase/supabase-js'
 import { useRouter } from 'next/navigation'
 import { type AuthProfile } from '@/services/internal/AuthService'
 import { getSession } from '@/lib/apiClient/auth'
 import { fetchUserProfile } from '@/lib/apiClient/profile'
+import { type User, type Session } from '@/types/auth'
 
 export interface AuthContextType {
   user: User | null
@@ -15,6 +15,7 @@ export interface AuthContextType {
   error: Error | null
   refreshProfile: () => Promise<void>
   signOut: () => Promise<void>
+  updateProfile: (profileData: Partial<AuthProfile>, userId?: string) => Promise<void>
 }
 
 // Create a default context value to avoid hydration mismatch
@@ -25,7 +26,8 @@ const defaultContextValue: AuthContextType = {
   loading: true,
   error: null,
   refreshProfile: async () => {},
-  signOut: async () => {}
+  signOut: async () => {},
+  updateProfile: async () => { throw new Error('Not implemented') }
 }
 
 const AuthContext = createContext<AuthContextType>(defaultContextValue)
@@ -127,7 +129,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false)
     }
   }
-  
+
+  // Function to update any user's profile (self or other user if admin)
+  const updateProfile = async (profileData: Partial<AuthProfile>, userId?: string) => {
+    if (!user) {
+      throw new Error('No user found. Please sign in.');
+    }
+
+    // If userId is provided and user is not admin, throw error
+    if (userId && !profile?.is_admin) {
+      throw new Error('Unauthorized: Only admins can update other users profiles');
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Determine the endpoint based on whether we're updating another user or self
+      const endpoint = userId ? `/api/users/${userId}/profile` : '/api/user/profile';
+
+      const response = await fetch(endpoint, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(profileData),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update profile');
+      }
+
+      // Only refresh own profile if updating self
+      if (!userId) {
+        await refreshProfile();
+      }
+    } catch (err) {
+      console.error('Error updating profile:', err);
+      throw err;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -137,7 +181,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         loading: isLoading,
         error,
         refreshProfile,
-        signOut
+        signOut,
+        updateProfile
       }}
     >
       {children}

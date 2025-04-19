@@ -16,18 +16,19 @@ import {
   StepLabel
 } from '@mui/material'
 import { useAuth } from '@/contexts/AuthContext'
-import { updateUserProfile, fetchUserProfile } from '@/lib/apiClient/profile'
 
 const steps = ['Basic Information', 'Golf Details']
 
 export default function OnboardingPage() {
-  const { user, session, loading, refreshProfile } = useAuth()
+  const { user, session, loading, refreshProfile, updateProfile } = useAuth()
   const [activeStep, setActiveStep] = useState(0)
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [username, setUsername] = useState('')
   const [handicap, setHandicap] = useState('')
+  const [multipleClubsSets, setMultipleClubsSets] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [redirectingToLogin, setRedirectingToLogin] = useState(false)
   const redirectTimer = useRef<NodeJS.Timeout | null>(null)
@@ -117,25 +118,23 @@ export default function OnboardingPage() {
     }
   }, [user])
 
-  const validateBasicInfo = () => {
+  const validateForm = () => {
     if (!firstName || !lastName || !username) {
-      setError('All fields are required')
+      setError('First name, last name, and username are required')
       return false
     }
-    return true
-  }
-
-  const validateGolfDetails = () => {
+    
     if (handicap && isNaN(Number(handicap))) {
       setError('Handicap must be a number')
       return false
     }
+    
     return true
   }
 
   const handleNext = () => {
     setError(null)
-    if (activeStep === 0 && !validateBasicInfo()) {
+    if (activeStep === 0 && !validateForm()) {
       return
     }
     setActiveStep((prevStep) => prevStep + 1)
@@ -147,114 +146,28 @@ export default function OnboardingPage() {
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault()
-    
-    // If not on the last step, just go to next step
-    if (activeStep < steps.length - 1) {
-      handleNext()
-      return
-    }
-    
     setError(null)
-    console.log('Starting profile creation process...')
+    setSuccess(null)
     
-    if (!validateGolfDetails()) {
-      return
-    }
+    if (!validateForm()) return
     
-    if (!user) {
-      console.error('No user found in onboarding')
-      setError('No user found. Please sign in again.')
-      setTimeout(() => router.push('/auth/login'), 2000)
-      return
-    }
-    
-    console.log('User found, proceeding with profile creation:', user.id)
     setIsLoading(true)
-
+    
     try {
       const profileData = {
         first_name: firstName,
         last_name: lastName,
         username,
-        handicap: handicap ? parseFloat(handicap) : undefined
-      }
-
-      console.log('Attempting to create profile with data:', profileData)
-      
-      // First check if profile already exists using API
-      // The API will get the user from the session, so no need to specify user ID
-      try {
-        // The API call fetchUserProfile() is expected to throw if the profile doesn't exist
-        await fetchUserProfile()
-        console.log('User already has a profile, redirecting to dashboard')
-        router.push('/dashboard')
-        return
-      } catch (checkError) {
-        // Expected error if profile doesn't exist - continue with creation
-        console.log('Profile not found, proceeding with creation', checkError)
+        handicap: handicap ? parseFloat(handicap) : undefined,
+        multiple_clubs_sets: multipleClubsSets,
       }
       
-      // Add a timeout to prevent infinite hanging
-      const timeoutPromise = new Promise((_, reject) => {
-        setTimeout(() => reject(new Error('Profile creation timed out after 10 seconds')), 10000)
-      })
+      await updateProfile(profileData)
       
-      // Use the API to create the profile
-      // This creates a new profile for the current authenticated user
-      try {
-        // Race the profile creation against the timeout
-        await Promise.race([
-          updateUserProfile(profileData),
-          timeoutPromise
-        ])
-        
-        console.log('Profile created successfully, refreshing profile data')
-        // Refresh the profile in the auth context
-        await refreshProfile()
-        
-        console.log('Redirecting to dashboard')
-        // Redirect to dashboard
-        router.push('/dashboard')
-      } catch (createError: any) {
-        console.error('Error during profile creation:', createError)
-        
-        // If the error indicates a profile already exists (could be a race condition)
-        if (createError.message && 
-            (createError.message.includes('duplicate key value') || 
-             createError.status === 409)) {
-          console.log('Profile already exists (conflict error), refreshing and redirecting')
-          try {
-            await refreshProfile()
-          } catch (refreshError) {
-            console.error('Failed to refresh profile, but continuing to dashboard:', refreshError)
-          }
-          router.push('/dashboard')
-          return
-        }
-        
-        // For username uniqueness violations, show specific error
-        if (createError.message && 
-            (createError.message.includes('unique constraint') || 
-             createError.status === 400)) {
-          throw new Error('This username is already taken. Please choose another one.')
-        }
-        
-        // Otherwise rethrow the error
-        throw createError
-      }
-    } catch (error: unknown) {
-      console.error('Profile creation error:', error)
-      
-      // If it's a timeout error, provide a more helpful message
-      if (error instanceof Error && error.message.includes('timed out')) {
-        setError('The operation is taking too long. You may already have a profile - try going to the dashboard.')
-        // Add a button or link to go to dashboard
-        setTimeout(() => {
-          router.push('/dashboard')
-        }, 5000)
-      } else {
-        setError(error instanceof Error ? error.message : 'Failed to create profile')
-      }
+      router.push('/dashboard')
+    } catch (error) {
+      console.error('Error updating profile:', error)
+      setError(error instanceof Error ? error.message : 'Failed to update profile')
     } finally {
       setIsLoading(false)
     }

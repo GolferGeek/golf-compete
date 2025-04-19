@@ -170,12 +170,19 @@ export function keysToCamelCase(obj: Record<string, any>): Record<string, any> {
 /**
  * Convert object keys from camelCase to snake_case
  */
-export function keysToSnakeCase(obj: Record<string, any>): Record<string, any> {
+export function keysToSnakeCase(obj: Record<string, any> | null | undefined): Record<string, any> | null | undefined {
+  // Handle null or undefined
+  if (obj === null || obj === undefined) {
+    return obj;
+  }
+  
+  // Handle arrays
   if (Array.isArray(obj)) {
     return obj.map(v => keysToSnakeCase(v));
   }
   
-  if (obj !== null && obj.constructor === Object) {
+  // Check for objects - use typeof check instead of constructor property
+  if (typeof obj === 'object' && obj !== null) {
     return Object.keys(obj).reduce((result, key) => {
       const snakeKey = toSnakeCase(key);
       result[snakeKey] = keysToSnakeCase(obj[key]);
@@ -183,5 +190,6 @@ export function keysToSnakeCase(obj: Record<string, any>): Record<string, any> {
     }, {} as Record<string, any>);
   }
   
+  // Return primitive values as is
   return obj;
 } 

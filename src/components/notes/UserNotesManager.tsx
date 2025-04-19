@@ -39,18 +39,15 @@ import NoteIcon from '@mui/icons-material/Note';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import SortIcon from '@mui/icons-material/Sort';
-import { createClient } from '@supabase/supabase-js';
 import { useRouter } from 'next/navigation';
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Import API client functions instead of using Supabase directly
+import * as notesApi from '@/lib/apiClient/notes';
 
 // Type definitions
+// Extended UserNote type to match what the component needs
 interface UserNote {
   id: string;
-  profile_id: string;
+  user_id: string;
   note_text: string;
   category: string;
   round_id: string | null;
@@ -65,12 +62,44 @@ interface UserNote {
   course_name?: string;
 }
 
+// API response type
+interface ApiUserNote {
+  id: string;
+  user_id: string;
+  content: string;
+  related_resource_id?: string | null;
+  related_resource_type?: string | null;
+  created_at: string;
+  updated_at: string | null;
+  
+  // Potential joined data
+  rounds?: {
+    date?: string;
+    courses?: {
+      name?: string;
+    }
+  };
+}
+
 interface UserNotesManagerProps {
   userId: string;
   roundId?: string;
   holeNumber?: number;
   onNotesUpdated?: () => void;
   maxHeight?: string | number;
+}
+
+// Interfaces for API params
+interface ListNotesParams {
+  userId?: string;
+  roundId?: string;
+  holeNumber?: number;
+  category?: string[];
+  search?: string;
+  sortBy?: 'created_at' | 'updated_at';
+  sortOrder?: 'asc' | 'desc';
+  page?: number;
+  limit?: number;
 }
 
 /**
@@ -103,7 +132,7 @@ export default function UserNotesManager({
   
   const router = useRouter();
   
-  // Load notes from database
+  // Load notes from API
   useEffect(() => {
     loadNotes();
   }, [userId, roundId, holeNumber, categoryFilter, sortOrder, searchTerm]);
@@ -113,67 +142,65 @@ export default function UserNotesManager({
     setPage(1);
   }, [categoryFilter, sortOrder, searchTerm]);
   
-  // Load notes from unified user_notes table
+  // Load notes using API client
   async function loadNotes() {
     try {
       setLoading(true);
       setError(null);
       
-      // Build the query
-      let query = supabase
-        .from('user_notes')
-        .select(`
-          *,
-          rounds:round_id (
-            date,
-            courses:course_id (
-              name
-            )
-          )
-        `)
-        .eq('profile_id', userId);
+      // Build the query parameters
+      const params: ListNotesParams = {
+        userId: userId,
+        sortOrder: sortOrder === 'newest' ? 'desc' : 'asc',
+        sortBy: 'created_at',
+        search: searchTerm || undefined
+      };
       
       // Apply roundId filter if provided
       if (roundId) {
-        query = query.eq('round_id', roundId);
+        params.roundId = roundId;
       }
       
       // Apply holeNumber filter if provided
       if (holeNumber) {
-        query = query.eq('hole_number', holeNumber);
+        params.holeNumber = holeNumber;
       }
       
       // Apply category filter if selected
       if (categoryFilter.length > 0) {
-        query = query.in('category', categoryFilter);
+        params.category = categoryFilter;
       }
       
-      // Apply search filter if provided
-      if (searchTerm) {
-        query = query.ilike('note_text', `%${searchTerm}%`);
-      }
-      
-      // Apply sort order
-      if (sortOrder === 'newest') {
-        query = query.order('created_at', { ascending: false });
-      } else {
-        query = query.order('created_at', { ascending: true });
-      }
-      
-      const { data, error } = await query;
-      
-      if (error) {
-        throw error;
-      }
+      const notesResponse = await notesApi.fetchNotesList(params);
       
       // Process and enhance the data
-      const processedNotes = data?.map(note => {
-        const round = note.rounds as any;
-        return {
-          ...note,
-          round_date: round?.date,
-          course_name: round?.courses?.name
+      const processedNotes = notesResponse.data?.map((apiNote: ApiUserNote) => {
+        // Map API response to our UserNote structure
+        const processedNote: UserNote = {
+          id: apiNote.id,
+          user_id: apiNote.user_id,
+          note_text: apiNote.content || '',  // API returns 'content' which we map to 'note_text'
+          category: apiNote.related_resource_type || '',
+          round_id: apiNote.related_resource_type === 'round' ? apiNote.related_resource_id || null : null,
+          hole_number: null, // Set default value
+          created_at: apiNote.created_at,
+          updated_at: apiNote.updated_at || null,
+          tags: [],  // Default empty array
+          metadata: {},  // Default empty object
+          round_date: undefined,
+          course_name: undefined
         };
+        
+        // Add any additional processing of fields based on the API response
+        if (apiNote.rounds?.date) {
+          processedNote.round_date = apiNote.rounds.date;
+        }
+        
+        if (apiNote.rounds?.courses?.name) {
+          processedNote.course_name = apiNote.rounds.courses.name;
+        }
+        
+        return processedNote;
       }) || [];
       
       setNotes(processedNotes);
@@ -202,18 +229,10 @@ export default function UserNotesManager({
     
     try {
       setLoading(true);
-      const { error: updateError } = await supabase
-        .from('user_notes')
-        .update({ 
-          note_text: editNoteText,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', editingNoteId)
-        .eq('profile_id', userId);
       
-      if (updateError) {
-        throw updateError;
-      }
+      await notesApi.updateNote(editingNoteId, {
+        note_text: editNoteText
+      });
       
       setEditingNoteId(null);
       setEditNoteText('');
@@ -237,15 +256,7 @@ export default function UserNotesManager({
     
     try {
       setLoading(true);
-      const { error: deleteError } = await supabase
-        .from('user_notes')
-        .delete()
-        .eq('id', noteToDeleteId)
-        .eq('profile_id', userId);
-      
-      if (deleteError) {
-        throw deleteError;
-      }
+      await notesApi.deleteNote(noteToDeleteId);
       
       setDeleteDialogOpen(false);
       setNoteToDeleteId(null);
@@ -268,37 +279,28 @@ export default function UserNotesManager({
     try {
       setLoading(true);
       
-      // Build filter conditions
-      let query = supabase
-        .from('user_notes')
-        .delete()
-        .eq('profile_id', userId);
+      // Build filter parameters
+      const params: ListNotesParams = {
+        userId: userId,
+        search: searchTerm || undefined
+      };
       
       // Apply roundId filter if provided
       if (roundId) {
-        query = query.eq('round_id', roundId);
+        params.roundId = roundId;
       }
       
       // Apply holeNumber filter if provided
       if (holeNumber) {
-        query = query.eq('hole_number', holeNumber);
+        params.holeNumber = holeNumber;
       }
       
       // Apply category filter if selected
       if (categoryFilter.length > 0) {
-        query = query.in('category', categoryFilter);
+        params.category = categoryFilter;
       }
       
-      // Apply search filter if provided
-      if (searchTerm) {
-        query = query.ilike('note_text', `%${searchTerm}%`);
-      }
-      
-      const { error: deleteError } = await query;
-      
-      if (deleteError) {
-        throw deleteError;
-      }
+      await notesApi.deleteNotes(params);
       
       setDeleteAllDialogOpen(false);
       setPage(1);

@@ -55,12 +55,16 @@ export interface Course {
   address?: string;
   city?: string;
   state?: string;
-  zip_code?: string;
-  phone?: string;
+  country?: string;
+  phone_number?: string;
   website?: string;
-  created_by?: string; 
+  amenities?: string;
+  created_by?: string; // Profile ID of the user who created the course
   created_at: string; 
-  updated_at: string; 
+  updated_at: string;
+  is_active?: boolean;
+  holes?: number;
+  par?: number;
 }
 
 export interface CourseTee {
@@ -69,9 +73,21 @@ export interface CourseTee {
     tee_name: string;
     gender: 'Male' | 'Female' | 'Unisex';
     par: number;
-    course_rating: number;
+    rating: number;
     slope_rating: number;
     yardage?: number;
+}
+
+export interface Hole {
+    id: string;
+    course_id: string;
+    hole_number: number;
+    par: number;
+    handicap_index: number;
+    yards?: number;
+    notes?: string;
+    created_at: string;
+    updated_at: string;
 }
 
 export interface Round {

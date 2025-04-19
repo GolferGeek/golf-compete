@@ -214,17 +214,17 @@ export default function GolfAssistant({
       <>
         <Fab
           color="primary"
-          size="large"
+          size="medium"
           onClick={() => setInputMode('voice')}
           disabled={isDisabled}
           sx={{ 
             position: 'fixed',
-            bottom: 16,
+            bottom: 80,
             right: 16,
             boxShadow: 3
           }}
         >
-          <KeyboardVoiceIcon />
+          <KeyboardVoiceIcon fontSize="small" />
         </Fab>
         
         {/* Main toast notification */}
@@ -265,7 +265,7 @@ export default function GolfAssistant({
           width: '100%',
           maxWidth: floatingMode ? '95vw' : 500,
           position: floatingMode ? 'fixed' : 'relative',
-          bottom: floatingMode ? 16 : 'auto',
+          bottom: floatingMode ? 80 : 'auto',
           right: floatingMode ? 16 : 'auto',
           zIndex: floatingMode ? 999 : 'auto',
         }}

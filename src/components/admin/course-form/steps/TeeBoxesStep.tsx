@@ -42,7 +42,8 @@ const TeeBoxesStep: React.FC<TeeBoxesStepProps> = ({
   setProcessingImage,
   extractionStep,
   setExtractionStep,
-  isMobile
+  isMobile,
+  extractedData
 }) => {
   const theme = useTheme();
   const isSmallScreen = isMobile || useMediaQuery(theme.breakpoints.down('sm'));
@@ -55,6 +56,16 @@ const TeeBoxesStep: React.FC<TeeBoxesStepProps> = ({
     slope: 0,
     length: 0
   });
+  
+  // Check if data was pre-populated
+  const hasPrepopulatedData = extractedData?.teeSets && extractedData.teeSets.length > 0;
+
+  // Display a message about pre-populated data
+  useEffect(() => {
+    if (hasPrepopulatedData && teeBoxes.length > 0) {
+      console.log('Pre-populated tee box data detected:', teeBoxes.length, 'tee boxes');
+    }
+  }, [hasPrepopulatedData, teeBoxes.length]);
   
   // Open dialog to add a new tee box
   const openTeeBoxDialog = () => {
@@ -141,9 +152,9 @@ const TeeBoxesStep: React.FC<TeeBoxesStepProps> = ({
   // Render tee boxes as cards for mobile view
   const renderTeeBoxCards = () => {
     return (
-      <Grid container spacing={2}>
+      <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
         {teeBoxes.map((teeBox) => (
-          <Grid item xs={12} sm={6} md={4} key={teeBox.id}>
+          <Box key={teeBox.id} sx={{ width: { xs: '100%', sm: 'calc(50% - 16px)', md: 'calc(33.33% - 16px)' }}}>
             <Card sx={{ 
               bgcolor: teeBox.color.toLowerCase(), 
               color: ['white', 'black', 'navy', 'darkgreen', 'purple'].includes(teeBox.color.toLowerCase()) ? 'white' : 'black',
@@ -174,9 +185,9 @@ const TeeBoxesStep: React.FC<TeeBoxesStepProps> = ({
                 </Button>
               </CardActions>
             </Card>
-          </Grid>
+          </Box>
         ))}
-      </Grid>
+      </Box>
     );
   };
   
@@ -250,6 +261,14 @@ const TeeBoxesStep: React.FC<TeeBoxesStepProps> = ({
             Tee Boxes
           </Typography>
           
+          {hasPrepopulatedData && teeBoxes.length > 0 && (
+            <Box sx={{ mb: 2, p: 2, backgroundColor: 'info.light', borderRadius: 1 }}>
+              <Typography variant="body2" color="white">
+                Tee box information has been pre-populated from your earlier image upload. You can edit these details or add new tee boxes as needed.
+              </Typography>
+            </Box>
+          )}
+          
           <Box sx={{ mb: 3 }}>
             <Button 
               variant="outlined" 
@@ -269,56 +288,6 @@ const TeeBoxesStep: React.FC<TeeBoxesStepProps> = ({
               No tee boxes added yet. Add tee boxes manually or use the AI extraction tool above.
             </Typography>
           )}
-          
-          <Box sx={{ 
-            display: 'flex', 
-            flexDirection: isSmallScreen ? 'column' : 'row',
-            justifyContent: isSmallScreen ? 'center' : 'space-between', 
-            mt: 4,
-            gap: isSmallScreen ? 2 : 0
-          }}>
-            <Button 
-              onClick={handleBack} 
-              disabled={loading}
-              fullWidth={isSmallScreen}
-              sx={{ mb: isSmallScreen ? 1 : 0 }}
-            >
-              Previous
-            </Button>
-            <Box sx={{ 
-              display: 'flex', 
-              flexDirection: isSmallScreen ? 'column' : 'row',
-              gap: isSmallScreen ? 1 : 0
-            }}>
-              <Button
-                variant="outlined"
-                color="secondary"
-                onClick={handleNext ? handleNext : undefined}
-                sx={{ mr: isSmallScreen ? 0 : 1 }}
-                disabled={loading || !handleNext}
-                fullWidth={isSmallScreen}
-              >
-                Skip to Scorecard
-              </Button>
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={async () => {
-                  // Save tee boxes first, then navigate to next step
-                  if (saveTeeBoxes) {
-                    const saved = await saveTeeBoxes();
-                    if (saved && handleNext) {
-                      handleNext();
-                    }
-                  }
-                }}
-                disabled={loading || teeBoxes.length === 0}
-                fullWidth={isSmallScreen}
-              >
-                {loading ? 'Saving...' : 'Save & Continue'}
-              </Button>
-            </Box>
-          </Box>
           
           {/* Tee Box Dialog */}
           <Dialog 

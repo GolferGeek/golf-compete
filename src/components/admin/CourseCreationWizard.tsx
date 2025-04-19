@@ -17,7 +17,6 @@ import CourseInfoStep from './wizard/CourseInfoStep';
 import TeeSetStep from './wizard/TeeSetStep';
 import ScorecardStep from './wizard/ScorecardStep';
 import { CourseCreationProvider, useCourseCreationContext } from '@/contexts/CourseCreationContext';
-import { getBrowserClient } from '@/lib/supabase-browser';
 
 const steps = ['Course Information', 'Tee Sets', 'Scorecard Details'];
 
@@ -48,47 +47,20 @@ function CourseCreationWizardContent() {
     }
   };
   
-  // Add a more comprehensive auth check function
-  const checkAuthState = async () => {
-    try {
-      // Get the current Supabase client
-      const supabase = getBrowserClient();
-      
-      // Check Supabase session
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      console.log('=== WIZARD AUTH DEBUG ===');
-      console.log('Supabase Session:', session ? 'Active' : 'None');
-      if (session) {
-        console.log('User ID:', session.user.id);
-        console.log('User Email:', session.user.email);
-        console.log('Session Expires:', new Date(session.expires_at * 1000).toLocaleString());
-        
-        // Try to refresh the session
-        console.log('Attempting to refresh session...');
-        const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
-        if (refreshError) {
-          console.error('Session refresh error:', refreshError);
-        } else {
-          console.log('Session refreshed successfully');
-          console.log('New expiry:', new Date(refreshData.session?.expires_at * 1000).toLocaleString());
-        }
-      }
-      if (sessionError) {
-        console.error('Session Error:', sessionError);
-      }
-      
-      // Check AuthContext state
-      console.log('AuthContext State:');
-      console.log('User:', user ? 'Present' : 'None');
-      console.log('Profile:', profile ? 'Present' : 'None');
-      if (profile) {
-        console.log('Is Admin:', profile.is_admin ? 'Yes' : 'No');
-      }
-      
-      console.log('======================');
-    } catch (error) {
-      console.error('Error checking auth state:', error);
+  // Simplified auth check using AuthContext
+  const checkAuthState = () => {
+    console.log('=== AUTH STATE DEBUG ===');
+    console.log('User:', user ? 'Present' : 'None');
+    if (user) {
+      console.log('User ID:', user.id);
+      console.log('User Email:', user.email);
     }
+    
+    console.log('Profile:', profile ? 'Present' : 'None');
+    if (profile) {
+      console.log('Is Admin:', profile.is_admin ? 'Yes' : 'No');
+    }
+    console.log('=====================');
   };
   
   const getStepContent = (step: number) => {

@@ -21,6 +21,7 @@ import {
 import SaveIcon from '@mui/icons-material/Save';
 import EditIcon from '@mui/icons-material/Edit';
 import { supabaseClient as supabase } from '@/lib/auth';
+import { CoursesApiClient } from '@/lib/apiClient/courses';
 
 interface Round {
   id: string;
@@ -78,24 +79,28 @@ export default function Scorecard({ rounds }: ScorecardProps) {
         
         const courseId = roundData.course_id;
         
-        // Get course name
-        const { data: courseData, error: courseError } = await supabase
-          .from('courses')
-          .select('name')
-          .eq('id', courseId)
-          .single();
-          
-        if (courseError) throw courseError;
+        // Get course name using API client
+        const courseResponse = await CoursesApiClient.getCourseById(courseId);
         
-        // Get holes for the course
-        const { data: holesData, error: holesError } = await supabase
-          .from('holes')
-          .select('hole_number, par, handicap_index')
-          .eq('course_id', courseId)
-          .order('hole_number');
-          
-        if (holesError) throw holesError;
+        if (!courseResponse.success || !courseResponse.data) {
+          throw new Error(`Failed to load course: ${courseResponse.error?.message || 'Unknown error'}`);
+        }
         
+        const courseData = courseResponse.data;
+        
+        // Get holes for the course using API client
+        const holesResponse = await CoursesApiClient.getCourseHoles(courseId);
+        
+        if (!holesResponse.success) {
+          throw new Error(`Failed to load holes: ${holesResponse.error?.message || 'Unknown error'}`);
+        }
+        
+        const holesData = holesResponse.data?.holes.map(hole => ({
+          hole_number: hole.holeNumber,
+          par: hole.par,
+          handicap_index: hole.handicapIndex
+        }));
+
         // If we don't have hole data, create default holes
         const holes = holesData?.length 
           ? holesData 
@@ -106,7 +111,7 @@ export default function Scorecard({ rounds }: ScorecardProps) {
             }));
         
         setCourseInfo({
-          courseName: courseData?.name || 'Unknown Course',
+          courseName: courseData.name || 'Unknown Course',
           courseId,
           holes: holes
         });

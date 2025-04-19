@@ -25,7 +25,6 @@ import {
 } from '@mui/material'
 import { useAuth } from '@/contexts/AuthContext'
 import ProtectedRoute from '@/components/auth/ProtectedRoute'
-import { updateUserProfile } from '@/lib/supabase'
 import Link from 'next/link'
 import GolfCourseIcon from '@mui/icons-material/GolfCourse'
 import SportsTennisIcon from '@mui/icons-material/SportsTennis'
@@ -35,7 +34,7 @@ import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 
 export default function ProfilePage() {
-  const { user, profile, refreshProfile } = useAuth()
+  const { user, profile, updateProfile } = useAuth()
   const [firstName, setFirstName] = useState('')
   const [lastName, setLastName] = useState('')
   const [username, setUsername] = useState('')
@@ -105,29 +104,18 @@ export default function ProfilePage() {
         first_name: firstName,
         last_name: lastName,
         username,
-        handicap: handicap ? parseFloat(handicap) : null,
+        handicap: handicap ? parseFloat(handicap) : undefined,
         multiple_clubs_sets: multipleClubsSets,
         openai_api_key: openAiApiKey,
         use_own_openai_key: useOwnOpenAiKey,
         ai_assistant_enabled: aiAssistantEnabled,
-        updated_at: new Date().toISOString()
       }
       
       console.log('Preparing to update profile with data:', updates)
 
-      const { error, data } = await updateUserProfile(user.id, updates)
+      await updateProfile(updates)
       
-      console.log('Profile update response:', { error, data })
-      
-      if (error) {
-        console.error('Profile update error from Supabase:', error)
-        throw error
-      }
-
-      console.log('Profile updated successfully, refreshing profile data')
-      
-      // Refresh the profile data in context
-      await refreshProfile()
+      console.log('Profile updated successfully')
       
       // Turn off loading state
       setIsLoading(false)

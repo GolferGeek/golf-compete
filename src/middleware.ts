@@ -1,7 +1,6 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import type { Database } from '@/types/supabase'; // Ensure this path is correct
 
 // List of valid/known routes in the app
 const VALID_ROUTES = [
@@ -29,7 +28,8 @@ const VALID_PREFIXES = [
   '/admin/',
   '/dashboard/',
   '/competitions/',
-  '/events/'
+  '/events/',
+  '/series/'
 ];
 
 // Static assets prefixes to ignore
@@ -38,6 +38,17 @@ const STATIC_ASSET_PREFIXES = [
   '/favicon.ico',
   '/assets/',
   '/images/',
+];
+
+// Routes that should not redirect to login even if user is not authenticated
+const UNPROTECTED_ROUTES = [
+  '/',
+  '/auth/login',
+  '/auth/register',
+  '/auth/reset-password',
+  '/auth/callback',
+  '/api/auth/',
+  '/api/courses/'
 ];
 
 export async function middleware(request: NextRequest) {
@@ -58,13 +69,28 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url));
   }
 
+  // Protect against redirect loops
+  const redirectCount = parseInt(request.headers.get('x-redirect-count') || '0');
+  const hasAttemptedRefresh = request.cookies.has('attempted_refresh');
+  const isRefreshing = request.cookies.has('is_refreshing');
+  
+  // Detect potential redirect loops
+  if (redirectCount > 2 || (pathName === '/auth/login' && hasAttemptedRefresh)) {
+    console.log(`Middleware: Potential redirect loop detected for ${pathName}`);
+    // Break the loop by allowing the request to proceed
+    return NextResponse.next();
+  }
+
   let response = NextResponse.next({
     request: {
       headers: new Headers(request.headers),
     },
   });
 
-  const supabase = createServerClient<Database>(
+  // Set a header to track redirects
+  response.headers.set('x-redirect-count', (redirectCount + 1).toString());
+  
+  const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -93,50 +119,82 @@ export async function middleware(request: NextRequest) {
     }
   );
 
-  // Refresh session if expired - important!
-  // This will also update the cookies in the response via the set/remove handlers above
-  
-  // First, authenticate the user securely
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  
-  if (userError) {
-    // Only log as error if it's not a "missing session" error, which is expected for anonymous users
-    if (userError.message.includes('missing') || userError.message.includes('session')) {
-      console.log('Middleware: No auth session - anonymous user');
-    } else {
-      console.error('Middleware: Error authenticating user:', userError.message);
-    }
-    // Continue with no user authenticated
-  }
-  
-  // Then get the session, which we need for cookies/refresh
+  // First, get the session
   const { data: { session }, error: sessionError } = await supabase.auth.getSession();
 
-  // Centralized logging for session status
-  if (sessionError) {
-    // Only log as error if it's not a "missing session" error, which is expected for anonymous users
-    if (sessionError.message.includes('missing') || sessionError.message.includes('session')) {
-      console.log('Middleware: No session found - anonymous user');
-    } else {
-      console.error('Middleware: Error refreshing session:', sessionError.message);
+  // If no session and not already refreshing, try to refresh
+  if (!session && !isRefreshing) {
+    console.log('Middleware: No active session found, attempting to refresh');
+    
+    try {
+      // Set a cookie to indicate we're attempting a refresh
+      response.cookies.set('is_refreshing', 'true', { 
+        maxAge: 10, // Short-lived - 10 seconds 
+        path: '/' 
+      });
+      
+      const { data: refreshData, error: refreshError } = await supabase.auth.refreshSession();
+      
+      // Clear the refresh indicator
+      response.cookies.set('is_refreshing', '', { 
+        maxAge: 0, 
+        path: '/' 
+      });
+      
+      if (refreshError) {
+        console.log('Middleware: Session refresh failed:', refreshError.message);
+        // Set a cookie to note that we tried to refresh (to prevent loops)
+        response.cookies.set('attempted_refresh', 'true', { 
+          maxAge: 60, // 1 minute 
+          path: '/' 
+        });
+      } else if (refreshData.session) {
+        console.log('Middleware: Successfully refreshed session');
+        // We now have a valid session from the refresh
+      }
+    } catch (refreshErr) {
+      console.error('Middleware: Unexpected error refreshing session:', refreshErr);
+      // Clear the refresh indicator
+      response.cookies.set('is_refreshing', '', { 
+        maxAge: 0, 
+        path: '/' 
+      });
     }
-    // Potentially handle specific errors differently, but for now, treat as no session
+  }
+
+  // Check if the current route is unprotected
+  const isUnprotected = UNPROTECTED_ROUTES.some(route => 
+    route === pathName || 
+    (route.endsWith('/') && pathName.startsWith(route))
+  );
+  
+  // If it's an unprotected route, don't check for authentication
+  if (isUnprotected) {
+    return response;
   }
   
   const isApiRoute = request.nextUrl.pathname.startsWith('/api/');
   const isAdminRoute = request.nextUrl.pathname.startsWith('/admin');
-  const isProtectedRoute = isAdminRoute || (isApiRoute && !request.nextUrl.pathname.startsWith('/api/auth/')); // Protect /api/** except /api/auth/**
+  const isProtectedRoute = isAdminRoute || (
+    isApiRoute && 
+    !request.nextUrl.pathname.startsWith('/api/auth/') && 
+    !request.nextUrl.pathname.startsWith('/api/courses/') // Allow public access to courses data
+  );
 
   // Handle protected routes (Admin UI and API routes)
   if (isProtectedRoute) {
-    if (!session) {
+    // Try one more time to get the session after our refresh attempt
+    const { data: { session: currentSession } } = await supabase.auth.getSession();
+    
+    if (!currentSession) {
       console.log(`Middleware: No session found for protected route (${request.nextUrl.pathname}), redirecting/blocking.`);
       if (isApiRoute) {
         // For API routes, return 401 Unauthorized
         return new Response(JSON.stringify({ error: 'Unauthorized' }), { status: 401, headers: { 'Content-Type': 'application/json' } });
       } else {
-        // For UI routes (like /admin), redirect to login
-        return NextResponse.redirect(new URL('/auth/login', request.url));
+        // For UI routes (like /admin), redirect to login with the return URL
+        const returnUrl = encodeURIComponent(request.nextUrl.pathname);
+        return NextResponse.redirect(new URL(`/auth/login?redirect=${returnUrl}`, request.url));
       }
     }
     
@@ -146,7 +204,7 @@ export async function middleware(request: NextRequest) {
         const { data: profileData, error: profileError } = await supabase
           .from('profiles')
           .select('is_admin')
-          .eq('id', session.user.id)
+          .eq('id', currentSession.user.id)
           .single();
 
         if (profileError) {
@@ -182,7 +240,6 @@ export async function middleware(request: NextRequest) {
       }
     }
     // If it's a protected API route (but not admin), session existence is sufficient for now
-    // Specific role/permission checks can happen within the route handler using AuthService/DatabaseService
   }
 
   // Return the response (potentially with updated session cookies)

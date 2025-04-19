@@ -1,15 +1,12 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import CourseDbService from '@/services/internal/CourseDbService';
 import { 
     validateRequestBody,
     createSuccessApiResponse, 
     createErrorApiResponse 
 } from '@/lib/api/utils';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
-import { ServiceError, ErrorCodes } from '@/services/base';
-import { type CourseTee } from '@/types/database';
 import AuthService from '@/services/internal/AuthService';
 
 // Schema for updating a course tee
@@ -20,7 +17,7 @@ const updateTeeSchema = z.object({
   course_rating: z.number().positive().optional(),
   slope_rating: z.number().int().positive().optional(),
   yardage: z.number().int().positive().optional().nullable(),
-}).partial(); // Makes all fields optional
+}).partial();
 
 /**
  * @swagger
@@ -66,7 +63,6 @@ const updateCourseTeeHandler = async (
     const userId = auth.user.id;
     const supabase = await createClient();
     const authService = new AuthService(supabase);
-    const courseDbService = new CourseDbService(supabase);
 
     try {
         // --- Authorization Check --- 
@@ -74,7 +70,6 @@ const updateCourseTeeHandler = async (
         if (isAdminResponse.data !== true) {
              return createErrorApiResponse('Forbidden: Only site admins can update course tees', 'FORBIDDEN', 403);
         }
-        // --- End Authorization Check ---
 
         const validationResult = await validateRequestBody(request, updateTeeSchema);
         if (validationResult instanceof NextResponse) return validationResult;
@@ -82,32 +77,29 @@ const updateCourseTeeHandler = async (
              return createErrorApiResponse('No update data provided', 'VALIDATION_ERROR', 400);
         }
 
-        // Construct payload, handling nulls - type should now match UpdateCourseTeeData implicitly
+        // Construct payload, handling nulls
         const updatePayload = {
             ...validationResult,
             yardage: validationResult.yardage ?? undefined,
         };
         
-        // Perform update with the payload (remove cast)
-        const updateResponse = await courseDbService.updateCourseTee(teeId!, updatePayload);
-        if (updateResponse.error) {
-            if (updateResponse.error instanceof ServiceError && updateResponse.error.code === ErrorCodes.DB_NOT_FOUND) {
-                 return createErrorApiResponse('Tee not found', updateResponse.error.code, 404);
-            }
-            throw updateResponse.error;
-        }
-        if (!updateResponse.data) { 
-            return createErrorApiResponse('Tee not found after update attempt', ErrorCodes.DB_NOT_FOUND, 404);
+        // Update the tee directly
+        const { data, error } = await supabase
+            .from('tee_sets')
+            .update(updatePayload)
+            .eq('id', teeId)
+            .select()
+            .single();
+
+        if (error) throw error;
+        if (!data) {
+            return createErrorApiResponse('Tee not found', 'NOT_FOUND', 404);
         }
 
-        return createSuccessApiResponse(updateResponse.data);
+        return createSuccessApiResponse(data);
 
     } catch (error: any) {
         console.error(`[API /courses/${courseId}/tees/${teeId} PUT] Error:`, error);
-        if (error instanceof ServiceError) {
-            let status = error.code === ErrorCodes.DB_NOT_FOUND ? 404 : 400;
-            return createErrorApiResponse(error.message, error.code, status);
-        }
         return createErrorApiResponse('Failed to update course tee', 'UPDATE_TEE_ERROR', 500);
     }
 };
@@ -152,7 +144,6 @@ const deleteCourseTeeHandler = async (
     const userId = auth.user.id;
     const supabase = await createClient();
     const authService = new AuthService(supabase);
-    const courseDbService = new CourseDbService(supabase);
 
     try {
         // --- Authorization Check --- 
@@ -160,25 +151,19 @@ const deleteCourseTeeHandler = async (
         if (isAdminResponse.data !== true) {
              return createErrorApiResponse('Forbidden: Only site admins can delete course tees', 'FORBIDDEN', 403);
         }
-        // --- End Authorization Check ---
 
-        // Perform delete
-        const deleteResponse = await courseDbService.removeCourseTee(teeId);
-        if (deleteResponse.error) {
-             if (deleteResponse.error instanceof ServiceError && deleteResponse.error.code === ErrorCodes.DB_NOT_FOUND) {
-                 return createErrorApiResponse('Tee not found', deleteResponse.error.code, 404);
-             }
-             throw deleteResponse.error;
-        }
+        // Delete the tee directly
+        const { error } = await supabase
+            .from('tee_sets')
+            .delete()
+            .eq('id', teeId);
+
+        if (error) throw error;
 
         return new NextResponse(null, { status: 204 }); // No Content
 
     } catch (error: any) {
         console.error(`[API /courses/${courseId}/tees/${teeId} DELETE] Error:`, error);
-        if (error instanceof ServiceError) {
-             let status = error.code === ErrorCodes.DB_NOT_FOUND ? 404 : 500;
-            return createErrorApiResponse(error.message, error.code, status);
-        }
         return createErrorApiResponse('Failed to delete course tee', 'DELETE_TEE_ERROR', 500);
     }
 };

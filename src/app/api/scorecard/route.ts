@@ -154,9 +154,15 @@ Guidelines:
         systemMessage = `You are a golf course data extraction assistant. Extract all information from the scorecard image.
 Your response must be ONLY valid JSON in the following format:
 {
-  "name": "Course Name",
-  "location": "City, State",
-  "par": 72,  // Course par if available
+  "courseInfo": {
+    "name": "Course Name",
+    "city": "City",
+    "state": "State",
+    "phoneNumber": "555-123-4567",
+    "website": "www.golfcourse.com",
+    "par": 72,
+    "holes": 18
+  },
   "teeSets": [
     {
       "name": "Blue",
@@ -173,20 +179,30 @@ Your response must be ONLY valid JSON in the following format:
       "length": 6500
     }
   ],
-  "holeDetails": [
+  "holes": [
     {
       "number": 1,
       "par": 4,
       "handicapIndex": 5,
-      "distances": {
-        "Blue": 425,
-        "White": 410,
-        "Red": 380
-      }
+      "notes": ""
+    },
+    {
+      "number": 2,
+      "par": 3,
+      "handicapIndex": 17,
+      "notes": ""
     }
   ]
-}`;
-        userMessage = "Extract all information from this golf scorecard.";
+}
+
+Guidelines:
+1. Extract ALL possible information from the image - course details, tee boxes, and hole-by-hole data
+2. If the image is clearly only showing one aspect (e.g., just course info), provide as much as you can see and leave other sections empty arrays
+3. If you can see location information, split it into city and state fields properly
+4. Convert all text-based numbers and ratings to appropriate numeric values
+5. Return the data in exactly the format specified above
+6. If a specific piece of data is not available, omit that field rather than including null or empty values`;
+        userMessage = "Extract all possible course information from this golf scorecard or course image.";
       }
       
       console.log('System message:', systemMessage);

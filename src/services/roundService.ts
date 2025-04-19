@@ -12,6 +12,7 @@ import { Event } from '@/types/events';
 import { supabaseClient } from '@/lib/auth';
 import { getEventById } from '@/lib/events';
 import { getEventParticipants } from '@/lib/participants';
+import { CoursesApiClient } from '@/lib/apiClient/courses';
 
 /**
  * Creates a new round
@@ -65,20 +66,33 @@ export const updateRound = async (input: UpdateRoundInput): Promise<Round> => {
  */
 export const getRoundWithDetails = async (roundId: string): Promise<RoundWithDetails> => {
     try {
-        // Get the round with course, tee set, and bag details
+        // First get the basic round data to get the course ID
         const { data: round, error: roundError } = await supabaseClient
             .from('rounds')
-            .select(`
-                *,
-                course:courses(id, name, city, state),
-                tee_set:tee_sets(id, name, color, rating, slope, length),
-                bag:bags(id, name, description),
-                event:events!left(id, name, event_date)
-            `)
+            .select('*, bag:bags(id, name, description), event:events!left(id, name, event_date)')
             .eq('id', roundId)
             .single();
 
         if (roundError) throw roundError;
+        if (!round) throw new Error('Round not found');
+
+        // Get course details using API client
+        const courseResponse = await CoursesApiClient.getCourseById(round.course_id);
+        if (!courseResponse.success || !courseResponse.data) {
+            throw new Error('Failed to fetch course details');
+        }
+
+        // Get tee set details using API client
+        const teeResponse = await CoursesApiClient.getCourseTees(round.course_id);
+        if (!teeResponse.success || !teeResponse.data || !teeResponse.data.tees) {
+            throw new Error('Failed to fetch tee sets');
+        }
+
+        // Find the specific tee set for this round
+        const teeSet = teeResponse.data.tees.find(tee => tee.id === round.tee_set_id);
+        if (!teeSet) {
+            throw new Error('Tee set not found');
+        }
 
         // Get the hole scores
         const { data: holeScores, error: scoresError } = await supabaseClient
@@ -89,8 +103,23 @@ export const getRoundWithDetails = async (roundId: string): Promise<RoundWithDet
 
         if (scoresError) throw scoresError;
 
+        // Construct the response with the fetched data
         return {
             ...round,
+            course: {
+                id: courseResponse.data.id,
+                name: courseResponse.data.name,
+                city: courseResponse.data.city,
+                state: courseResponse.data.state
+            },
+            tee_set: {
+                id: teeSet.id,
+                name: teeSet.teeName,
+                color: teeSet.gender, // Using gender as color as per the API client pattern
+                rating: teeSet.courseRating,
+                slope: teeSet.slopeRating,
+                length: teeSet.yardage
+            },
             hole_scores: holeScores || []
         };
     } catch (error) {

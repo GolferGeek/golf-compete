@@ -1,0 +1,371 @@
+# Domain Object Architecture
+
+This document outlines the standardized approach for implementing domain objects throughout the application. The architecture ensures consistency from database to UI across all domain objects: Courses, Rounds, Events, Series, Notes, etc.
+
+## Architecture Overview
+
+Each domain object follows a multi-layer architecture:
+
+1. **Database Schema** - Defined in `/src/types/database.ts`
+2. **Database Service** - Located in `/src/services/internal/<Entity>DbService.ts`
+3. **API Routes** - Located in `/src/app/api/<entity>/route.ts`
+4. **API Client** - Located in `/src/lib/apiClient/<entity>.ts`
+5. **UI Components** - Consuming the API client
+
+### Layer Flow
+
+```
+UI Components → API Client → API Routes → Database Service → Database
+       ↑                                                         |
+       |_________________________________________________________|
+                              Data Flow
+```
+
+## 1. Database Schema Definitions
+
+Define types in `src/types/database.ts` to match your database schema:
+
+```typescript
+export interface UserNote {
+  id: string;
+  user_id: string;
+  content: string;
+  related_resource_id?: string;
+  related_resource_type?: string;
+  created_at: string;
+  updated_at: string;
+}
+```
+
+## 2. Database Service Layer
+
+Create services in `src/services/internal/<Entity>DbService.ts` that extend BaseService:
+
+```typescript
+import { SupabaseClient } from '@supabase/supabase-js';
+import { 
+    BaseService, 
+    ServiceResponse,
+    PaginatedResponse,
+    QueryParams
+} from '../base';
+import { type UserNote } from '@/types/database';
+
+class NoteDbService extends BaseService {
+  constructor(client: SupabaseClient) {
+    super(client);
+  }
+
+  // Create operation
+  public async createNote(noteData: Omit<UserNote, 'id' | 'created_at' | 'updated_at'>): Promise<ServiceResponse<UserNote>> {
+    return this.insertRecord<UserNote>('user_notes', noteData);
+  }
+
+  // Read operation
+  public async getNoteById(noteId: string): Promise<ServiceResponse<UserNote>> {
+    return this.fetchById<UserNote>('user_notes', noteId);
+  }
+
+  // List operation with filters and pagination
+  public async fetchNotes(params: QueryParams = {}): Promise<PaginatedResponse<UserNote>> {
+    return this.fetchRecords<UserNote>('user_notes', params);
+  }
+
+  // Update operation
+  public async updateNote(noteId: string, updateData: Partial<Omit<UserNote, 'id' | 'user_id' | 'created_at' | 'updated_at'>>): Promise<ServiceResponse<UserNote>> {
+    return this.updateRecord<UserNote>('user_notes', noteId, updateData);
+  }
+
+  // Delete operation
+  public async deleteNote(noteId: string): Promise<ServiceResponse<null>> {
+    return this.deleteRecord('user_notes', noteId);
+  }
+}
+
+export default NoteDbService;
+```
+
+## 3. API Routes
+
+Create API route handlers in `src/app/api/<entity>/route.ts`:
+
+```typescript
+import { type NextRequest } from 'next/server';
+import { z } from 'zod';
+import { createClient } from '@/lib/supabase/server';
+import EntityDbService from '@/services/internal/EntityDbService';
+import { 
+    validateRequestBody, 
+    validateQueryParams, 
+    createSuccessApiResponse, 
+    createErrorApiResponse 
+} from '@/lib/api/utils';
+import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
+
+// Define validation schemas with Zod
+const createEntitySchema = z.object({
+  // Schema properties
+});
+
+const queryEntitySchema = z.object({
+  // Query parameters
+});
+
+// GET handler for listing entities
+const getEntitiesHandler = async (request: NextRequest, context: any, auth: AuthenticatedContext) => {
+  // 1. Validate query parameters
+  const queryValidation = await validateQueryParams(request, queryEntitySchema);
+  if (queryValidation instanceof NextResponse) return queryValidation;
+
+  // 2. Initialize service
+  const supabase = await createClient();
+  const entityService = new EntityDbService(supabase);
+  
+  // 3. Apply business logic, handle permissions
+  // ...
+  
+  // 4. Call service methods
+  try {
+    const response = await entityService.fetchEntities(/* params */);
+    
+    // 5. Transform data if needed
+    const transformedData = response.data?.map(/* transformation logic */);
+    
+    // 6. Return standardized response
+    return createSuccessApiResponse({
+      data: transformedData,
+      metadata: response.metadata
+    });
+  } catch (error) {
+    return createErrorApiResponse('Error message', 'ERROR_CODE', 500);
+  }
+};
+
+// GET handler for single item
+// POST handler for creation
+// PATCH/PUT handler for updates
+// DELETE handler for deletion
+
+// Export handlers wrapped with authentication
+export const GET = withAuth(getEntitiesHandler);
+export const POST = withAuth(createEntityHandler);
+// ...
+```
+
+## 4. API Client
+
+Create type-safe API clients in `src/lib/apiClient/<entity>.ts`:
+
+```typescript
+// 1. Define interfaces
+
+// Data transfer object
+export interface EntityDto {
+  id: string;
+  name: string;
+  // Other properties...
+}
+
+// Query parameters
+export interface EntityQueryParams {
+  limit?: number;
+  offset?: number;
+  orderBy?: string;
+  orderDirection?: 'asc' | 'desc';
+  // Other filters...
+}
+
+// Create/update payloads
+export interface CreateEntityPayload {
+  name: string;
+  // Required fields...
+}
+
+export interface UpdateEntityPayload {
+  name?: string; 
+  // Optional fields...
+}
+
+// Response types
+export interface ApiResponse {
+  success: boolean;
+  error?: {
+    message: string;
+    code: string;
+    details?: any;
+  };
+}
+
+export interface EntitiesApiResponse extends ApiResponse {
+  success: boolean;
+  data?: {
+    entities: EntityDto[];
+    total: number;
+  };
+  error?: {
+    message: string;
+    code: string;
+    details?: any;
+  };
+}
+
+export interface EntityApiResponse extends ApiResponse {
+  success: boolean;
+  data?: EntityDto;
+  error?: {
+    message: string;
+    code: string;
+    details?: any;
+  };
+}
+
+// 2. Create the API client object with methods
+export const EntityApiClient = {
+  // List entities with filtering and pagination
+  async getEntities(params: EntityQueryParams = {}): Promise<EntitiesApiResponse> {
+    try {
+      // Build query string from params
+      const queryParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          queryParams.append(key, value.toString());
+        }
+      });
+      
+      const endpoint = `/api/entities${queryParams.toString() ? `?${queryParams.toString()}` : ''}`;
+      
+      const response = await fetch(endpoint, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
+      });
+      
+      // Handle errors
+      if (!response.ok) {
+        const errorData = await response.json();
+        return {
+          success: false,
+          error: {
+            message: errorData.message || 'Failed to fetch entities',
+            code: 'FETCH_ERROR',
+            details: errorData
+          }
+        };
+      }
+      
+      // Return success response
+      const data = await response.json();
+      return {
+        success: true,
+        data
+      };
+    } catch (error) {
+      console.error('Error fetching entities:', error);
+      return {
+        success: false,
+        error: {
+          message: 'An unexpected error occurred',
+          code: 'UNEXPECTED_ERROR'
+        }
+      };
+    }
+  },
+  
+  // Get a single entity by ID
+  async getEntityById(id: string): Promise<EntityApiResponse> { /* ... */ },
+  
+  // Create a new entity
+  async createEntity(payload: CreateEntityPayload): Promise<EntityApiResponse> { /* ... */ },
+  
+  // Update an existing entity
+  async updateEntity(id: string, payload: UpdateEntityPayload): Promise<EntityApiResponse> { /* ... */ },
+  
+  // Delete an entity
+  async deleteEntity(id: string): Promise<ApiResponse> { /* ... */ }
+};
+
+export default EntityApiClient;
+```
+
+## 5. UI Component Usage
+
+Use the API client in your React components:
+
+```tsx
+import { useState, useEffect } from 'react';
+import { EntityApiClient, type EntityDto } from '@/lib/apiClient/entity';
+
+export default function EntityList() {
+  const [entities, setEntities] = useState<EntityDto[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  
+  useEffect(() => {
+    async function loadEntities() {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const response = await EntityApiClient.getEntities({
+          limit: 10,
+          orderBy: 'created_at',
+          orderDirection: 'desc'
+        });
+        
+        if (response.success && response.data) {
+          setEntities(response.data.entities);
+        } else {
+          setError(response.error?.message || 'Failed to load entities');
+        }
+      } catch (err) {
+        setError('An unexpected error occurred');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    loadEntities();
+  }, []);
+  
+  // Render list with loading and error states
+}
+```
+
+## Key Principles
+
+1. **Type Safety**: Use TypeScript interfaces for all objects and responses
+2. **Consistent Patterns**: Apply the same pattern across all domain objects
+3. **Separation of Concerns**: 
+   - UI components handle display logic and state
+   - API clients handle network requests and error formatting
+   - API routes handle request validation and auth
+   - DB services handle database operations and business logic
+4. **Error Handling**: Standardized error handling at each layer
+5. **Validation**: Use Zod schemas for validation at the API layer
+
+## Implementation Steps for New Domain Objects
+
+1. Define the database schema types in `src/types/database.ts`
+2. Create a database service in `src/services/internal/<Entity>DbService.ts`
+3. Implement API routes in `src/app/api/<entity>/route.ts`
+4. Create API client in `src/lib/apiClient/<entity>.ts`
+5. Use the API client in UI components
+
+## Best Practices
+
+- Ensure consistent naming across layers
+- Handle errors at each level appropriately
+- Implement proper authorization checks in API routes
+- Use pagination for list endpoints
+- Follow REST patterns for API endpoints
+- Keep DTOs and payloads separate from database types
+- Transform data between layers when needed
+
+## References
+
+- Notes implementation in:
+  - `/src/types/database.ts` (UserNote interface)
+  - `/src/services/internal/NoteDbService.ts`
+  - `/src/app/api/notes/route.ts`
+  - `/src/lib/apiClient/notes.ts` 

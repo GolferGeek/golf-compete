@@ -26,25 +26,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import CancelIcon from '@mui/icons-material/Cancel';
-import { createClient } from '@supabase/supabase-js';
-
-// Initialize Supabase client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
-
-// Type definitions
-interface QuickNote {
-  id: string;
-  note: string;
-  category: string;
-  created_at: string;
-}
-
-interface ProfileMetadata {
-  quick_notes?: QuickNote[];
-  [key: string]: any;
-}
+import { QuickNote, getProfileMetadata, updateQuickNotes } from '@/lib/apiClient/profiles';
 
 interface QuickNotesManagerProps {
   userId: string;
@@ -78,17 +60,7 @@ export default function QuickNotesManager({ userId, onNotesUpdated }: QuickNotes
         setLoading(true);
         setError(null);
         
-        const { data: profile, error } = await supabase
-          .from('profiles')
-          .select('metadata')
-          .eq('id', userId)
-          .single();
-        
-        if (error) {
-          throw error;
-        }
-        
-        const metadata = profile?.metadata as ProfileMetadata || {};
+        const metadata = await getProfileMetadata(userId);
         const quickNotes = metadata.quick_notes || [];
         
         // Sort notes by creation date (newest first)
@@ -113,31 +85,13 @@ export default function QuickNotesManager({ userId, onNotesUpdated }: QuickNotes
     try {
       setLoading(true);
       
-      const { data: profile, error: fetchError } = await supabase
-        .from('profiles')
-        .select('metadata')
-        .eq('id', userId)
-        .single();
-      
-      if (fetchError) {
-        throw fetchError;
-      }
-      
-      const metadata = {...(profile?.metadata || {})} as ProfileMetadata;
-      metadata.quick_notes = updatedNotes;
-      
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ metadata })
-        .eq('id', userId);
-      
-      if (updateError) {
-        throw updateError;
-      }
-      
-      setNotes(updatedNotes.sort((a, b) => 
+      // Sort notes by creation date (newest first)
+      const sortedNotes = updatedNotes.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-      ));
+      );
+      
+      await updateQuickNotes(userId, sortedNotes);
+      setNotes(sortedNotes);
       
       if (onNotesUpdated) {
         onNotesUpdated();
@@ -200,180 +154,174 @@ export default function QuickNotesManager({ userId, onNotesUpdated }: QuickNotes
     }
   };
   
-  // Format date string
+  // Format date for display
   const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('en-US', {
+    return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
+    });
   };
   
-  // Handle page change
+  // Handle pagination change
   const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
     setPage(value);
   };
   
   if (loading && notes.length === 0) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight={200}>
         <CircularProgress />
       </Box>
     );
   }
   
   return (
-    <Paper sx={{ p: 3, mb: 4 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2, alignItems: 'center' }}>
+    <Paper elevation={2} sx={{ p: 2 }}>
+      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
         <Typography variant="h6">Quick Notes</Typography>
-        
-        <Box>
-          {notes.length > 0 && (
-            <Button 
-              color="error" 
-              size="small" 
-              onClick={() => setDeleteAllDialogOpen(true)}
-              startIcon={<DeleteIcon />}
-            >
-              Delete All
-            </Button>
-          )}
-        </Box>
+        {notes.length > 0 && (
+          <Button 
+            variant="outlined" 
+            color="error" 
+            size="small"
+            onClick={() => setDeleteAllDialogOpen(true)}
+          >
+            Delete All
+          </Button>
+        )}
       </Box>
       
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>
+        <Alert severity="error" sx={{ mb: 2 }}>
+          {error}
+        </Alert>
       )}
       
       {notes.length === 0 ? (
-        <Typography color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
-          No quick notes yet. Use the Golf Assistant to add notes without a specific round.
+        <Typography color="textSecondary" align="center">
+          No notes yet
         </Typography>
       ) : (
         <>
-          <List sx={{ width: '100%' }}>
-            {paginatedNotes.map((note, index) => (
-              <Box key={note.id}>
-                {index > 0 && <Divider component="li" />}
-                <ListItem
-                  alignItems="flex-start"
-                  secondaryAction={
-                    editingNoteId === note.id ? (
-                      <>
-                        <IconButton edge="end" onClick={handleSaveEdit} title="Save">
-                          <SaveIcon color="primary" />
-                        </IconButton>
-                        <IconButton edge="end" onClick={() => setEditingNoteId(null)} title="Cancel">
-                          <CancelIcon />
-                        </IconButton>
-                      </>
-                    ) : (
-                      <>
-                        <IconButton 
-                          edge="end" 
-                          onClick={() => handleEditNote(note)} 
-                          title="Edit"
-                          sx={{ mr: 1 }}
-                        >
-                          <EditIcon />
-                        </IconButton>
-                        <IconButton 
-                          edge="end" 
-                          onClick={() => {
-                            setNoteToDeleteId(note.id);
-                            setDeleteDialogOpen(true);
-                          }}
-                          title="Delete"
-                        >
-                          <DeleteIcon />
-                        </IconButton>
-                      </>
-                    )
-                  }
-                >
-                  <ListItemText
-                    primary={
-                      editingNoteId === note.id ? (
-                        <TextField
-                          fullWidth
-                          multiline
-                          value={editNoteText}
-                          onChange={(e) => setEditNoteText(e.target.value)}
-                          variant="outlined"
-                          size="small"
-                          autoFocus
-                        />
-                      ) : (
-                        note.note
-                      )
-                    }
-                    secondary={
-                      <Box sx={{ mt: 1 }}>
-                        <Typography
-                          component="span"
-                          variant="body2"
-                          color="text.secondary"
-                        >
-                          {formatDate(note.created_at)}
-                        </Typography>
-                        {note.category && (
-                          <Chip 
-                            label={note.category} 
-                            size="small" 
-                            sx={{ ml: 1 }} 
-                          />
-                        )}
-                      </Box>
-                    }
-                  />
-                </ListItem>
-              </Box>
+          <List>
+            {paginatedNotes.map((note) => (
+              <ListItem
+                key={note.id}
+                divider
+                sx={{
+                  backgroundColor: editingNoteId === note.id ? 'action.hover' : 'inherit',
+                }}
+              >
+                {editingNoteId === note.id ? (
+                  <Box width="100%">
+                    <TextField
+                      fullWidth
+                      multiline
+                      value={editNoteText}
+                      onChange={(e) => setEditNoteText(e.target.value)}
+                      size="small"
+                      sx={{ mb: 1 }}
+                    />
+                    <Box display="flex" justifyContent="flex-end" gap={1}>
+                      <Button
+                        size="small"
+                        startIcon={<SaveIcon />}
+                        onClick={handleSaveEdit}
+                        disabled={loading}
+                      >
+                        Save
+                      </Button>
+                      <Button
+                        size="small"
+                        startIcon={<CancelIcon />}
+                        onClick={() => {
+                          setEditingNoteId(null);
+                          setEditNoteText('');
+                        }}
+                      >
+                        Cancel
+                      </Button>
+                    </Box>
+                  </Box>
+                ) : (
+                  <>
+                    <ListItemText
+                      primary={note.note}
+                      secondary={formatDate(note.created_at)}
+                    />
+                    <ListItemSecondaryAction>
+                      <IconButton
+                        edge="end"
+                        aria-label="edit"
+                        onClick={() => handleEditNote(note)}
+                        sx={{ mr: 1 }}
+                      >
+                        <EditIcon />
+                      </IconButton>
+                      <IconButton
+                        edge="end"
+                        aria-label="delete"
+                        onClick={() => {
+                          setNoteToDeleteId(note.id);
+                          setDeleteDialogOpen(true);
+                        }}
+                      >
+                        <DeleteIcon />
+                      </IconButton>
+                    </ListItemSecondaryAction>
+                  </>
+                )}
+              </ListItem>
             ))}
           </List>
           
           {totalPages > 1 && (
-            <Box sx={{ display: 'flex', justifyContent: 'center', mt: 2 }}>
-              <Pagination 
-                count={totalPages} 
-                page={page} 
-                onChange={handlePageChange} 
-                color="primary" 
+            <Box display="flex" justifyContent="center" mt={2}>
+              <Pagination
+                count={totalPages}
+                page={page}
+                onChange={handlePageChange}
+                color="primary"
               />
             </Box>
           )}
         </>
       )}
       
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Note Dialog */}
       <Dialog
         open={deleteDialogOpen}
         onClose={() => setDeleteDialogOpen(false)}
       >
         <DialogTitle>Delete Note</DialogTitle>
         <DialogContent>
-          Are you sure you want to delete this note? This action cannot be undone.
+          <Typography>Are you sure you want to delete this note?</Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleDeleteNote} color="error">Delete</Button>
+          <Button onClick={handleDeleteNote} color="error" autoFocus>
+            Delete
+          </Button>
         </DialogActions>
       </Dialog>
       
-      {/* Delete All Confirmation Dialog */}
+      {/* Delete All Notes Dialog */}
       <Dialog
         open={deleteAllDialogOpen}
         onClose={() => setDeleteAllDialogOpen(false)}
       >
         <DialogTitle>Delete All Notes</DialogTitle>
         <DialogContent>
-          Are you sure you want to delete all your quick notes? This action cannot be undone.
+          <Typography>
+            Are you sure you want to delete all notes? This action cannot be undone.
+          </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteAllDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleDeleteAllNotes} color="error">Delete All</Button>
+          <Button onClick={handleDeleteAllNotes} color="error" autoFocus>
+            Delete All
+          </Button>
         </DialogActions>
       </Dialog>
     </Paper>

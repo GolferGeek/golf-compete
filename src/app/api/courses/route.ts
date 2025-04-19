@@ -1,86 +1,90 @@
-import { type NextRequest, NextResponse } from 'next/server';
+import { type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import CourseDbService from '@/services/internal/CourseDbService';
 import { 
     validateRequestBody, 
-    validateQueryParams, 
     createSuccessApiResponse, 
     createErrorApiResponse 
 } from '@/lib/api/utils';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
-import { ServiceError } from '@/services/base';
 import { type Course } from '@/types/database';
 
-// Schema for creating/updating a course
-const courseSchema = z.object({
-  name: z.string().min(3, { message: 'Course name must be at least 3 characters' }),
-  address: z.string().optional().nullable(),
-  city: z.string().optional().nullable(),
-  state: z.string().optional().nullable(),
-  zip_code: z.string().optional().nullable(),
-  phone: z.string().optional().nullable(),
-  website: z.string().url().optional().nullable(),
-  // created_by might be set automatically based on auth
-});
-
-const createCourseSchema = courseSchema; // Use the same for create
-const updateCourseSchema = courseSchema.partial(); // All fields optional for update
-
-// Schema for query parameters when fetching courses
-const fetchCoursesQuerySchema = z.object({
-  limit: z.coerce.number().int().positive().optional().default(20),
-  page: z.coerce.number().int().positive().optional().default(1),
-  sortBy: z.string().optional().default('name'),
-  sortDir: z.enum(['asc', 'desc']).optional().default('asc'),
-  search: z.string().optional(), // Add search parameter
-  // Add other filters as needed (e.g., state)
+// Schema for creating a course
+const createCourseSchema = z.object({
+    name: z.string().min(3, { message: 'Course name must be at least 3 characters' }),
+    address: z.string().optional(),
+    city: z.string().optional(),
+    state: z.string().optional(),
+    country: z.string().default('USA'),
+    phone_number: z.string().optional(),
+    website: z.string().optional(),
+    amenities: z.string().optional(),
+    holes: z.number().default(18),
+    par: z.number().default(72),
+    is_active: z.boolean().default(true)
 });
 
 /**
  * @swagger
  * /api/courses:
  *   get:
- *     summary: List golf courses
- *     description: Retrieves a paginated list of golf courses, optionally filtered and sorted.
+ *     summary: List all courses
+ *     description: Retrieves a list of all golf courses with optional filtering and pagination.
  *     tags: [Courses]
- *     parameters: # Add query params like limit, page, sortBy, search etc.
- *       # ... (schema based on fetchCoursesQuerySchema)
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         schema: { type: integer }
+ *       - in: query
+ *         name: offset
+ *         schema: { type: integer }
  *     responses:
  *       200: { description: List of courses }
- *       400: { description: Invalid query parameters }
  *       500: { description: Internal server error }
  */
 export async function GET(request: NextRequest) {
-    const queryValidation = await validateQueryParams(request, fetchCoursesQuerySchema);
-    if (queryValidation instanceof NextResponse) return queryValidation;
-
-    const { limit, page, sortBy, sortDir, search } = queryValidation;
-    const offset = (page - 1) * limit;
-
-    const filters: Record<string, any> = {};
-    if (search) filters.name = { ilike: search }; // Simple name search example
-    // Add more filters
-
-    let orFilterString: string | undefined = undefined;
-    if (search && search.trim() !== '') {
-        const searchTerm = `%${search.trim()}%`;
-        orFilterString = `name.ilike.${searchTerm},city.ilike.${searchTerm},state.ilike.${searchTerm}`;
-        // Add zip_code if needed, careful with ilike on non-text
-    }
-
-    const ordering = sortBy ? { column: sortBy, direction: sortDir } : undefined;
+    const { searchParams } = new URL(request.url);
+    const limit = parseInt(searchParams.get('limit') || '10');
+    const offset = parseInt(searchParams.get('offset') || '0');
+    const search = searchParams.get('search') || '';
+    const city = searchParams.get('city');
+    const state = searchParams.get('state');
+    const country = searchParams.get('country');
 
     const supabase = await createClient();
-    const courseDbService = new CourseDbService(supabase);
 
     try {
-        const response = await courseDbService.fetchCourses(
-            { pagination: { limit, offset, page }, ordering, filters, orFilter: orFilterString }, 
-            { useCamelCase: true }
-        );
-        if (response.error) throw response.error;
-        return createSuccessApiResponse(response);
+        let query = supabase
+            .from('courses')
+            .select('*', { count: 'exact' });
+
+        // Apply filters if provided
+        if (search) {
+            query = query.ilike('name', `%${search}%`);
+        }
+        if (city) {
+            query = query.eq('city', city);
+        }
+        if (state) {
+            query = query.eq('state', state);
+        }
+        if (country) {
+            query = query.eq('country', country);
+        }
+
+        // Apply pagination
+        const { data, error, count } = await query
+            .range(offset, offset + limit - 1)
+            .order('name');
+
+        if (error) throw error;
+
+        return createSuccessApiResponse({
+            courses: data || [],
+            total: count || 0,
+            limit,
+            offset
+        });
     } catch (error: any) {
         console.error('[API /courses GET] Error:', error);
         return createErrorApiResponse('Failed to fetch courses', 'FETCH_COURSES_ERROR', 500);
@@ -92,14 +96,14 @@ export async function GET(request: NextRequest) {
  * /api/courses:
  *   post:
  *     summary: Create a new course
- *     description: Adds a new golf course to the database.
+ *     description: Creates a new golf course.
  *     tags: [Courses]
- *     security: [{ bearerAuth: [] }] # Assuming only logged-in users can add
+ *     security: [{ bearerAuth: [] }]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
- *           schema: { $ref: '#/components/schemas/CreateCourseInput' } # Based on createCourseSchema
+ *           schema: { $ref: '#/components/schemas/CreateCourseInput' }
  *     responses:
  *       201: { description: Course created successfully }
  *       400: { description: Validation error }
@@ -107,41 +111,46 @@ export async function GET(request: NextRequest) {
  *       500: { description: Internal server error }
  */
 const createCourseHandler = async (
-    request: NextRequest, 
-    context: { params?: any }, 
+    request: NextRequest,
+    context: { params?: any },
     auth: AuthenticatedContext
 ) => {
-    const validationResult = await validateRequestBody(request, createCourseSchema);
-    if (validationResult instanceof NextResponse) return validationResult;
-
-    // Construct payload, handling nulls and adding creator
-    const coursePayload: Omit<Course, 'id' | 'created_at' | 'updated_at'> = {
-        ...validationResult,
-        address: validationResult.address ?? undefined,
-        city: validationResult.city ?? undefined,
-        state: validationResult.state ?? undefined,
-        zip_code: validationResult.zip_code ?? undefined,
-        phone: validationResult.phone ?? undefined,
-        website: validationResult.website ?? undefined,
-        created_by: auth.user.id, 
-    };
-
+    const userId = auth.user.id;
     const supabase = await createClient();
-    const courseDbService = new CourseDbService(supabase);
 
     try {
-        const createResponse = await courseDbService.createCourse(coursePayload);
-        if (createResponse.error || !createResponse.data) {
-            throw createResponse.error || new Error('Failed to create course, no data returned');
+        // Check if user is admin
+        const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('is_admin')
+            .eq('id', userId)
+            .single();
+
+        if (profileError || !profile?.is_admin) {
+            return createErrorApiResponse('Only admins can create courses', 'FORBIDDEN', 403);
         }
-        return createSuccessApiResponse(createResponse.data, 201);
+
+        // Validate request body
+        const validationResult = await validateRequestBody(request, createCourseSchema);
+        if (validationResult instanceof Response) return validationResult;
+
+        // Create the course
+        const { data, error } = await supabase
+            .from('courses')
+            .insert({
+                ...validationResult,
+                created_by: userId
+            })
+            .select()
+            .single();
+
+        if (error) throw error;
+        return createSuccessApiResponse(data, 201);
+
     } catch (error: any) {
         console.error('[API /courses POST] Error:', error);
-        if (error instanceof ServiceError) {
-            return createErrorApiResponse(error.message, error.code, 400);
-        }
         return createErrorApiResponse('Failed to create course', 'CREATE_COURSE_ERROR', 500);
     }
 };
 
-export const POST = withAuth(createCourseHandler);
+export { createCourseHandler as POST };

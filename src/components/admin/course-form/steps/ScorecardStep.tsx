@@ -38,12 +38,16 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
   setProcessingImage,
   extractionStep,
   setExtractionStep,
-  isMobile
+  isMobile,
+  extractedData
 }) => {
   const theme = useTheme();
   const isSmallScreen = isMobile || useMediaQuery(theme.breakpoints.down('md'));
   const [unsavedChanges, setUnsavedChanges] = useState<boolean>(false);
   
+  // Check if data was pre-populated
+  const hasPrepopulatedData = extractedData?.holes && extractedData.holes.length > 0;
+
   // Notes modal state
   const [notesModalOpen, setNotesModalOpen] = useState(false);
   const [currentHoleIndex, setCurrentHoleIndex] = useState<number | null>(null);
@@ -55,6 +59,13 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
       generateEmptyHoles();
     }
   }, [courseId]);
+  
+  // Display a message about pre-populated data
+  useEffect(() => {
+    if (hasPrepopulatedData && holes.length > 0) {
+      console.log('Pre-populated scorecard data detected:', holes.length, 'holes');
+    }
+  }, [hasPrepopulatedData, holes.length]);
   
   // Create 18 empty holes
   const generateEmptyHoles = () => {
@@ -229,24 +240,32 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
         Scorecard Data
       </Typography>
       
+      {hasPrepopulatedData && holes.length > 0 && (
+        <Box sx={{ mb: 3, p: 2, backgroundColor: 'success.light', borderRadius: 1 }}>
+          <Typography variant="body2" color="white">
+            Hole information has been pre-populated from your earlier image upload. You can review and edit these details as needed.
+          </Typography>
+        </Box>
+      )}
+      
       {teeBoxes.length === 0 ? (
         <Typography color="error">
           Please add at least one tee box before entering scorecard data.
         </Typography>
       ) : (
         <>
-          {/* Responsive Grid for Front 9 and Back 9 */}
-          <Grid container spacing={2}>
-            <Grid item xs={12} md={6}>
+          {/* Responsive layout for Front 9 and Back 9 using Box instead of Grid */}
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
+            <Box sx={{ flex: 1 }}>
               {renderHoleGroup(0, 9, "Front Nine")}
-            </Grid>
-            <Grid item xs={12} md={6}>
+            </Box>
+            <Box sx={{ flex: 1 }}>
               {renderHoleGroup(9, 18, "Back Nine")}
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
           
-          <Grid container spacing={2} sx={{ mb: 3, mt: 2 }}>
-            <Grid item xs={12} md={6}>
+          <Box sx={{ mt: 2, mb: 3 }}>
+            <Box sx={{ maxWidth: { xs: '100%', md: '50%' } }}>
               <Box sx={{ p: 2, border: `1px solid ${theme.palette.divider}`, borderRadius: 1 }}>
                 <Typography variant="subtitle1" gutterBottom>
                   Upload Scorecard Image
@@ -264,40 +283,49 @@ const ScorecardStep: React.FC<ScorecardStepProps> = ({
                   isMobile={isMobile}
                 />
               </Box>
-            </Grid>
-          </Grid>
+            </Box>
+          </Box>
           
           <Divider sx={{ my: 3 }} />
           
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3 }}>
-            <Button
-              startIcon={<ArrowBackIcon />}
-              onClick={handleBack}
-              disabled={loading}
-            >
-              Previous
-            </Button>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 3 }}>
+            {/* Left side - Status message */}
+            <Box>
+              {unsavedChanges && (
+                <Typography variant="body2" color="text.secondary">
+                  You have unsaved changes
+                </Typography>
+              )}
+            </Box>
             
-            <Button
-              variant="contained"
-              color="primary"
-              startIcon={<SaveIcon />}
-              onClick={handleSave}
-              disabled={loading || !unsavedChanges}
-            >
-              Save Scorecard
-            </Button>
-            
-            {handleSubmit && (
-              <Button
-                variant="contained"
-                color="primary"
-                onClick={handleSubmit}
-                disabled={loading || unsavedChanges}
-              >
-                Complete Course Setup
-              </Button>
-            )}
+            {/* Right side - Buttons */}
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              {/* Save Changes button - only visible when there are unsaved changes */}
+              {unsavedChanges && (
+                <Button
+                  variant="outlined"
+                  color="primary"
+                  startIcon={<SaveIcon />}
+                  onClick={handleSave}
+                  disabled={loading}
+                >
+                  Save Changes
+                </Button>
+              )}
+
+              {/* Save and Return button */}
+              {handleSubmit && (
+                <Button
+                  variant="contained"
+                  color="primary"
+                  onClick={handleSubmit}
+                  disabled={loading || unsavedChanges}
+                  sx={{ minWidth: '200px' }}
+                >
+                  Save and Return to List
+                </Button>
+              )}
+            </Box>
           </Box>
           
           {/* Notes Modal */}

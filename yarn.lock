@@ -1716,6 +1716,11 @@ formdata-node@^4.3.2:
     node-domexception "1.0.0"
     web-streams-polyfill "4.0.0-beta.3"
 
+formdata-node@^6.0.3:
+  version "6.0.3"
+  resolved "https://registry.npmjs.org/formdata-node/-/formdata-node-6.0.3.tgz"
+  integrity sha512-8e1++BCiTzUno9v5IZ2J6bv4RU+3UKDmqWUQD0MIMVCd9AdhWkO1gw57oo1mNEX1dMq2EGI+FbWz4B92pscSQg==
+
 framer-motion@^12.7.3:
   version "12.7.3"
   resolved "https://registry.npmjs.org/framer-motion/-/framer-motion-12.7.3.tgz"

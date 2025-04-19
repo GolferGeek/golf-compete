@@ -7,7 +7,7 @@ import {
   CircularProgress,
   Alert
 } from '@mui/material';
-import { supabaseClient } from '@/lib/auth';
+import { CoursesApiClient } from '@/lib/apiClient/courses';
 import ScorecardEditor, { TeeSet, HoleData } from './scorecard/ScorecardEditor';
 
 interface CourseHoleDetailsProps {
@@ -25,54 +25,46 @@ export default function CourseHoleDetails({ courseId }: CourseHoleDetailsProps) 
       setLoading(true);
       setError(null);
 
-      // Fetch course information
-      const { data: courseData, error: courseError } = await supabaseClient
-        .from('courses')
-        .select('*')
-        .eq('id', courseId)
-        .single();
+      // Fetch course information using API client
+      const courseResponse = await CoursesApiClient.getCourseById(courseId);
 
-      if (courseError) throw courseError;
+      if (!courseResponse.success || !courseResponse.data) {
+        throw new Error('Failed to fetch course data');
+      }
 
-      // Fetch tee sets
-      const { data: teeSetData, error: teeSetError } = await supabaseClient
-        .from('tee_sets')
-        .select('*')
-        .eq('course_id', courseId)
-        .order('name');
-
-      if (teeSetError) throw teeSetError;
+      // Fetch tee sets using API client
+      const teeSetsResponse = await CoursesApiClient.getCourseTees(courseId);
+      
+      if (!teeSetsResponse.success) {
+        throw new Error('Failed to fetch tee sets');
+      }
       
       // Transform tee sets to match our component's expected format
-      const formattedTeeSets = teeSetData?.map(teeSet => ({
+      const formattedTeeSets = teeSetsResponse.data?.tees?.map(teeSet => ({
         id: teeSet.id,
-        name: teeSet.name,
-        color: teeSet.color,
-        rating: teeSet.rating,
-        slope: teeSet.slope
+        name: teeSet.teeName,
+        color: teeSet.gender, // Use gender as color as a fallback
+        rating: teeSet.courseRating,
+        slope: teeSet.slopeRating
       })) || [];
       
       setTeeSets(formattedTeeSets);
 
-      // Fetch holes
-      const { data: holeData, error: holeError } = await supabaseClient
-        .from('holes')
-        .select('*')
-        .eq('course_id', courseId)
-        .order('hole_number');
-
-      if (holeError) throw holeError;
+      // Fetch holes using API client
+      const holesResponse = await CoursesApiClient.getCourseHoles(courseId);
+      
+      if (!holesResponse.success) {
+        throw new Error('Failed to fetch course holes');
+      }
       
       // Transform the hole data to match our component's expected format
-      const formattedHoles = holeData?.map(hole => {
-        return {
-          id: hole.id,
-          number: hole.hole_number,
-          par: hole.par,
-          handicapIndex: hole.handicap_index,
-          notes: hole.notes
-        };
-      }) || [];
+      const formattedHoles = holesResponse.data?.holes?.map(hole => ({
+        id: hole.id,
+        number: hole.holeNumber,
+        par: hole.par,
+        handicapIndex: hole.handicapIndex,
+        notes: hole.notes || ''
+      })) || [];
       
       setHoles(formattedHoles);
     } catch (err) {
@@ -89,16 +81,22 @@ export default function CourseHoleDetails({ courseId }: CourseHoleDetailsProps) 
 
   const handleSaveScorecard = async (updatedHoles: HoleData[]) => {
     try {
-      // Update hole data
+      // Update hole data using API client
       for (const hole of updatedHoles) {
-        await supabaseClient
-          .from('holes')
-          .update({
+        const originalHole = holes.find(h => h.id === hole.id);
+        
+        // Only update if something changed
+        if (originalHole && (
+          originalHole.par !== hole.par || 
+          originalHole.handicapIndex !== hole.handicapIndex || 
+          originalHole.notes !== hole.notes
+        )) {
+          await CoursesApiClient.updateCourseHole(courseId, hole.id, {
             par: hole.par,
-            handicap_index: hole.handicapIndex,
-            notes: hole.notes
-          })
-          .eq('id', hole.id);
+            handicapIndex: hole.handicapIndex,
+            notes: hole.notes || ''
+          });
+        }
       }
       
       // Refresh data

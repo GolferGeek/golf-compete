@@ -2,11 +2,10 @@
 
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { getBrowserClient } from '@/lib/supabase-browser';
-import { createClient } from '@supabase/supabase-js';
 import { useAuth } from './AuthContext';
 import { User } from '@supabase/supabase-js';
-import { Profile } from './AuthContext';
+import { type AuthProfile } from '@/services/internal/AuthService';
+import { CoursesApiClient } from '@/lib/apiClient/courses';
 
 // Define types
 export interface Course {
@@ -63,7 +62,7 @@ interface CourseCreationContextType {
   
   // Auth context
   user: User | null;
-  profile: Profile | null;
+  profile: AuthProfile | null;
 }
 
 const CourseCreationContext = createContext<CourseCreationContextType | undefined>(undefined);
@@ -71,16 +70,6 @@ const CourseCreationContext = createContext<CourseCreationContextType | undefine
 export function CourseCreationProvider({ children }: { children: ReactNode }) {
   // Get auth context
   const { user, profile } = useAuth();
-  
-  // Initialize Supabase client
-  const [supabase, setSupabase] = useState(getBrowserClient());
-  
-  useEffect(() => {
-    // Ensure supabase client is initialized
-    if (!supabase) {
-      setSupabase(getBrowserClient());
-    }
-  }, [supabase]);
   
   // Step management
   const [currentStep, setCurrentStep] = useState(0);
@@ -129,153 +118,126 @@ export function CourseCreationProvider({ children }: { children: ReactNode }) {
   
   // Submit course to database
   const submitCourse = async () => {
-    if (!course.name || !course.location || teeSets.length === 0 || holes.length === 0) {
-      setSubmitError('Missing required course information');
-      return;
-    }
-    
     setIsSubmitting(true);
     setSubmitError(null);
-    
     let courseId: string | null = null;
     
     try {
-      console.log('Starting course submission process...');
-      
-      // Check for active session
-      if (!supabase) {
-        throw new Error('Supabase client not initialized');
-      }
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        console.error('No active session found');
+      if (!user) {
+        console.error('No active user found');
         setSubmitError('Authentication error. Please sign in again and retry.');
         setIsSubmitting(false);
         return;
       }
       
-      console.log('Active session confirmed, user ID:', session.user.id);
-      
-      // We no longer need to upload and store the scorecard image
-      // Just calculate course par and continue with course creation
+      console.log('Active user confirmed, user ID:', user.id);
       
       // Calculate course par
       const coursePar = holes.reduce((total, hole) => total + hole.par, 0);
       console.log('Calculated course par:', coursePar);
       
-      // Insert course
-      console.log('Inserting course record...');
-      if (!supabase) {
-        throw new Error('Supabase client not initialized');
-      }
-      const { data: insertedCourse, error: courseError } = await supabase
-        .from('courses')
-        .insert({
-          name: course.name,
-          location: course.location,
-          phone_number: course.phoneNumber,
-          website: course.website,
-          // Convert amenities to a string if it's an array
-          amenities: Array.isArray(course.amenities) ? course.amenities.join(',') : course.amenities,
-          holes: holes.length,
-          par: coursePar
-        })
-        .select()
-        .single();
+      // Create course using API client
+      console.log('Creating course via API...');
       
-      if (courseError) {
-        console.error('Course insertion error:', courseError);
-        setSubmitError(`Failed to insert course: ${courseError.message}`);
+      const courseResponse = await CoursesApiClient.createCourse({
+        name: course.name,
+        address: course.location, // Mapping location to address
+        phone_number: course.phoneNumber,
+        website: course.website,
+        amenities: Array.isArray(course.amenities) ? course.amenities.join(',') : course.amenities,
+        // Adding these fields as they're expected by the API
+        city: '',
+        state: '',
+        country: 'USA'
+      });
+      
+      if (!courseResponse.success || !courseResponse.data) {
+        console.error('Course creation error:', courseResponse.error);
+        setSubmitError(`Failed to create course: ${courseResponse.error?.message || 'Unknown error'}`);
+        setIsSubmitting(false);
         return;
       }
       
-      console.log('Course inserted successfully:', insertedCourse);
+      console.log('Course created successfully:', courseResponse.data);
       
       // Store the course ID for later use
-      courseId = insertedCourse.id;
+      courseId = courseResponse.data.id;
       
-      // Insert tee sets
-      console.log('Inserting tee sets...');
-      const teeSetPromises = teeSets.map(async (teeSet, index) => {
-        console.log(`Inserting tee set ${index + 1}:`, teeSet);
-        try {
-          if (!supabase) {
-            throw new Error('Supabase client not initialized');
-          }
-          const { data: insertedTeeSet, error: teeSetError } = await supabase
-            .from('tee_sets')
-            .insert({
-              course_id: courseId,
-              name: teeSet.name,
-              color: teeSet.color,
-              rating: teeSet.rating,
-              slope: teeSet.slope,
-              par: coursePar, // Use the course par for the tee set par
-              distance: 0 // Add default distance to satisfy not-null constraint if it exists
-            })
-            .select()
-            .single();
-          
-          if (teeSetError) {
-            console.error(`Error inserting tee set ${index + 1}:`, teeSetError);
-            throw teeSetError;
-          }
-          
-          console.log(`Tee set ${index + 1} inserted successfully:`, insertedTeeSet);
-          return insertedTeeSet;
-        } catch (teeSetErr) {
-          console.error(`Error processing tee set ${index + 1}:`, teeSetErr);
-          throw teeSetErr;
+      // Convert tee sets to API format
+      const teePayloads = teeSets.map(teeSet => ({
+        teeName: teeSet.name,
+        gender: 'Unisex' as 'Male' | 'Female' | 'Unisex', // Default to Unisex
+        par: coursePar,
+        courseRating: teeSet.rating,
+        slopeRating: teeSet.slope,
+        yardage: 0 // Default value
+      }));
+      
+      // Create tee sets using bulk API
+      console.log('Creating tee sets via API...');
+      const teeSetsResponse = await CoursesApiClient.bulkUpdateCourseTees(courseId, teePayloads);
+      
+      if (!teeSetsResponse.success) {
+        console.error('Error creating tee sets:', teeSetsResponse.error);
+        throw new Error(`Failed to create tee sets: ${teeSetsResponse.error?.message || 'Unknown error'}`);
+      }
+      
+      console.log('Tee sets created successfully:', teeSetsResponse.data?.tees);
+      
+      // Convert holes to API format and create them
+      const holePayloads = holes.map(hole => ({
+        holeNumber: hole.number,
+        par: hole.par,
+        handicapIndex: hole.handicapIndex,
+        notes: hole.notes || ''
+      }));
+      
+      console.log('Creating holes via API...');
+      const holesResponse = await CoursesApiClient.bulkUpdateCourseHoles(courseId, holePayloads);
+      
+      if (!holesResponse.success) {
+        console.error('Error creating holes:', holesResponse.error);
+        throw new Error(`Failed to create holes: ${holesResponse.error?.message || 'Unknown error'}`);
+      }
+      
+      console.log('Holes created successfully:', holesResponse.data?.holes);
+      
+      // Handle image uploads if present
+      if (teeSetImage) {
+        console.log('Uploading tee set image...');
+        const formData = new FormData();
+        formData.append('file', teeSetImage);
+        formData.append('courseId', courseId);
+        formData.append('type', 'tee_set');
+        
+        const teeImageResponse = await fetch('/api/courses/upload-image', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!teeImageResponse.ok) {
+          console.error('Failed to upload tee set image');
         }
-      });
+      }
       
-      // Wait for all tee sets to be inserted
-      const insertedTeeSets = await Promise.all(teeSetPromises);
-      console.log('All tee sets inserted successfully:', insertedTeeSets);
-      
-      // Insert holes and distances
-      console.log('Inserting holes...');
-      const holePromises = holes.map(async (hole, index) => {
-        console.log(`Inserting hole ${hole.number}:`, hole);
-        try {
-          // Create a base hole record
-          if (!supabase) {
-            throw new Error('Supabase client not initialized');
-          }
-          const { data: insertedHole, error: holeError } = await supabase
-            .from('holes')
-            .insert({
-              course_id: courseId,
-              hole_number: hole.number,
-              par: hole.par,
-              handicap_index: hole.handicapIndex,
-              notes: hole.notes || null
-            })
-            .select()
-            .single();
-          
-          if (holeError) {
-            console.error(`Error inserting hole ${hole.number}:`, holeError);
-            throw holeError;
-          }
-          
-          console.log(`Hole ${hole.number} inserted successfully:`, insertedHole);
-          
-          return {
-            hole: insertedHole
-          };
-        } catch (holeErr) {
-          console.error(`Error processing hole ${hole.number}:`, holeErr);
-          throw holeErr;
+      if (scorecardImage) {
+        console.log('Uploading scorecard image...');
+        const formData = new FormData();
+        formData.append('file', scorecardImage);
+        formData.append('courseId', courseId);
+        formData.append('type', 'scorecard');
+        
+        const scorecardImageResponse = await fetch('/api/courses/upload-image', {
+          method: 'POST',
+          body: formData
+        });
+        
+        if (!scorecardImageResponse.ok) {
+          console.error('Failed to upload scorecard image');
         }
-      });
+      }
       
-      // Wait for all holes to be inserted
-      const insertedHoles = await Promise.all(holePromises);
-      console.log('All holes inserted successfully:', insertedHoles);
-      
-      // Everything was successful
-      console.log('Course creation completed successfully!');
+      // Success! Reset form and move to success state
       setCurrentStep(0);
       setCourse({
         name: '',
@@ -290,26 +252,9 @@ export function CourseCreationProvider({ children }: { children: ReactNode }) {
       setTeeSetImageState(null);
       setScorecardImageState(null);
       
-      // Show success message
-      alert('Course created successfully!');
-      
-    } catch (detailsError) {
-      console.error('Error inserting course details:', detailsError);
-      setSubmitError(`Failed to insert course details: ${detailsError instanceof Error ? detailsError.message : String(detailsError)}`);
-      
-      // Clean up any partial data if we have a course ID
-      if (courseId) {
-        try {
-          console.log('Attempting to clean up partial course data...');
-          if (!supabase) {
-            throw new Error('Supabase client not initialized');
-          }
-          await supabase.from('courses').delete().eq('id', courseId);
-          console.log('Partial course data cleaned up');
-        } catch (cleanupError) {
-          console.error('Error cleaning up partial course data:', cleanupError);
-        }
-      }
+    } catch (error) {
+      console.error('Error in course creation:', error);
+      setSubmitError(error instanceof Error ? error.message : 'An unexpected error occurred');
     } finally {
       setIsSubmitting(false);
     }
@@ -333,7 +278,7 @@ export function CourseCreationProvider({ children }: { children: ReactNode }) {
     isSubmitting,
     submitError,
     user,
-    profile,
+    profile
   };
   
   return (

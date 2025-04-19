@@ -25,6 +25,7 @@ import { createEvent, getEventById, updateEvent } from '@/lib/events';
 import { Event, EventFormat, ScoringType, EventStatus } from '@/types/events';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase, refreshSchemaCache } from '@/lib/supabase';
+import { CoursesApiClient } from '@/lib/apiClient/courses';
 
 interface Course {
   id: string;
@@ -69,52 +70,22 @@ export default function EventForm({ eventId, seriesId }: EventFormProps) {
         // Try to refresh the schema cache first
         await refreshSchemaCache();
         
-        // Load only active courses
-        const { data, error } = await supabase
-          .from('courses')
-          .select('id, name, location, is_active')
-          .eq('is_active', true);
+        // Load courses using the API client instead of direct Supabase call
+        const coursesResponse = await CoursesApiClient.getCourses();
         
-        if (error) {
-          console.error('Supabase error loading courses:', error);
-          
-          // Handle missing is_active column
-          if (error.code === '42703' && error.message.includes('is_active')) {
-            console.warn('is_active column not found, loading all courses as fallback');
-            
-            // Try again without filtering by is_active
-            const { data: fallbackData, error: fallbackError } = await supabase
-              .from('courses')
-              .select('id, name, location');
-              
-            if (fallbackError) {
-              console.error('Error in fallback course fetch:', fallbackError);
-              throw fallbackError;
-            }
-            
-            // Treat all courses as active in the fallback scenario
-            const typedData = (fallbackData || []).map(item => ({
-              id: String(item.id),
-              name: String(item.name),
-              location: String(item.location),
-              isActive: true
-            }));
-            
-            setCourses(typedData);
-            return;
-          }
-          
-          throw error;
+        if (!coursesResponse.success) {
+          console.error('Error loading courses:', coursesResponse.error);
+          throw new Error(coursesResponse.error?.message || 'Failed to fetch courses');
         }
         
-        console.log('Active courses data received:', data);
+        console.log('Active courses data received:', coursesResponse.data);
         
         // Type cast the data to Course[]
-        const typedData = (data || []).map(item => ({
+        const typedData = (coursesResponse.data?.courses || []).map(item => ({
           id: String(item.id),
           name: String(item.name),
-          location: String(item.location),
-          isActive: Boolean(item.is_active)
+          location: item.city && item.state ? `${item.city}, ${item.state}` : '',
+          isActive: true // Default to true as API may not have this field
         }));
         
         setCourses(typedData);

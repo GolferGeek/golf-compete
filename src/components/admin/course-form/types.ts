@@ -1,8 +1,10 @@
 // Course form data type
 export interface CourseFormData {
   name: string;
+  address: string;
   city: string;
   state: string;
+  country: string;
   holes: number;
   par: number;
   amenities: string;
@@ -31,6 +33,34 @@ export interface Hole {
   notes?: string;
 }
 
+// Complete extracted course data interface
+export interface ExtractedCourseData {
+  courseInfo?: {
+    name?: string;
+    location?: string;
+    city?: string;
+    state?: string;
+    phoneNumber?: string;
+    email?: string;
+    website?: string;
+    par?: number;
+    holes?: number;
+  };
+  teeSets?: {
+    name: string;
+    color: string;
+    rating: number;
+    slope: number;
+    length?: number;
+  }[];
+  holes?: {
+    number: number;
+    par: number;
+    handicapIndex: number;
+    notes?: string;
+  }[];
+}
+
 // Image extraction types
 export type ExtractionStep = 'course' | 'teeBoxes' | 'scorecard' | null;
 
@@ -48,6 +78,7 @@ export interface CourseInfoStepProps {
   router?: any;
   courseId?: string;
   isMobile?: boolean;
+  onFullDataExtracted?: (data: ExtractedCourseData) => void;
 }
 
 // Tee boxes step props
@@ -66,6 +97,7 @@ export interface TeeBoxesStepProps {
   extractionStep: ExtractionStep;
   setExtractionStep: React.Dispatch<React.SetStateAction<ExtractionStep>>;
   isMobile?: boolean;
+  extractedData?: ExtractedCourseData;
 }
 
 // Scorecard step props
@@ -83,6 +115,7 @@ export interface ScorecardStepProps {
   extractionStep: ExtractionStep;
   setExtractionStep: React.Dispatch<React.SetStateAction<ExtractionStep>>;
   isMobile?: boolean;
+  extractedData?: ExtractedCourseData;
 }
 
 // Image uploader props
@@ -94,6 +127,7 @@ export interface ImageUploaderProps {
   setExtractionStep: React.Dispatch<React.SetStateAction<ExtractionStep>>;
   onDataExtracted: (data: any) => void;
   isMobile?: boolean;
+  onFullDataExtracted?: (data: ExtractedCourseData) => void;
 }
 
 // Tee box table props

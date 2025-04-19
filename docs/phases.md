@@ -275,6 +275,8 @@ Goal: Polish, optimize, and set up advanced features (plus any backlog items). P
 	1.	UX/UI Polish
 	•	Enhance design with Material UI theming.
 	•	Improve dashboards, transitions, error states, etc.
+	•	Standardize form state management across components (convert to single formData pattern).
+	•	Resolve Material UI Grid component typing issues.
 	2.	Performance & Security
 	•	Audit database queries, indexes, and Supabase usage.
 	•	Review secure routes, role checks, rate limiting, etc.

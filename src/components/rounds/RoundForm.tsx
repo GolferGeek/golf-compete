@@ -30,6 +30,7 @@ import {
 import { createRound, getEventRounds } from '@/services/roundService';
 import { format } from 'date-fns';
 import { getEventById } from '@/lib/events';
+import { CoursesApiClient } from '@/lib/apiClient/courses';
 
 interface RoundFormProps {
   eventId?: string;
@@ -125,6 +126,7 @@ export default function RoundForm({ eventId, initialCourseId, initialTeeSetId, i
         }
 
         // Load bags for the current user
+        // TODO: Replace with BagsApiClient once implemented
         const { data: bagsData, error: bagsError } = await supabase
           .from('bags')
           .select('id, name, description')
@@ -143,30 +145,53 @@ export default function RoundForm({ eventId, initialCourseId, initialTeeSetId, i
           if (eventData) {
             setEvent(eventData);
 
-            // Load course data
-            const { data: courseData } = await supabase
-              .from('courses')
-              .select('id, name, city, state, par, holes, is_active')
-              .eq('id', eventData.course_id)
-              .single();
-
-            console.log('Loaded Course Data:', courseData);
-            if (courseData) {
-              setCourses([courseData as Course]);
-            }
-
-            // Load tee sets for the course
-            const { data: teeSetsData } = await supabase
-              .from('tee_sets')
-              .select('id, name, color, rating, slope')
-              .eq('course_id', eventData.course_id)
-              .order('name');
-
-            console.log('Loaded Tee Sets:', teeSetsData);
-            if (teeSetsData) {
-              setTeeSets(teeSetsData as TeeSet[]);
-            }
+            // Load course data using the API client
+            const courseResponse = await CoursesApiClient.getCourseById(eventData.course_id, true);
             
+            console.log('Loaded Course Data:', courseResponse);
+            if (courseResponse.success && courseResponse.data) {
+              // Map the course data to match the expected structure
+              const courseData = {
+                id: courseResponse.data.id,
+                name: courseResponse.data.name,
+                city: courseResponse.data.city || '',
+                state: courseResponse.data.state || '',
+                par: 72, // Default values as they might not be in API response
+                holes: 18, // Default values as they might not be in API response
+                is_active: true
+              };
+              setCourses([courseData as Course]);
+              
+              // Set tee sets from the course response if available
+              if (courseResponse.data.tees && courseResponse.data.tees.length > 0) {
+                // Map to match the expected structure
+                const teeSetData = courseResponse.data.tees.map(tee => ({
+                  id: tee.id,
+                  name: tee.teeName,
+                  color: '', // This might be missing in API, default to empty
+                  rating: tee.courseRating,
+                  slope: tee.slopeRating
+                }));
+                setTeeSets(teeSetData as TeeSet[]);
+              } else {
+                // Fallback to fetching tee sets using the API client
+                const teeSetsResponse = await CoursesApiClient.getCourseTees(eventData.course_id);
+                
+                if (teeSetsResponse.success && teeSetsResponse.data?.tees) {
+                  const mappedTeeSets = teeSetsResponse.data.tees.map(tee => ({
+                    id: tee.id,
+                    name: tee.teeName,
+                    color: '', // This might be missing in API, default to empty
+                    rating: tee.courseRating,
+                    slope: tee.slopeRating
+                  }));
+                  setTeeSets(mappedTeeSets as TeeSet[]);
+                } else {
+                  console.error('Failed to load tee sets from API');
+                }
+              }
+            }
+
             const updatedFormData = {
               ...formData,
               event_id: eventId,
@@ -181,15 +206,25 @@ export default function RoundForm({ eventId, initialCourseId, initialTeeSetId, i
             setEventRounds(eventRoundsData);
           }
         } else {
-          // For solo rounds, load courses
-          const { data: coursesData, error: coursesError } = await supabase
-            .from('courses')
-            .select('id, name, city, state, par, holes, is_active')
-            .eq('is_active', true)
-            .order('name', { ascending: true });
+          // For solo rounds, load courses using the API client
+          const coursesResponse = await CoursesApiClient.getCourses();
           
-          if (coursesError) throw new Error('Failed to load courses');
-          setCourses(coursesData as Course[] || []);
+          if (!coursesResponse.success) {
+            throw new Error('Failed to load courses');
+          }
+          
+          // Map the courses to match the expected structure
+          const mappedCourses = coursesResponse.data?.courses.map(course => ({
+            id: course.id,
+            name: course.name,
+            city: course.city || '',
+            state: course.state || '',
+            par: 72, // Default value
+            holes: 18, // Default value
+            is_active: true
+          })) || [];
+          
+          setCourses(mappedCourses as Course[]);
         }
 
         setLoading(false);
@@ -208,18 +243,24 @@ export default function RoundForm({ eventId, initialCourseId, initialTeeSetId, i
     const loadTeeSets = async () => {
       // Only load tee sets for solo rounds when course changes
       if (!eventId && formData.course_id) {
-        const { data, error: teeSetsError } = await supabase
-          .from('tee_sets')
-          .select('id, name, color, rating, slope')
-          .eq('course_id', formData.course_id)
-          .order('name');
+        // Use API client to fetch tee sets
+        const teeSetsResponse = await CoursesApiClient.getCourseTees(formData.course_id);
         
-        if (teeSetsError) {
+        if (!teeSetsResponse.success) {
           setError('Failed to load tee sets');
           return;
         }
 
-        setTeeSets(data as TeeSet[] || []);
+        // Map the tee sets to match the expected structure
+        const mappedTeeSets = teeSetsResponse.data?.tees.map(tee => ({
+          id: tee.id,
+          name: tee.teeName,
+          color: '', // This might be missing in API, default to empty
+          rating: tee.courseRating,
+          slope: tee.slopeRating
+        })) || [];
+        
+        setTeeSets(mappedTeeSets as TeeSet[]);
       }
     };
 

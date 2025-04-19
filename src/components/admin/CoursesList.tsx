@@ -38,6 +38,7 @@ import { useRouter } from 'next/navigation';
 import LocationOnIcon from '@mui/icons-material/LocationOn';
 import GolfCourseIcon from '@mui/icons-material/GolfCourse';
 import FlagIcon from '@mui/icons-material/Flag';
+import { CoursesApiClient } from '@/lib/apiClient/courses';
 
 export default function CoursesList() {
   const [courses, setCourses] = useState<Course[]>([]);
@@ -66,57 +67,53 @@ export default function CoursesList() {
           return;
         }
         
-        // Try to refresh the schema cache first
-        await refreshSchemaCache();
+        // Fetch courses using the API client
+        const response = await CoursesApiClient.getCourses();
         
-        const { data, error } = await supabase
-          .from('courses')
-          .select('*');
+        console.log('Raw API response:', response);
         
-        if (error) {
-          console.error('Error fetching courses:', error);
+        if (!response.success) {
+          console.error('Error fetching courses:', response.error);
           
-          // Handle authentication errors
-          if (error.code === 'PGRST301' || error.code === '401') {
+          if (response.error?.code === 'UNAUTHORIZED') {
             setError('Your session has expired. Please log in again.');
-          } else if (error.code === '42703' && error.message.includes('is_active')) {
-            // Handle missing is_active column
-            console.warn('is_active column not found, trying to fetch without it');
-            
-            // Try again without relying on is_active
-            const { data: fallbackData, error: fallbackError } = await supabase
-              .from('courses')
-              .select('id, name, location, holes, par, amenities, website, phone_number');
-              
-            if (fallbackError) {
-              console.error('Error in fallback fetch:', fallbackError);
-              setError('Failed to load courses. Please try again later.');
-              throw fallbackError;
-            }
-            
-            // Add is_active = true to all courses as a fallback
-            if (fallbackData) {
-              const coursesWithActive = fallbackData.map(course => ({
-                ...course,
-                is_active: true
-              }));
-              setCourses(coursesWithActive as unknown as Course[]);
-              setFilteredCourses(coursesWithActive as unknown as Course[]);
-              setLoading(false);
-              return;
-            }
           } else {
             setError('Failed to load courses. Please try again later.');
           }
           
-          throw error;
+          throw new Error(response.error?.message || 'Failed to fetch courses');
         }
         
         // Safely handle the data
-        if (data) {
-          // Convert to unknown first, then to Course[] to satisfy TypeScript
-          setCourses(data as unknown as Course[]);
-          setFilteredCourses(data as unknown as Course[]);
+        console.log('Response data:', response.data);
+        console.log('Courses from response:', response.data?.courses);
+        
+        if (response.data?.courses) {
+          // Map the courses to match the expected structure
+          const mappedCourses = response.data.courses.map(course => {
+            console.log('Processing course:', course);
+            return {
+              id: course.id,
+              name: course.name,
+              city: course.city || '',
+              state: course.state || '',
+              website: course.website || '',
+              phone_number: course.phoneNumber || '',
+              is_active: course.isActive === false ? false : true,
+              par: course.par || 72,
+              holes: course.holes || 18,
+              tees: [],
+              amenities: course.amenities ? 
+                (typeof course.amenities === 'string' ? 
+                  (course.amenities.startsWith('[') ? JSON.parse(course.amenities) : [course.amenities]) 
+                  : (Array.isArray(course.amenities) ? course.amenities : []))
+                : []
+            };
+          }) as Course[];
+          
+          console.log('Mapped courses:', mappedCourses);
+          setCourses(mappedCourses);
+          setFilteredCourses(mappedCourses);
         } else {
           setCourses([]);
           setFilteredCourses([]);
@@ -180,51 +177,16 @@ export default function CoursesList() {
       try {
         setDeleteLoading(id);
         
-        // First, check if there are any tee sets associated with this course
-        const { data: teeSets, error: teeSetError } = await supabase
-          .from('tee_sets')
-          .select('id')
-          .eq('course_id', id);
-          
-        if (teeSetError) {
-          console.error('Error checking for tee sets:', teeSetError);
-          alert('Failed to check for associated tee sets. Please try again.');
-          setDeleteLoading(null);
-          return;
-        }
+        // Delete course using the API client
+        const response = await CoursesApiClient.deleteCourse(id);
         
-        // If there are tee sets, delete them first
-        if (teeSets && teeSets.length > 0) {
-          console.log(`Deleting ${teeSets.length} tee sets for course ${id}`);
+        if (!response.success) {
+          console.error('Error deleting course:', response.error);
           
-          const { error: deleteTeeSetsError } = await supabase
-            .from('tee_sets')
-            .delete()
-            .eq('course_id', id);
-            
-          if (deleteTeeSetsError) {
-            console.error('Error deleting tee sets:', deleteTeeSetsError);
-            alert('Failed to delete associated tee sets. Please try again.');
-            setDeleteLoading(null);
-            return;
-          }
-          
-          console.log('Successfully deleted associated tee sets');
-        }
-        
-        // Now delete the course
-        const { error } = await supabase
-          .from('courses')
-          .delete()
-          .eq('id', id);
-        
-        if (error) {
-          // Handle authentication errors
-          if (error.code === 'PGRST301' || error.code === '401') {
+          if (response.error?.code === 'UNAUTHORIZED') {
             setError('Your session has expired. Please log in again.');
           } else {
-            console.error('Error deleting course:', error);
-            alert(`Failed to delete course: ${error.message}`);
+            alert(`Failed to delete course: ${response.error?.message || 'Unknown error'}`);
           }
           
           setDeleteLoading(null);
@@ -333,9 +295,9 @@ export default function CoursesList() {
             <Typography>No courses match your search. Try a different term.</Typography>
           </Box>
         ) : (
-          <Grid container spacing={2}>
+          <Box sx={{ width: '100%' }}>
             {filteredCourses.map((course) => (
-              <Grid item xs={12} key={course.id}>
+              <Box key={course.id} sx={{ width: '100%', mb: 1 }}>
                 <Card sx={{ 
                   width: '100%',
                   position: 'relative',
@@ -343,54 +305,38 @@ export default function CoursesList() {
                     boxShadow: 3
                   }
                 }}>
-                  <CardContent sx={{ p: 2, '&:last-child': { pb: 2 } }}>
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <CardContent sx={{ p: 1, '&:last-child': { pb: 1 }, width: '100%' }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       {/* Course Information */}
                       <Box sx={{ flex: 1, pr: 1 }}>
-                        <Box sx={{ mb: 1 }}>
-                          <Typography variant="h6" component="div" sx={{ fontWeight: 500 }}>
-                            {course.name}
-                          </Typography>
-                          <Chip 
-                            label={course.is_active ? 'Active' : 'Inactive'} 
-                            color={course.is_active ? 'success' : 'default'} 
-                            size="small"
-                            sx={{ mt: 0.5 }}
-                          />
-                        </Box>
+                        <Typography variant="subtitle1" component="div" sx={{ fontWeight: 500 }}>
+                          {course.name}
+                        </Typography>
                         
-                        <Stack spacing={0.5} sx={{ mb: 0 }}>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <LocationOnIcon fontSize="small" color="action" />
-                            <Typography variant="body2" color="text.secondary" noWrap>
-                              {course.city && course.state ? `${course.city}, ${course.state}` : 'No location specified'}
-                            </Typography>
-                          </Box>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <GolfCourseIcon fontSize="small" color="action" />
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 0.5 }}>
+                          {course.city && course.state && (
+                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                              <LocationOnIcon fontSize="small" color="action" sx={{ mr: 0.5 }} />
+                              <Typography variant="body2" color="text.secondary" noWrap>
+                                {course.city}, {course.state}
+                              </Typography>
+                            </Box>
+                          )}
+                          
+                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                            <GolfCourseIcon fontSize="small" color="action" sx={{ mr: 0.5 }} />
                             <Typography variant="body2" color="text.secondary">
-                              {course.holes || '18'} Holes
+                              {course.holes || '18'} Holes • Par {course.par || '72'}
                             </Typography>
                           </Box>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <FlagIcon fontSize="small" color="action" />
-                            <Typography variant="body2" color="text.secondary">
-                              Par {course.par || '72'}
-                            </Typography>
-                          </Box>
-                        </Stack>
+                        </Box>
                       </Box>
                       
-                      {/* Action Buttons - Vertical on right side */}
+                      {/* Action Buttons - Horizontal on right side */}
                       <Box sx={{ 
                         display: 'flex', 
-                        flexDirection: 'column', 
-                        justifyContent: 'center',
                         gap: 0.5,
                         ml: 1,
-                        borderLeft: 1,
-                        borderColor: 'divider',
-                        pl: 1
                       }}>
                         <Tooltip title="Edit Course">
                           <IconButton 
@@ -400,7 +346,7 @@ export default function CoursesList() {
                             size="small"
                             color="primary"
                           >
-                            <EditIcon />
+                            <EditIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Delete Course">
@@ -412,9 +358,9 @@ export default function CoursesList() {
                             color="error"
                           >
                             {deleteLoading === course.id ? (
-                              <CircularProgress size={20} />
+                              <CircularProgress size={16} />
                             ) : (
-                              <DeleteIcon />
+                              <DeleteIcon fontSize="small" />
                             )}
                           </IconButton>
                         </Tooltip>
@@ -422,9 +368,9 @@ export default function CoursesList() {
                     </Box>
                   </CardContent>
                 </Card>
-              </Grid>
+              </Box>
             ))}
-          </Grid>
+          </Box>
         )}
       </Box>
     );

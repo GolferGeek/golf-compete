@@ -6,6 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { v4 as uuidv4 } from 'uuid';
 import KeyboardArrowLeft from '@mui/icons-material/KeyboardArrowLeft';
 import KeyboardArrowRight from '@mui/icons-material/KeyboardArrowRight';
+import { CoursesApiClient, CreateCoursePayload, UpdateCoursePayload, CreateCourseTeePayload, CreateHolePayload } from '@/lib/apiClient/courses';
 
 // Import step components
 import CourseInfoStep from './steps/CourseInfoStep';
@@ -15,7 +16,7 @@ import ScorecardEditor, { HoleData } from '../scorecard/ScorecardEditor';
 import ImageUploader from './components/ImageUploader';
 
 // Types
-import { CourseFormData, TeeSet, Hole } from './types';
+import { CourseFormData, TeeSet, Hole, ExtractedCourseData } from './types';
 
 interface CourseFormContainerProps {
   initialCourseId?: string;
@@ -46,13 +47,16 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
   // Course data state
   const [courseId, setCourseId] = useState<string | undefined>(initialCourseId);
   const [formData, setFormData] = useState<CourseFormData>({
     name: '',
+    address: '',
     city: '',
     state: '',
+    country: 'USA',
     holes: 18,
     par: 72,
     amenities: '',
@@ -65,9 +69,15 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
   const [teeBoxes, setTeeBoxes] = useState<TeeSet[]>([]);
   const [holes, setHoles] = useState<Hole[]>([]);
   
+  // Track if data has been edited by user
+  const [teesHaveBeenSaved, setTeesHaveBeenSaved] = useState(false);
+  
   // AI extraction state
   const [processingImage, setProcessingImage] = useState<boolean>(false);
   const [extractionStep, setExtractionStep] = useState<'course' | 'teeBoxes' | 'scorecard' | null>(null);
+  
+  // Store full extracted data from AI
+  const [extractedCourseData, setExtractedCourseData] = useState<ExtractedCourseData | undefined>(undefined);
   
   // Steps definition
   const steps = ['Basic Course Information', 'Tee Boxes & Holes', 'Scorecard Data'];
@@ -146,48 +156,35 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
     try {
       setLoading(true);
       
-      const { data: courseData, error } = await supabase
-        .from('courses')
-        .select('*')
-        .eq('id', courseId)
-        .single();
+      const response = await CoursesApiClient.getCourseById(courseId);
       
-      if (error) {
-        console.error('Error fetching course data:', error);
-        setError(`Failed to load course data: ${error.message}`);
+      if (!response.success || !response.data) {
+        console.error('Error fetching course data:', response.error);
+        setError(`Failed to load course data: ${response.error?.message || 'Unknown error'}`);
         return;
       }
       
+      const courseData = response.data;
+      
       if (courseData) {
-        // Type assertion to ensure TypeScript knows data has the expected properties
-        const courseDataTyped = courseData as {
-          name: string;
-          city: string;
-          state: string;
-          holes: number;
-          par: number;
-          amenities: string | string[] | null;
-          website: string | null;
-          phone_number: string | null;
-          is_active: boolean | null;
-        };
-        
         setFormData({
-          name: courseDataTyped.name || '',
-          city: courseDataTyped.city || '',
-          state: courseDataTyped.state || '',
-          holes: courseDataTyped.holes || 18,
-          par: courseDataTyped.par || 72,
-          amenities: courseDataTyped.amenities ? 
-            (typeof courseDataTyped.amenities === 'string' ? 
-              JSON.parse(courseDataTyped.amenities).join(', ') : 
-              Array.isArray(courseDataTyped.amenities) ? 
-                courseDataTyped.amenities.join(', ') : 
-                String(courseDataTyped.amenities)) : 
+          name: courseData.name || '',
+          address: courseData.address || '',
+          city: courseData.city || '',
+          state: courseData.state || '',
+          country: courseData.country || 'USA',
+          holes: courseData.holes || 18,
+          par: courseData.par || 72,
+          amenities: courseData.amenities ? 
+            (typeof courseData.amenities === 'string' ? 
+              JSON.parse(courseData.amenities).join(', ') : 
+              Array.isArray(courseData.amenities) ? 
+                courseData.amenities.join(', ') : 
+                String(courseData.amenities)) : 
             '',
-          website: courseDataTyped.website || '',
-          phoneNumber: courseDataTyped.phone_number || '',
-          isActive: courseDataTyped.is_active !== null ? Boolean(courseDataTyped.is_active) : true
+          website: courseData.website || '',
+          phoneNumber: courseData.phone_number || '',
+          isActive: courseData.isActive !== null ? Boolean(courseData.isActive) : true
         });
       }
     } catch (err) {
@@ -214,66 +211,58 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
     
     try {
       console.log('Fetching tee sets and holes for course ID:', effectiveCourseId);
-      console.log('Course ID type:', typeof effectiveCourseId);
       
       // Ensure we're using a valid string for the courseId
       const currentCourseId = String(effectiveCourseId);
-      console.log('Using currentCourseId for fetch:', currentCourseId);
+      
+      // Use API clients instead of direct Supabase calls
       
       // Fetch tee sets
-      const { data: teeSetData, error: teeSetError } = await supabase
-        .from('tee_sets')
-        .select('*')
-        .eq('course_id', currentCourseId);
-        
-      if (teeSetError) {
-        console.error('Error fetching tee sets:', teeSetError);
+      const teeResponse = await CoursesApiClient.getCourseTees(currentCourseId);
+      if (!teeResponse.success) {
+        console.error('Error fetching tee sets:', teeResponse.error);
         return;
       }
       
-      console.log('Fetched tee sets:', teeSetData);
+      const teeSetData = teeResponse.data?.tees || [];
+      console.log('Fetched tee sets via API:', teeSetData);
       
       // Fetch holes
-      const { data: holeData, error: holeError } = await supabase
-        .from('holes')
-        .select('*')
-        .eq('course_id', currentCourseId)
-        .order('hole_number');
-        
-      if (holeError) {
-        console.error('Error fetching holes:', holeError);
+      const holesResponse = await CoursesApiClient.getCourseHoles(currentCourseId);
+      if (!holesResponse.success) {
+        console.error('Error fetching holes:', holesResponse.error);
         return;
       }
       
-      console.log('Fetched holes:', holeData);
+      const holeData = holesResponse.data?.holes || [];
+      console.log('Fetched holes via API:', holeData);
       
       // Process tee sets to match our component's expected format
-      const processedTeeSets: TeeSet[] = teeSetData?.map(teeSet => ({
-        id: teeSet.id as string,
-        name: teeSet.name as string,
-        color: teeSet.color as string,
-        rating: teeSet.rating as number || 0,
-        slope: teeSet.slope as number || 0
-      })) || [];
+      const processedTeeSets: TeeSet[] = teeSetData.map(teeSet => ({
+        id: teeSet.id,
+        name: teeSet.teeName,
+        color: teeSet.gender === 'Male' ? 'Blue' : 
+               teeSet.gender === 'Female' ? 'Red' : 'White',
+        rating: teeSet.courseRating,
+        slope: teeSet.slopeRating,
+        length: teeSet.yardage
+      }));
       
       // Process holes to match our component's expected format
-      const processedHoles: Hole[] = holeData?.map(hole => ({
-        id: hole.id as string,
-        number: hole.hole_number as number,
-        par: hole.par as number || 4,
-        handicap_index: hole.handicap_index as number || 0,
-        notes: hole.notes as string || ''
-      })) || [];
+      const processedHoles: Hole[] = holeData.map(hole => ({
+        id: hole.id,
+        number: hole.holeNumber,
+        par: hole.par,
+        handicap_index: hole.handicapIndex,
+        notes: hole.notes || ''
+      }));
       
-      // The tee_set_lengths table has been removed, so we no longer need to fetch distances
-      console.log('Skipping tee set distances fetch as the table has been removed');
+      console.log('Processed tee sets:', processedTeeSets);
+      console.log('Processed holes:', processedHoles);
       
       // Update state with the fetched data
       setTeeBoxes(processedTeeSets);
       setHoles(processedHoles);
-      
-      console.log('Processed tee sets:', processedTeeSets);
-      console.log('Processed holes:', processedHoles);
     } catch (err) {
       console.error('Error fetching tee boxes and holes:', err);
     }
@@ -291,48 +280,57 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
       return false;
     }
     
+    // If we've already saved the tee boxes as part of the initial course save, and they haven't changed,
+    // we can skip saving again but still mark as success
+    if (teesHaveBeenSaved && extractedCourseData?.teeSets) {
+      console.log('Tee boxes already saved during extraction, no need to save again');
+      return true;
+    }
+    
     try {
       setLoading(true);
       
       console.log('Saving tee boxes for course ID:', currentCourseId);
       console.log('Tee boxes to save:', teeBoxes);
       
-      // Delete existing tee boxes first
-      const { error: deleteError } = await supabase
-        .from('tee_sets')
-        .delete()
-        .eq('course_id', currentCourseId);
-      
-      if (deleteError) {
-        console.error('Error deleting existing tee boxes:', deleteError);
-        throw deleteError;
+      if (teeBoxes.length === 0) {
+        console.log('No tee boxes to save');
+        return true;
       }
       
-      // Only insert new tee boxes if there are any
-      if (teeBoxes.length > 0) {
-        // Add course_id to each tee box
-        const teeBoxesWithCourseId = teeBoxes.map(teeBox => ({
-          ...teeBox,
-          course_id: currentCourseId
-        }));
-        
-        console.log('Inserting tee boxes with course ID:', teeBoxesWithCourseId);
-        
-        const { error: insertError } = await supabase
-          .from('tee_sets')
-          .insert(teeBoxesWithCourseId);
-        
-        if (insertError) {
-          console.error('Error inserting tee boxes:', insertError);
-          throw insertError;
-        }
+      // Convert tee boxes to API format and send in bulk
+      const teePayloads = teeBoxes.map(teeBox => ({
+        teeName: teeBox.name,
+        gender: 'Unisex' as 'Male' | 'Female' | 'Unisex', // Default to Unisex with proper type
+        par: formData.par, // Use the course par as the TeeSet type doesn't have par
+        courseRating: teeBox.rating, // Use rating from TeeSet
+        slopeRating: teeBox.slope, // Use slope from TeeSet
+        yardage: teeBox.length // Use length from TeeSet as yardage
+      }));
+      
+      // Use the bulk update API
+      const response = await CoursesApiClient.bulkUpdateCourseTees(currentCourseId, teePayloads);
+      
+      if (!response.success) {
+        console.error('Error saving tee boxes:', response.error);
+        throw new Error(`Failed to save tee boxes: ${response.error?.message}`);
       }
       
       console.log('Tee boxes saved successfully');
+      setTeesHaveBeenSaved(true);
+      
+      // After successful save, fetch the tee boxes again to ensure we have the latest data
+      // This ensures we have the server-generated IDs which might be needed later
+      await fetchTeeBoxesAndHoles(currentCourseId);
+      
       return true;
     } catch (error) {
       console.error('Error in saveTeeBoxes:', error);
       setError(`Failed to save tee boxes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // Even if there's an error, don't lose the tee boxes data
+      // The user can try saving again
+      
       return false;
     } finally {
       setLoading(false);
@@ -360,43 +358,23 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
     try {
       setLoading(true);
       
-      // Delete existing holes first
-      const { error: deleteError } = await supabase
-        .from('holes')
-        .delete()
-        .eq('course_id', currentCourseId);
+      // Convert holes to API format and send in bulk
+      const holePayloads = holes.map(hole => ({
+        holeNumber: hole.number,
+        par: hole.par,
+        handicapIndex: hole.handicap_index || 0,
+        notes: hole.notes || undefined
+      }));
       
-      if (deleteError) {
-        console.error('Error deleting existing holes:', deleteError);
-        throw deleteError;
+      // Use the bulk update API
+      const response = await CoursesApiClient.bulkUpdateCourseHoles(currentCourseId, holePayloads);
+      
+      if (!response.success) {
+        console.error('Error saving scorecard:', response.error);
+        throw new Error(`Failed to save scorecard: ${response.error?.message}`);
       }
       
-      // Then insert the new holes - directly use the holes state which is already updated
-      if (holes.length > 0) {
-        // Prepare holes data for insertion - only include par, handicap index, and notes
-        const holesData = holes.map(hole => ({
-          course_id: currentCourseId,
-          hole_number: hole.number,
-          par: hole.par,
-          handicap_index: hole.handicap_index || null,
-          notes: hole.notes || null
-        }));
-        
-        // Insert all holes in a single operation
-        const { error: insertError } = await supabase
-          .from('holes')
-          .insert(holesData);
-        
-        if (insertError) {
-          console.error('Error inserting holes:', insertError);
-          throw insertError;
-        }
-      }
-      
-      // Refresh the schema cache to update types
-      await refreshSchemaCache();
       console.log('Scorecard saved successfully');
-      
       return true;
     } catch (error) {
       console.error('Error saving scorecard:', error);
@@ -420,20 +398,10 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
     try {
       setLoading(true);
       
-      // Try to refresh the schema cache multiple times with delays
-      console.log('Attempting to refresh schema cache (attempt 1)');
-      await refreshSchemaCache();
-      
-      // Wait a moment and try again
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      console.log('Attempting to refresh schema cache (attempt 2)');
-      await refreshSchemaCache();
-      
       console.log('Submitting course data:', formData);
       console.log('Is course active?', formData.isActive);
 
       let savedCourseId: string | undefined = undefined;
-      let schemaError = false;
       
       console.log('Starting handleSubmit with courseId:', courseId);
       console.log('Current courseIdRef:', courseIdRef.current);
@@ -444,235 +412,73 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
         console.log('Using existing courseId from ref:', courseIdRef.current);
         savedCourseId = courseIdRef.current;
         
-        // Update the existing course
+        // Update the existing course using API client
         try {
           console.log(`Updating course with ID: ${savedCourseId}`);
           
-          // Prepare course data for Supabase
-          const courseData = {
+          // Prepare course data for API
+          const courseData: UpdateCoursePayload = {
             name: formData.name,
+            address: formData.address,
             city: formData.city,
             state: formData.state,
-            par: formData.par,
-            holes: formData.holes,
-            amenities: formData.amenities,
-            website: formData.website,
             phone_number: formData.phoneNumber,
-            is_active: formData.isActive
+            website: formData.website,
+            amenities: formData.amenities
           };
           
-          const { error: updateError } = await supabase
-            .from('courses')
-            .update(courseData)
-            .eq('id', savedCourseId);
+          const updateResponse = await CoursesApiClient.updateCourse(savedCourseId, courseData);
             
-          if (updateError) {
-            console.error('Error updating course:', updateError);
+          if (!updateResponse.success) {
+            console.error('Error updating course:', updateResponse.error);
             // Continue with the flow even if update fails
+          } else {
+            console.log('Course updated successfully');
           }
-          
-          console.log('Course updated successfully');
         } catch (updateError) {
           console.error('Error updating course:', updateError);
           // Continue with the flow even if update fails
         }
       } else {
-        // Prepare course data for Supabase
-        const courseData = {
+        // Prepare course data for API
+        const courseData: CreateCoursePayload = {
           name: formData.name,
+          address: formData.address,
           city: formData.city,
           state: formData.state,
-          par: formData.par,
-          holes: formData.holes,
-          amenities: formData.amenities,
-          website: formData.website,
           phone_number: formData.phoneNumber,
-          is_active: formData.isActive
+          website: formData.website,
+          amenities: formData.amenities
         };
         
         console.log('Prepared course data for save:', courseData);
 
         try {
           if (isEditMode && courseId) {
-            // Update existing course
+            // Update existing course using API client
             console.log(`Updating course with ID: ${courseId}`);
             
-            // Try using the PostgreSQL function first
-            const { data: updatedCourse, error: rpcError } = await supabase.rpc(
-              'update_course_with_active',
-              {
-                p_id: courseId,
-                p_name: courseData.name,
-                p_city: courseData.city,
-                p_state: courseData.state,
-                p_par: courseData.par,
-                p_holes: courseData.holes,
-                p_amenities: courseData.amenities,
-                p_website: courseData.website,
-                p_phone_number: courseData.phone_number,
-                p_is_active: courseData.is_active
-              }
-            );
+            const updateResponse = await CoursesApiClient.updateCourse(courseId, courseData);
             
-            if (rpcError) {
-              console.error('Error updating course via RPC:', rpcError);
-              
-              // Fall back to the previous approach
-              const { data: updatedCourse, error: updateError } = await supabase
-                .from('courses')
-                .update(courseData)
-                .eq('id', courseId)
-                .select();
-              
-              if (updateError) {
-                console.error('Error updating course:', updateError);
-                
-                // If that fails, try updating without is_active first
-                const courseDataWithoutActive = {
-                  name: courseData.name,
-                  city: courseData.city,
-                  state: courseData.state,
-                  par: courseData.par,
-                  holes: courseData.holes,
-                  amenities: courseData.amenities,
-                  website: courseData.website,
-                  phone_number: courseData.phone_number
-                };
-                
-                console.log('Trying update without is_active field:', courseDataWithoutActive);
-                
-                const { error: updateWithoutActiveError } = await supabase
-                  .from('courses')
-                  .update(courseDataWithoutActive)
-                  .eq('id', courseId);
-                  
-                if (updateWithoutActiveError) {
-                  console.error('Error updating course without is_active:', updateWithoutActiveError);
-                  throw new Error(`Failed to update course: ${updateWithoutActiveError.message}`);
-                }
-                
-                // Then try to update just the is_active field separately
-                console.log('Now trying to update just the is_active field');
-                const { error: activeUpdateError } = await supabase
-                  .from('courses')
-                  .update({ is_active: formData.isActive })
-                  .eq('id', courseId);
-                  
-                if (activeUpdateError) {
-                  console.error('Error updating is_active field:', activeUpdateError);
-                  console.warn('Course was updated but the active status may not have been saved correctly');
-                }
-              }
-              
-              savedCourseId = courseId;
+            if (!updateResponse.success) {
+              console.error('Error updating course:', updateResponse.error);
+              throw new Error(`Failed to update course: ${updateResponse.error?.message}`);
             } else {
-              console.log('Course created successfully via RPC');
-              savedCourseId = updatedCourse?.[0]?.id;
+              console.log('Course updated successfully');
+              savedCourseId = courseId;
             }
           } else {
-            // Create new course
+            // Create new course using API client
             console.log('Creating new course');
             
-            // Try using the PostgreSQL function first
-            const { data: newCourse, error: rpcError } = await supabase.rpc(
-              'insert_course_with_active',
-              {
-                p_name: courseData.name,
-                p_city: courseData.city,
-                p_state: courseData.state,
-                p_par: courseData.par,
-                p_holes: courseData.holes,
-                p_amenities: courseData.amenities,
-                p_website: courseData.website,
-                p_phone_number: courseData.phone_number,
-                p_is_active: courseData.is_active
-              }
-            );
+            const createResponse = await CoursesApiClient.createCourse(courseData);
             
-            console.log('RPC call result:', newCourse);
-            
-            if (rpcError) {
-              console.error('Error inserting course via RPC:', rpcError);
-              
-              // Check if this is a schema cache error
-              if (rpcError.message && rpcError.message.includes('schema cache')) {
-                schemaError = true;
-                throw new Error(`Schema cache error: ${rpcError.message}`);
-              }
-            
-              // Fall back to the previous approach
-              const { data: newCourse, error: insertError } = await supabase
-                .from('courses')
-                .insert(courseData)
-                .select();
-
-              if (insertError) {
-                console.error('Error inserting course:', insertError);
-                
-                // Check if this is a schema cache error
-                if (insertError.message && insertError.message.includes('schema cache')) {
-                  schemaError = true;
-                  throw new Error(`Schema cache error: ${insertError.message}`);
-                }
-                
-                // Try inserting without is_active field
-                const courseDataWithoutActive = {
-                  name: courseData.name,
-                  city: courseData.city,
-                  state: courseData.state,
-                  par: courseData.par,
-                  holes: courseData.holes,
-                  amenities: courseData.amenities,
-                  website: courseData.website,
-                  phone_number: courseData.phone_number
-                };
-                
-                console.log('Trying insert without is_active field:', courseDataWithoutActive);
-                
-                const { data: insertedWithoutActive, error: insertWithoutActiveError } = await supabase
-                  .from('courses')
-                  .insert(courseDataWithoutActive)
-                  .select();
-                  
-                if (insertWithoutActiveError) {
-                  console.error('Error inserting course without is_active:', insertWithoutActiveError);
-                  throw new Error(`Failed to create course: ${insertWithoutActiveError.message}`);
-                }
-                
-                savedCourseId = insertedWithoutActive?.[0]?.id as string | undefined;
-                console.log('Course created without is_active, ID:', savedCourseId);
-                console.log('Inserted data:', insertedWithoutActive);
-                
-                // Then try to update just the is_active field separately
-                if (savedCourseId) {
-                  console.log('Now trying to update just the is_active field');
-                  const { error: activeUpdateError } = await supabase
-                    .from('courses')
-                    .update({ is_active: formData.isActive })
-                    .eq('id', savedCourseId);
-                    
-                  if (activeUpdateError) {
-                    console.error('Error updating is_active field:', activeUpdateError);
-                    console.warn('Course was created but the active status may not have been saved correctly');
-                  }
-                }
-              } else {
-                console.log('Course created successfully');
-                savedCourseId = newCourse?.[0]?.id as string | undefined;
-                console.log('Course created with ID:', savedCourseId);
-                console.log('Inserted data:', newCourse);
-              }
+            if (!createResponse.success) {
+              console.error('Error creating course:', createResponse.error);
+              throw new Error(`Failed to create course: ${createResponse.error?.message}`);
             } else {
-              console.log('Course created successfully via RPC');
-              // Extract the ID from the RPC result
-              if (Array.isArray(newCourse) && newCourse.length > 0) {
-                savedCourseId = newCourse[0].id as string | undefined;
-                console.log('Extracted course ID from RPC result:', savedCourseId);
-              } else {
-                console.error('RPC returned success but no course data');
-                console.log('RPC result type:', typeof newCourse);
-                console.log('RPC result:', newCourse);
-              }
+              console.log('Course created successfully');
+              savedCourseId = createResponse.data?.id;
             }
           }
         } catch (saveError) {
@@ -697,6 +503,61 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
       
       // Show success message
       setSuccess(true);
+      
+      // If we have a course ID and extracted data for tee boxes and holes, save them immediately
+      if (savedCourseId && extractedCourseData) {
+        console.log('We have extracted data and a course ID, attempting to save all data at once.');
+        
+        try {
+          // First save tee boxes if we have them
+          if (extractedCourseData.teeSets && extractedCourseData.teeSets.length > 0) {
+            console.log('Saving extracted tee boxes:', extractedCourseData.teeSets);
+            
+            // Format tee boxes for API
+            const teePayloads = extractedCourseData.teeSets.map(teeSet => ({
+              teeName: teeSet.name,
+              gender: 'Unisex' as 'Male' | 'Female' | 'Unisex', // Default to Unisex
+              par: formData.par, // Use course par
+              courseRating: teeSet.rating,
+              slopeRating: teeSet.slope,
+              yardage: teeSet.length
+            }));
+            
+            // Save tee boxes
+            const teeResponse = await CoursesApiClient.bulkUpdateCourseTees(savedCourseId, teePayloads);
+            if (teeResponse.success) {
+              console.log('Successfully saved tee boxes along with course');
+              setTeesHaveBeenSaved(true);
+            } else {
+              console.error('Failed to save tee boxes:', teeResponse.error);
+            }
+          }
+          
+          // Then save holes if we have them
+          if (extractedCourseData.holes && extractedCourseData.holes.length > 0) {
+            console.log('Saving extracted holes:', extractedCourseData.holes);
+            
+            // Format holes for API
+            const holePayloads = extractedCourseData.holes.map(hole => ({
+              holeNumber: hole.number,
+              par: hole.par,
+              handicapIndex: hole.handicapIndex,
+              notes: hole.notes
+            }));
+            
+            // Save holes
+            const holesResponse = await CoursesApiClient.bulkUpdateCourseHoles(savedCourseId, holePayloads);
+            if (holesResponse.success) {
+              console.log('Successfully saved holes along with course');
+            } else {
+              console.error('Failed to save holes:', holesResponse.error);
+            }
+          }
+        } catch (saveAllError) {
+          console.error('Error saving extracted data:', saveAllError);
+          // Don't block the workflow if this fails, just log the error
+        }
+      }
       
       // Redirect or reset form
       if (activeStep === 0) {
@@ -783,25 +644,56 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
     }
   };
   
-  // Validate form data
+  // Validate form data before submission
   const validateForm = () => {
-    if (!formData.name || !formData.city || !formData.state) {
-      setError('Name, city, and state are required fields');
+    // Basic validation
+    if (!formData.name.trim()) {
+      setError('Course name is required');
       return false;
     }
+    
+    // Website URL validation (if provided)
+    if (formData.website && formData.website.trim() !== '') {
+      // Check if it has a protocol, if not add https:// for API submission
+      if (!formData.website.startsWith('http://') && !formData.website.startsWith('https://')) {
+        formData.website = `https://${formData.website}`;
+      }
+      
+      try {
+        // Still verify it's a valid URL when a protocol is added
+        new URL(formData.website);
+      } catch (err) {
+        setError('Please enter a valid website URL (e.g., example.com)');
+        return false;
+      }
+    }
+    
     return true;
   };
   
   // Handle step navigation
   const handleNext = () => {
-    const nextStep = activeStep + 1;
+    const currentStep = activeStep;
+    const nextStep = currentStep + 1;
     
-    // If we're in edit mode and moving to step 1 or 2, ensure we have the course data
-    if (isEditMode && courseId) {
-      if (nextStep === 1 || nextStep === 2) {
-        console.log(`Moving to step ${nextStep} in edit mode with courseId:`, courseId);
-        // The useEffect will handle fetching the data when activeStep changes
+    if (currentStep === 0) {
+      // When moving from Course Info to Tee Boxes, make sure to submit the form
+      // and save course info first if not already done
+      if (!courseId) {
+        const form = document.querySelector('form');
+        if (form) form.dispatchEvent(new Event('submit', { cancelable: true }));
+        return;
       }
+    } else if (currentStep === 1) {
+      // When moving from Tee Boxes to Scorecard, save tee boxes first
+      saveTeeBoxes().then(success => {
+        if (success) {
+          console.log('Tee boxes saved successfully, moving to next step');
+          // Make sure to keep the tee boxes data in state before moving to the next step
+          setActiveStep(nextStep);
+        }
+      });
+      return;
     }
     
     setActiveStep(nextStep);
@@ -829,6 +721,7 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
             router={router}
             courseId={courseId}
             isMobile={isMobile}
+            onFullDataExtracted={handleFullDataExtracted}
           />
         );
       case 1:
@@ -848,6 +741,7 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
             extractionStep={extractionStep}
             setExtractionStep={setExtractionStep}
             isMobile={isMobile}
+            extractedData={extractedCourseData}
           />
         );
       case 2:
@@ -881,6 +775,7 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
             extractionStep={extractionStep}
             setExtractionStep={setExtractionStep}
             isMobile={isMobile}
+            extractedData={extractedCourseData}
           />
         );
       default:
@@ -912,6 +807,57 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
     }
     
     setTouchStartX(null);
+  };
+
+  // Handle full data extraction from AI
+  const handleFullDataExtracted = (data: ExtractedCourseData) => {
+    console.log('Full data extracted:', data);
+    setExtractedCourseData(data);
+    
+    // Track what data we found
+    let foundTeeSets = false;
+    let foundHoles = false;
+    
+    // If we have tee sets, store them for the next step
+    if (data.teeSets && data.teeSets.length > 0) {
+      const formattedTeeSets = data.teeSets.map(teeSet => ({
+        id: uuidv4(),
+        name: teeSet.name,
+        color: teeSet.color,
+        rating: teeSet.rating,
+        slope: teeSet.slope,
+        length: teeSet.length
+      }));
+      setTeeBoxes(formattedTeeSets);
+      foundTeeSets = true;
+    }
+    
+    // If we have holes, store them for the scorecard step
+    if (data.holes && data.holes.length > 0) {
+      const formattedHoles = data.holes.map(hole => ({
+        id: undefined,
+        number: hole.number,
+        par: hole.par,
+        handicap_index: hole.handicapIndex,
+        notes: hole.notes || ''
+      }));
+      setHoles(formattedHoles);
+      foundHoles = true;
+    }
+    
+    // Show feedback to the user about what we extracted
+    let message = 'Course information extracted.';
+    if (foundTeeSets && foundHoles) {
+      message += ' Tee boxes and hole information were also detected and will be pre-populated in the next steps.';
+    } else if (foundTeeSets) {
+      message += ' Tee boxes were also detected and will be pre-populated in the next step.';
+    } else if (foundHoles) {
+      message += ' Hole information was also detected and will be pre-populated in the scorecard step.';
+    }
+    
+    setSuccess(true);
+    // Show more specific success message about what was extracted
+    setSuccessMessage(message);
   };
 
   // Render mobile or desktop stepper based on screen size
@@ -971,8 +917,11 @@ const CourseFormContainer: React.FC<CourseFormContainerProps> = ({
       <Snackbar
         open={success}
         autoHideDuration={6000}
-        onClose={() => setSuccess(false)}
-        message="Course saved successfully"
+        onClose={() => {
+          setSuccess(false);
+          setSuccessMessage(null);
+        }}
+        message={successMessage || 'Course saved successfully'}
       />
       
       {renderStepper()}

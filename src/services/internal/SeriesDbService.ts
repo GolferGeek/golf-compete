@@ -173,11 +173,11 @@ class SeriesDbService extends BaseService {
     }
   }
 
-  public async getUserSeriesRole(userId: string, seriesId: string): Promise<ServiceResponse<{ role: string | null }>> {
+  public async getUserSeriesRole(userId: string, seriesId: string): Promise<ServiceResponse<{ role: string | null; status: string | null }>> {
     try {
       const { data, error } = await this.client
         .from('series_participants')
-        .select('role')
+        .select('role, status')
         .eq('user_id', userId)
         .eq('series_id', seriesId)
         .maybeSingle(); // Use maybeSingle as user might not be participant
@@ -186,7 +186,7 @@ class SeriesDbService extends BaseService {
         throw this.createDatabaseError(error, ErrorCodes.DB_QUERY_ERROR);
       }
       
-      return createSuccessResponse({ role: data?.role || null });
+      return createSuccessResponse({ role: data?.role || null, status: data?.status || null });
 
     } catch (error) {
       return this.handleDatabaseError(error, `Failed to fetch user role for series ${seriesId}`);

@@ -1,6 +1,8 @@
 import { type Series, type SeriesParticipant } from '@/types/database';
 import { type PaginatedResponse } from '@/services/base'; // Need for list response type
 import { handleApiResponse, buildQueryString } from './utils'; // Import helpers
+import { ApiResponse } from '@/types/api';
+import { apiClient } from './apiClient';
 
 // Interface for List Series parameters (matching API schema)
 interface ListSeriesParams {
@@ -136,4 +138,43 @@ export async function removeSeriesParticipant(seriesId: string, participantId: s
              throw new Error(`HTTP error ${response.status}`);
         }
     }
-} 
+}
+
+export interface SeriesAccessResponse {
+  hasAccess: boolean;
+  role: string;
+}
+
+export interface SeriesWithParticipants extends Series {
+  participants: SeriesParticipant[];
+}
+
+export const seriesApi = {
+  /**
+   * Check if the current user has access to a series
+   */
+  checkAccess: async (seriesId: string): Promise<ApiResponse<SeriesAccessResponse>> => {
+    return apiClient.get(`/api/series/${seriesId}/access`);
+  },
+
+  /**
+   * Get a series by ID
+   */
+  getById: async (seriesId: string, includeParticipants = false): Promise<ApiResponse<Series | SeriesWithParticipants>> => {
+    return apiClient.get(`/api/series/${seriesId}${includeParticipants ? '?include_participants=true' : ''}`);
+  },
+
+  /**
+   * Update a series
+   */
+  update: async (seriesId: string, data: Partial<Series>): Promise<ApiResponse<Series>> => {
+    return apiClient.put(`/api/series/${seriesId}`, data);
+  },
+
+  /**
+   * Delete a series
+   */
+  delete: async (seriesId: string): Promise<ApiResponse<void>> => {
+    return apiClient.delete(`/api/series/${seriesId}`);
+  }
+}; 

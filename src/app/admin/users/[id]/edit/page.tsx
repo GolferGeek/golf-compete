@@ -18,21 +18,28 @@ import Alert from '@mui/material/Alert';
 import IconButton from '@mui/material/IconButton';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Link from 'next/link';
-import { getProfilesWithEmail, updateProfile, type ProfileWithEmail } from '@/lib/profileService';
 import { SelectChangeEvent } from '@mui/material/Select';
 import Divider from '@mui/material/Divider';
+import { type AuthProfile } from '@/services/internal/AuthService';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface FormData {
   is_admin: boolean;
   first_name: string;
   last_name: string;
-  username: string | null;
+  username: string | undefined;
+  handicap: string;
+  multiple_clubs_sets: boolean;
+  openai_api_key: string;
+  use_own_openai_key: boolean;
+  ai_assistant_enabled: boolean;
 }
 
 export default function EditUser({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = React.use(params);
   const router = useRouter();
-  const [user, setUser] = useState<ProfileWithEmail | null>(null);
+  const { profile: currentUserProfile, updateProfile } = useAuth();
+  const [user, setUser] = useState<AuthProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +48,12 @@ export default function EditUser({ params }: { params: Promise<{ id: string }> }
     is_admin: false,
     first_name: '',
     last_name: '',
-    username: null
+    username: undefined,
+    handicap: '',
+    multiple_clubs_sets: false,
+    openai_api_key: '',
+    use_own_openai_key: false,
+    ai_assistant_enabled: true
   });
 
   useEffect(() => {
@@ -49,9 +61,14 @@ export default function EditUser({ params }: { params: Promise<{ id: string }> }
       try {
         setLoading(true);
         setError(null);
-        const profiles = await getProfilesWithEmail();
-        const profile = profiles.find(p => p.id === resolvedParams.id);
         
+        const response = await fetch(`/api/users/${resolvedParams.id}/profile`);
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'User not found');
+        }
+        
+        const { profile } = await response.json();
         if (!profile) {
           throw new Error('User not found');
         }
@@ -61,7 +78,12 @@ export default function EditUser({ params }: { params: Promise<{ id: string }> }
           is_admin: profile.is_admin || false,
           first_name: profile.first_name || '',
           last_name: profile.last_name || '',
-          username: profile.username
+          username: profile.username || undefined,
+          handicap: profile.handicap !== null ? String(profile.handicap) : '',
+          multiple_clubs_sets: profile.multiple_clubs_sets || false,
+          openai_api_key: profile.openai_api_key || '',
+          use_own_openai_key: profile.use_own_openai_key || false,
+          ai_assistant_enabled: profile.ai_assistant_enabled !== false
         });
       } catch (error: any) {
         console.error('Error loading user:', error);
@@ -100,21 +122,25 @@ export default function EditUser({ params }: { params: Promise<{ id: string }> }
       
       console.log('Starting user update...');
       
-      // Update the profile
-      await updateProfile(user?.id || '', {
-        is_admin: formData.is_admin,
+      await updateProfile({
         first_name: formData.first_name,
         last_name: formData.last_name,
-        username: formData.username
-      });
+        username: formData.username,
+        is_admin: formData.is_admin,
+        handicap: formData.handicap ? parseFloat(formData.handicap) : undefined,
+        multiple_clubs_sets: formData.multiple_clubs_sets,
+        openai_api_key: formData.openai_api_key,
+        use_own_openai_key: formData.use_own_openai_key,
+        ai_assistant_enabled: formData.ai_assistant_enabled
+      }, resolvedParams.id);
       
       setSuccess(true);
       console.log('Profile update successful');
       
       // Wait a moment to show the success message
       setTimeout(() => {
-        console.log('Redirecting to users list...');
-        router.push('/admin/users');
+        console.log('Redirecting to admin dashboard...');
+        router.push('/admin');
       }, 1500);
     } catch (error: any) {
       console.error('Error in form submission:', error);
@@ -123,6 +149,12 @@ export default function EditUser({ params }: { params: Promise<{ id: string }> }
       setSaving(false);
     }
   };
+
+  // Check if current user is admin
+  if (!currentUserProfile?.is_admin) {
+    router.push('/');
+    return null;
+  }
 
   if (loading) {
     return (
@@ -138,11 +170,11 @@ export default function EditUser({ params }: { params: Promise<{ id: string }> }
         <Alert severity="error">{error}</Alert>
         <Button
           component={Link}
-          href="/admin/users"
+          href="/admin"
           startIcon={<ArrowBackIcon />}
           sx={{ mt: 2 }}
         >
-          Back to Users
+          Back to Admin Dashboard
         </Button>
       </Box>
     );
@@ -159,7 +191,7 @@ export default function EditUser({ params }: { params: Promise<{ id: string }> }
       }}>
         <IconButton
           component={Link}
-          href="/admin/users"
+          href="/admin"
           sx={{ mr: 1 }}
         >
           <ArrowBackIcon />
@@ -200,7 +232,6 @@ export default function EditUser({ params }: { params: Promise<{ id: string }> }
               value={formData.first_name}
               onChange={handleInputChange}
               fullWidth
-              required
             />
             <TextField
               name="last_name"
@@ -208,7 +239,6 @@ export default function EditUser({ params }: { params: Promise<{ id: string }> }
               value={formData.last_name}
               onChange={handleInputChange}
               fullWidth
-              required
             />
           </Box>
 
@@ -219,6 +249,63 @@ export default function EditUser({ params }: { params: Promise<{ id: string }> }
             onChange={handleInputChange}
             fullWidth
           />
+
+          <TextField
+            name="handicap"
+            label="Handicap"
+            type="number"
+            value={formData.handicap}
+            onChange={handleInputChange}
+            fullWidth
+            inputProps={{ step: 0.1 }}
+          />
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={formData.multiple_clubs_sets}
+                onChange={handleSwitchChange}
+                name="multiple_clubs_sets"
+                color="primary"
+              />
+            }
+            label="Multiple Club Sets"
+          />
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={formData.ai_assistant_enabled}
+                onChange={handleSwitchChange}
+                name="ai_assistant_enabled"
+                color="primary"
+              />
+            }
+            label="AI Assistant Enabled"
+          />
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={formData.use_own_openai_key}
+                onChange={handleSwitchChange}
+                name="use_own_openai_key"
+                color="primary"
+              />
+            }
+            label="Use Own OpenAI Key"
+          />
+
+          {formData.use_own_openai_key && (
+            <TextField
+              name="openai_api_key"
+              label="OpenAI API Key"
+              value={formData.openai_api_key}
+              onChange={handleInputChange}
+              fullWidth
+              type="password"
+            />
+          )}
 
           <FormControlLabel
             control={
@@ -232,23 +319,21 @@ export default function EditUser({ params }: { params: Promise<{ id: string }> }
             label="Admin Access"
           />
 
-          <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
-            <Button
-              type="submit"
-              variant="contained"
-              color="primary"
-              disabled={saving}
-              sx={{ minWidth: 120 }}
-            >
-              {saving ? <CircularProgress size={24} /> : 'Save Changes'}
-            </Button>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2, mt: 2 }}>
             <Button
               component={Link}
-              href="/admin/users"
+              href="/admin"
               variant="outlined"
               disabled={saving}
             >
               Cancel
+            </Button>
+            <Button
+              type="submit"
+              variant="contained"
+              disabled={saving}
+            >
+              {saving ? 'Saving...' : 'Save Changes'}
             </Button>
           </Box>
         </Box>

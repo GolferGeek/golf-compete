@@ -1,10 +1,13 @@
 import { ProcessedCommand } from './aiService';
 import { createClient } from '@supabase/supabase-js';
+import { supabase } from '@/lib/supabase';
+import { CoursesApiClient } from '@/lib/apiClient/courses';
+import { RoundsApiClient } from '@/lib/apiClient/rounds';
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabaseClient = createClient(supabaseUrl, supabaseAnonKey);
 
 /**
  * Command handler interface
@@ -26,31 +29,27 @@ export async function handleStartRound(
   userId: string
 ): Promise<CommandHandlerResult> {
   try {
-    const parameters = command.parameters;
+    const { parameters } = command;
     let courseName = parameters.courseName;
     let courseId = parameters.courseId;
     
     // Find course by name if courseId not provided
     if (!courseId && courseName) {
-      const { data: courses, error } = await supabase
-        .from('courses')
-        .select('id, name')
-        .ilike('name', `%${courseName}%`)
-        .limit(1);
+      // Use API client instead of direct Supabase call
+      const coursesResponse = await CoursesApiClient.getCourses({
+        search: courseName,
+        limit: 1
+      });
       
-      if (error) {
-        throw error;
-      }
-      
-      if (courses && courses.length > 0) {
-        courseId = courses[0].id;
-        courseName = courses[0].name;
-      } else {
+      if (!coursesResponse.success || !coursesResponse.data?.courses.length) {
         return {
           success: false,
           message: `Course "${courseName}" not found.`
         };
       }
+      
+      courseId = coursesResponse.data.courses[0].id;
+      courseName = coursesResponse.data.courses[0].name;
     }
     
     // Validate course
@@ -62,24 +61,16 @@ export async function handleStartRound(
     }
     
     // Get default tee set for the course
-    const { data: teeSets, error: teeSetError } = await supabase
-      .from('tee_sets')
-      .select('id, name')
-      .eq('course_id', courseId)
-      .limit(1);
+    const teeSetsResponse = await CoursesApiClient.getCourseTees(courseId);
     
-    if (teeSetError) {
-      throw teeSetError;
-    }
-    
-    if (!teeSets || teeSets.length === 0) {
+    if (!teeSetsResponse.success || !teeSetsResponse.data?.tees.length) {
       return {
         success: false,
         message: 'No tee sets found for this course.'
       };
     }
     
-    const teeSetId = teeSets[0].id;
+    const teeSetId = teeSetsResponse.data.tees[0].id;
     
     // Get default bag for the user
     const { data: bags, error: bagError } = await supabase
@@ -104,30 +95,21 @@ export async function handleStartRound(
     // Parse date if provided, otherwise use current date
     const roundDate = parameters.date ? new Date(parameters.date) : new Date();
     
-    // Create a new round
-    const { data: round, error: roundError } = await supabase
-      .from('rounds')
-      .insert({
-        profile_id: userId,
-        course_id: courseId,
-        tee_set_id: teeSetId,
-        bag_id: bagId,
-        date_played: roundDate.toISOString(),
-        weather_conditions: [],
-        course_conditions: [],
-        notes: parameters.notes || null,
-      })
-      .select()
-      .single();
+    // Create a new round using API client
+    const createRoundResponse = await RoundsApiClient.createRound({
+      courseTeeId: teeSetId,
+      roundDate: roundDate.toISOString(),
+      status: 'active'
+    });
     
-    if (roundError) {
-      throw roundError;
+    if (!createRoundResponse.success || !createRoundResponse.data) {
+      throw new Error(createRoundResponse.error?.message || 'Failed to create round');
     }
     
     return {
       success: true,
       message: `Started a new round at ${courseName}. Good luck!`,
-      data: { roundId: round.id }
+      data: { roundId: createRoundResponse.data.id }
     };
   } catch (error) {
     console.error('Error handling start round command:', error);
@@ -192,74 +174,41 @@ export async function handleRecordScore(
       parameters.hole || 
       1;
     
-    // Get details for this hole
-    const { data: holeData, error: holeError } = await supabase
-      .from('holes')
-      .select('par')
-      .eq('course_id', round.course_id)
-      .eq('hole_number', holeNumber)
-      .single();
+    // Get details for this hole using API client
+    const holesResponse = await CoursesApiClient.getCourseHoles(round.course_id);
     
-    if (holeError) {
-      // Create a default par if hole doesn't exist
-      const defaultPar = 4;
-      
-      // Record the score
-      const { error: scoreError } = await supabase
-        .from('hole_scores')
-        .insert({
-          round_id: roundId,
-          hole_number: holeNumber,
-          score: parameters.score,
-          par: defaultPar,
-          fairway_hit: parameters.fairwayHit || null,
-          green_in_regulation: parameters.gir || null,
-          putts: parameters.putts || null,
-          penalty_strokes: parameters.penalties || null,
-        });
-      
-      if (scoreError) {
-        throw scoreError;
-      }
-    } else {
-      // Record the score with actual par
-      const { error: scoreError } = await supabase
-        .from('hole_scores')
-        .insert({
-          round_id: roundId,
-          hole_number: holeNumber,
-          score: parameters.score,
-          par: holeData.par,
-          fairway_hit: parameters.fairwayHit || null,
-          green_in_regulation: parameters.gir || null,
-          putts: parameters.putts || null,
-          penalty_strokes: parameters.penalties || null,
-        });
-      
-      if (scoreError) {
-        throw scoreError;
+    let holePar = 4; // Default par if hole not found
+    
+    if (holesResponse.success && holesResponse.data?.holes.length) {
+      // Find the specific hole
+      const hole = holesResponse.data.holes.find(h => h.holeNumber === Number(holeNumber));
+      if (hole) {
+        holePar = hole.par;
       }
     }
     
-    // Update the total score on the round
-    const { data: scores, error: scoresError } = await supabase
+    // Record the score
+    const { error: scoreError } = await supabase
       .from('hole_scores')
-      .select('score')
-      .eq('round_id', roundId);
+      .insert({
+        round_id: roundId,
+        hole_number: holeNumber,
+        score: Number(parameters.score),
+        par: holePar,
+        fairway_hit: parameters.fairwayHit || null,
+        green_in_regulation: parameters.gir || null,
+        putts: parameters.putts || null,
+        penalty_strokes: parameters.penalties || null,
+      });
     
-    if (!scoresError && scores) {
-      const totalScore = scores.reduce((sum, hole) => sum + hole.score, 0);
-      
-      await supabase
-        .from('rounds')
-        .update({ total_score: totalScore })
-        .eq('id', roundId);
+    if (scoreError) {
+      throw scoreError;
     }
     
     return {
       success: true,
-      message: `Recorded a ${parameters.score} on hole ${holeNumber}.`,
-      data: { holeNumber, score: parameters.score }
+      message: `Recorded a score of ${parameters.score} on hole ${holeNumber}.`,
+      data: { holeNumber: Number(holeNumber) }
     };
   } catch (error) {
     console.error('Error handling record score command:', error);

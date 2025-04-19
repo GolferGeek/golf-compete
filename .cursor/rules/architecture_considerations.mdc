@@ -59,6 +59,56 @@
   import { createEvent, updateEvent } from '@/lib/apiClient/events';
   ```
 
+- **Standardized API Client Structure**
+  - All domain API clients should follow the same object-based pattern
+  - Pattern established in `notes.ts` should be used as the template for all domain objects
+  - Structure includes:
+    - Type definitions for DTOs, request payloads, and responses
+    - Interface extension from base `ApiResponse`
+    - An object export (e.g., `NotesApiClient`) with all methods
+    - Consistent error handling using defined types
+  - Example structure:
+  ```typescript
+  // Domain-specific types
+  export interface EntityDto { /* ... */ }
+  export interface CreateEntityPayload { /* ... */ }
+  export interface UpdateEntityPayload { /* ... */ }
+  
+  // Response interfaces
+  export interface EntityListResponse extends ApiResponse {
+    success: boolean;
+    data?: {
+      entities: EntityDto[];
+      total: number;
+    };
+    error?: {
+      message: string;
+      code: string;
+      details?: any;
+    };
+  }
+  
+  export interface EntityResponse extends ApiResponse {
+    success: boolean;
+    data?: EntityDto;
+    error?: {
+      message: string;
+      code: string;
+      details?: any;
+    };
+  }
+  
+  // API client object
+  export const EntityApiClient = {
+    async getAll(params): Promise<EntityListResponse> { /* ... */ },
+    async getById(id): Promise<EntityResponse> { /* ... */ },
+    async create(payload): Promise<EntityResponse> { /* ... */ },
+    async update(id, payload): Promise<EntityResponse> { /* ... */ },
+    async delete(id): Promise<ApiResponse> { /* ... */ }
+  };
+  ```
+  - Use this pattern consistently for all domain objects: Course, Round, Event, Series, Note, etc.
+
 - **Authentication Operations**
   - Always use appropriate API endpoints for:
     - Login: `/api/auth/login`

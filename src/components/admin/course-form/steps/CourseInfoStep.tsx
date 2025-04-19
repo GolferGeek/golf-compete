@@ -5,7 +5,6 @@ import {
   Divider, 
   FormControl, 
   FormControlLabel, 
-  Grid, 
   InputLabel, 
   MenuItem, 
   Paper, 
@@ -19,6 +18,24 @@ import {
 import { CourseInfoStepProps } from '../types';
 import ImageUploader from '../components/ImageUploader';
 
+// Helper function to validate URLs
+const isValidUrl = (url: string): boolean => {
+  if (!url || url.trim() === '') return true; // Empty URLs are considered valid (optional field)
+  
+  // Allow domain-only URLs without protocol (e.g., "example.com")
+  // Simple regex to check for a valid-looking domain
+  const domainPattern = /^[a-zA-Z0-9][-a-zA-Z0-9.]{0,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}(\/.*)?$/;
+  
+  // First try with standard URL validation
+  try {
+    new URL(url);
+    return true;
+  } catch (err) {
+    // If that fails, check if it looks like a valid domain
+    return domainPattern.test(url);
+  }
+};
+
 const CourseInfoStep: React.FC<CourseInfoStepProps> = ({
   formData,
   setFormData,
@@ -31,13 +48,16 @@ const CourseInfoStep: React.FC<CourseInfoStepProps> = ({
   setExtractionStep,
   router,
   courseId,
-  isMobile
+  isMobile,
+  onFullDataExtracted
 }) => {
   const theme = useTheme();
   
   // Handle text field changes
   const handleTextChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
+    
+    // For all fields, just update the value directly
     setFormData({
       ...formData,
       [name]: value
@@ -95,6 +115,7 @@ const CourseInfoStep: React.FC<CourseInfoStepProps> = ({
             extractionStep={extractionStep}
             setExtractionStep={setExtractionStep}
             onDataExtracted={handleCourseDataExtracted}
+            onFullDataExtracted={onFullDataExtracted}
             isMobile={isMobile}
           />
         ) : (
@@ -112,8 +133,8 @@ const CourseInfoStep: React.FC<CourseInfoStepProps> = ({
         </Typography>
         <Divider sx={{ mb: 3 }} />
         
-        <Grid container spacing={isMobile ? 2 : 3}>
-          <Grid item xs={12}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 2 : 3 }}>
+          <Box sx={{ width: '100%' }}>
             <TextField
               required
               fullWidth
@@ -125,77 +146,108 @@ const CourseInfoStep: React.FC<CourseInfoStepProps> = ({
               disabled={loading}
               size={isMobile ? "small" : "medium"}
             />
-          </Grid>
+          </Box>
           
-          <Grid item xs={12} sm={6}>
+          <Box sx={{ width: '100%' }}>
             <TextField
-              required
               fullWidth
-              id="city"
-              name="city"
-              label="City"
-              value={formData.city}
+              id="address"
+              name="address"
+              label="Address"
+              value={formData.address}
               onChange={handleTextChange}
               disabled={loading}
               size={isMobile ? "small" : "medium"}
             />
-          </Grid>
+          </Box>
           
-          <Grid item xs={12} sm={6}>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: isMobile ? 2 : 3 }}>
+            <Box sx={{ width: { xs: '100%', sm: '50%' } }}>
+              <TextField
+                required
+                fullWidth
+                id="city"
+                name="city"
+                label="City"
+                value={formData.city}
+                onChange={handleTextChange}
+                disabled={loading}
+                size={isMobile ? "small" : "medium"}
+              />
+            </Box>
+            
+            <Box sx={{ width: { xs: '100%', sm: '50%' } }}>
+              <TextField
+                required
+                fullWidth
+                id="state"
+                name="state"
+                label="State"
+                value={formData.state}
+                onChange={handleTextChange}
+                disabled={loading}
+                size={isMobile ? "small" : "medium"}
+              />
+            </Box>
+          </Box>
+          
+          <Box sx={{ width: '100%' }}>
             <TextField
-              required
               fullWidth
-              id="state"
-              name="state"
-              label="State"
-              value={formData.state}
+              id="country"
+              name="country"
+              label="Country"
+              value={formData.country}
               onChange={handleTextChange}
               disabled={loading}
               size={isMobile ? "small" : "medium"}
+              placeholder="USA"
             />
-          </Grid>
+          </Box>
           
-          <Grid item xs={12} sm={6}>
-            <FormControl fullWidth>
-              <InputLabel id="holes-label">Number of Holes</InputLabel>
-              <Select
-                labelId="holes-label"
-                id="holes"
-                name="holes"
-                value={formData.holes.toString()}
-                label="Number of Holes"
-                onChange={handleSelectChange}
-                disabled={loading}
-                size={isMobile ? "small" : "medium"}
-              >
-                <MenuItem value="9">9</MenuItem>
-                <MenuItem value="18">18</MenuItem>
-                <MenuItem value="27">27</MenuItem>
-                <MenuItem value="36">36</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
-          
-          <Grid item xs={12} sm={6}>
-            <FormControl fullWidth>
-              <InputLabel id="par-label">Par</InputLabel>
-              <Select
-                labelId="par-label"
-                id="par"
-                name="par"
-                value={formData.par.toString()}
-                label="Par"
-                onChange={handleSelectChange}
-                disabled={loading}
-                size={isMobile ? "small" : "medium"}
-              >
-                {Array.from({ length: 15 }, (_, i) => i + 66).map(par => (
-                  <MenuItem key={par} value={par.toString()}>{par}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          </Grid>
-        </Grid>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: isMobile ? 2 : 3 }}>
+            <Box sx={{ width: { xs: '100%', sm: '50%' } }}>
+              <FormControl fullWidth>
+                <InputLabel id="holes-label">Holes</InputLabel>
+                <Select
+                  labelId="holes-label"
+                  id="holes"
+                  name="holes"
+                  value={formData.holes.toString()}
+                  label="Holes"
+                  onChange={handleSelectChange}
+                  disabled={loading}
+                  size={isMobile ? "small" : "medium"}
+                >
+                  <MenuItem value="9">9</MenuItem>
+                  <MenuItem value="18">18</MenuItem>
+                  <MenuItem value="27">27</MenuItem>
+                  <MenuItem value="36">36</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+            
+            <Box sx={{ width: { xs: '100%', sm: '50%' } }}>
+              <FormControl fullWidth>
+                <InputLabel id="par-label">Par</InputLabel>
+                <Select
+                  labelId="par-label"
+                  id="par"
+                  name="par"
+                  value={formData.par.toString()}
+                  label="Par"
+                  onChange={handleSelectChange}
+                  disabled={loading}
+                  size={isMobile ? "small" : "medium"}
+                >
+                  {Array.from({ length: 15 }, (_, i) => i + 66).map(par => (
+                    <MenuItem key={par} value={par.toString()}>{par}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            </Box>
+          </Box>
+        </Box>
       </Paper>
       
       <Paper sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
@@ -204,8 +256,8 @@ const CourseInfoStep: React.FC<CourseInfoStepProps> = ({
         </Typography>
         <Divider sx={{ mb: 3 }} />
         
-        <Grid container spacing={isMobile ? 2 : 3}>
-          <Grid item xs={12}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 2 : 3 }}>
+          <Box sx={{ width: '100%' }}>
             <TextField
               fullWidth
               id="amenities"
@@ -219,37 +271,41 @@ const CourseInfoStep: React.FC<CourseInfoStepProps> = ({
               size={isMobile ? "small" : "medium"}
               placeholder="Pro shop, restaurant, practice facilities, etc."
             />
-          </Grid>
+          </Box>
           
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              id="website"
-              name="website"
-              label="Website"
-              value={formData.website}
-              onChange={handleTextChange}
-              disabled={loading}
-              size={isMobile ? "small" : "medium"}
-              placeholder="https://www.example.com"
-            />
-          </Grid>
+          <Box sx={{ display: 'flex', flexDirection: { xs: 'column', sm: 'row' }, gap: isMobile ? 2 : 3 }}>
+            <Box sx={{ width: { xs: '100%', sm: '50%' } }}>
+              <TextField
+                fullWidth
+                id="website"
+                name="website"
+                label="Website"
+                value={formData.website}
+                onChange={handleTextChange}
+                disabled={loading}
+                size={isMobile ? "small" : "medium"}
+                placeholder="example.com"
+                helperText="Enter a website URL (protocol not required)"
+                error={formData.website !== '' && !isValidUrl(formData.website)}
+              />
+            </Box>
+            
+            <Box sx={{ width: { xs: '100%', sm: '50%' } }}>
+              <TextField
+                fullWidth
+                id="phoneNumber"
+                name="phoneNumber"
+                label="Phone Number"
+                value={formData.phoneNumber}
+                onChange={handleTextChange}
+                disabled={loading}
+                size={isMobile ? "small" : "medium"}
+                placeholder="(555) 555-5555"
+              />
+            </Box>
+          </Box>
           
-          <Grid item xs={12} sm={6}>
-            <TextField
-              fullWidth
-              id="phoneNumber"
-              name="phoneNumber"
-              label="Phone Number"
-              value={formData.phoneNumber}
-              onChange={handleTextChange}
-              disabled={loading}
-              size={isMobile ? "small" : "medium"}
-              placeholder="(555) 555-5555"
-            />
-          </Grid>
-          
-          <Grid item xs={12}>
+          <Box sx={{ width: '100%' }}>
             <FormControlLabel
               control={
                 <Switch
@@ -261,8 +317,8 @@ const CourseInfoStep: React.FC<CourseInfoStepProps> = ({
               }
               label="Active Course"
             />
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </Paper>
       
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
