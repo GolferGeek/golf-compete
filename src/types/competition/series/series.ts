@@ -1,7 +1,19 @@
 import { SeriesEvent } from './series-event';
 import { SeriesParticipant } from './series-participant';
-import { SeriesStatus } from './series-status';
 
+/**
+ * Represents the current status of a series
+ */
+export type SeriesStatus = 'upcoming' | 'active' | 'completed' | 'cancelled';
+
+/**
+ * Represents the type of series competition
+ */
+export type SeriesType = 'league' | 'tournament' | 'ladder';
+
+/**
+ * Represents a series competition
+ */
 export interface Series {
   id: string;
   name: string;
@@ -11,7 +23,8 @@ export interface Series {
   max_participants: number;
   current_participants: number;
   registration_deadline: string;
-  status: 'upcoming' | 'active' | 'completed' | 'cancelled';
+  status: SeriesStatus;
+  type: SeriesType;
   scoring_type: 'gross' | 'net' | 'both';
   created_at: string;
   created_by: string;

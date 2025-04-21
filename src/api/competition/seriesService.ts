@@ -1,44 +1,6 @@
-import { supabase } from '@/lib/supabase';
-
-// Types
-export interface Series {
-  id: string;
-  name: string;
-  description?: string;
-  start_date: string;
-  end_date: string;
-  registration_open_date?: string;
-  registration_close_date?: string;
-  max_participants?: number;
-  entry_fee?: number;
-  prize_pool?: number;
-  is_active: boolean;
-  created_by: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface SeriesRule {
-  id: string;
-  series_id: string;
-  rule_type: string;
-  rule_value: string;
-  description?: string;
-  created_at?: string;
-  updated_at?: string;
-}
-
-export interface SeriesParticipant {
-  id: string;
-  series_id: string;
-  user_id: string;
-  registration_date: string;
-  payment_status?: string;
-  payment_date?: string;
-  is_active: boolean;
-  created_at?: string;
-  updated_at?: string;
-}
+import { createClient } from '@/lib/supabase/server';
+import { Series, SeriesParticipant, SeriesRole, SeriesRoles } from '@/types/competition/series';
+import { PostgrestError } from '@supabase/supabase-js';
 
 /**
  * Fetches all series with optional pagination
@@ -48,9 +10,13 @@ export interface SeriesParticipant {
  */
 export const fetchAllSeries = async (limit?: number, offset?: number): Promise<Series[]> => {
   try {
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('series')
-      .select('*')
+      .select(`
+        *,
+        series_participants (*)
+      `)
       .order('start_date', { ascending: false })
       .range(offset || 0, (offset || 0) + (limit || 100) - 1);
 
@@ -73,10 +39,14 @@ export const fetchAllSeries = async (limit?: number, offset?: number): Promise<S
  */
 export const fetchActiveSeries = async (limit?: number): Promise<Series[]> => {
   try {
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('series')
-      .select('*')
-      .eq('is_active', true)
+      .select(`
+        *,
+        series_participants (*)
+      `)
+      .eq('status', 'active')
       .order('start_date', { ascending: true })
       .limit(limit || 100);
 
@@ -97,16 +67,20 @@ export const fetchActiveSeries = async (limit?: number): Promise<Series[]> => {
  * @param seriesId The ID of the series
  * @returns Promise with the series
  */
-export const fetchSeriesById = async (seriesId: string): Promise<Series> => {
+export const fetchSeriesById = async (seriesId: string): Promise<Series | null> => {
   try {
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('series')
-      .select('*')
+      .select(`
+        *,
+        series_participants (*)
+      `)
       .eq('id', seriesId)
       .single();
 
     if (error) {
-      console.error('Error fetching series:', error);
+      if (error.code === 'PGRST116') return null;
       throw error;
     }
 
@@ -122,8 +96,11 @@ export const fetchSeriesById = async (seriesId: string): Promise<Series> => {
  * @param seriesData The series data
  * @returns Promise with the created series
  */
-export const createSeries = async (seriesData: Omit<Series, 'id' | 'created_at' | 'updated_at'>): Promise<Series> => {
+export const createSeries = async (
+  seriesData: Omit<Series, 'id' | 'created_at' | 'updated_at' | 'series_participants' | 'series_events'>
+): Promise<Series> => {
   try {
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('series')
       .insert([seriesData])
@@ -148,14 +125,15 @@ export const createSeries = async (seriesData: Omit<Series, 'id' | 'created_at' 
  * @param seriesData The updated series data
  * @returns Promise with the updated series
  */
-export const updateSeries = async (seriesId: string, seriesData: Partial<Series>): Promise<Series> => {
+export const updateSeries = async (
+  seriesId: string,
+  seriesData: Partial<Omit<Series, 'id' | 'created_at' | 'updated_at' | 'series_participants' | 'series_events'>>
+): Promise<Series> => {
   try {
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('series')
-      .update({
-        ...seriesData,
-        updated_at: new Date().toISOString()
-      })
+      .update(seriesData)
       .eq('id', seriesId)
       .select()
       .single();
@@ -175,10 +153,11 @@ export const updateSeries = async (seriesId: string, seriesData: Partial<Series>
 /**
  * Deletes a series
  * @param seriesId The ID of the series
- * @returns Promise with the result
+ * @returns Promise indicating success
  */
 export const deleteSeries = async (seriesId: string): Promise<boolean> => {
   try {
+    const supabase = await createClient();
     const { error } = await supabase
       .from('series')
       .delete()
@@ -197,107 +176,11 @@ export const deleteSeries = async (seriesId: string): Promise<boolean> => {
 };
 
 /**
- * Fetches rules for a series
- * @param seriesId The ID of the series
- * @returns Promise with the series rules
+ * Gets the available roles for a series
+ * @returns Array of available series roles
  */
-export const fetchSeriesRules = async (seriesId: string): Promise<SeriesRule[]> => {
-  try {
-    const { data, error } = await supabase
-      .from('series_rules')
-      .select('*')
-      .eq('series_id', seriesId)
-      .order('created_at', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching series rules:', error);
-      throw error;
-    }
-
-    return data as unknown as SeriesRule[];
-  } catch (error) {
-    console.error('Error in fetchSeriesRules:', error);
-    throw error;
-  }
-};
-
-/**
- * Creates a new series rule
- * @param ruleData The rule data
- * @returns Promise with the created rule
- */
-export const createSeriesRule = async (ruleData: Omit<SeriesRule, 'id' | 'created_at' | 'updated_at'>): Promise<SeriesRule> => {
-  try {
-    const { data, error } = await supabase
-      .from('series_rules')
-      .insert([ruleData])
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error creating series rule:', error);
-      throw error;
-    }
-
-    return data as unknown as SeriesRule;
-  } catch (error) {
-    console.error('Error in createSeriesRule:', error);
-    throw error;
-  }
-};
-
-/**
- * Updates a series rule
- * @param ruleId The ID of the rule
- * @param ruleData The updated rule data
- * @returns Promise with the updated rule
- */
-export const updateSeriesRule = async (ruleId: string, ruleData: Partial<SeriesRule>): Promise<SeriesRule> => {
-  try {
-    const { data, error } = await supabase
-      .from('series_rules')
-      .update({
-        ...ruleData,
-        updated_at: new Date().toISOString()
-      })
-      .eq('id', ruleId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('Error updating series rule:', error);
-      throw error;
-    }
-
-    return data as unknown as SeriesRule;
-  } catch (error) {
-    console.error('Error in updateSeriesRule:', error);
-    throw error;
-  }
-};
-
-/**
- * Deletes a series rule
- * @param ruleId The ID of the rule
- * @returns Promise with the result
- */
-export const deleteSeriesRule = async (ruleId: string): Promise<boolean> => {
-  try {
-    const { error } = await supabase
-      .from('series_rules')
-      .delete()
-      .eq('id', ruleId);
-
-    if (error) {
-      console.error('Error deleting series rule:', error);
-      throw error;
-    }
-
-    return true;
-  } catch (error) {
-    console.error('Error in deleteSeriesRule:', error);
-    throw error;
-  }
+export const getSeriesRoles = (): SeriesRole[] => {
+  return Object.values(SeriesRoles);
 };
 
 /**
@@ -307,11 +190,11 @@ export const deleteSeriesRule = async (ruleId: string): Promise<boolean> => {
  */
 export const fetchSeriesParticipants = async (seriesId: string): Promise<SeriesParticipant[]> => {
   try {
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('series_participants')
       .select('*')
-      .eq('series_id', seriesId)
-      .order('registration_date', { ascending: true });
+      .eq('series_id', seriesId);
 
     if (error) {
       console.error('Error fetching series participants:', error);
@@ -326,49 +209,66 @@ export const fetchSeriesParticipants = async (seriesId: string): Promise<SeriesP
 };
 
 /**
- * Registers a participant for a series
- * @param participantData The participant data
- * @returns Promise with the registered participant
+ * Invites a participant to a series
+ * @param seriesId The ID of the series
+ * @param participantId The ID of the participant to invite
+ * @returns Promise with the created series participant
  */
-export const registerSeriesParticipant = async (
-  participantData: Omit<SeriesParticipant, 'id' | 'created_at' | 'updated_at'>
+export const inviteSeriesParticipant = async (
+  seriesId: string,
+  participantId: string
 ): Promise<SeriesParticipant> => {
   try {
+    const supabase = await createClient();
+    const { data: existingParticipant } = await supabase
+      .from('series_participants')
+      .select()
+      .eq('series_id', seriesId)
+      .eq('participant_id', participantId)
+      .single();
+
+    if (existingParticipant) {
+      throw new Error('Participant is already invited to this series');
+    }
+
     const { data, error } = await supabase
       .from('series_participants')
-      .insert([participantData])
+      .insert({
+        series_id: seriesId,
+        participant_id: participantId,
+        status: 'invited',
+        invited_at: new Date().toISOString()
+      })
       .select()
       .single();
 
     if (error) {
-      console.error('Error registering series participant:', error);
+      console.error('Error inviting series participant:', error);
       throw error;
     }
 
     return data as unknown as SeriesParticipant;
   } catch (error) {
-    console.error('Error in registerSeriesParticipant:', error);
+    console.error('Error in inviteSeriesParticipant:', error);
     throw error;
   }
 };
 
 /**
- * Updates a series participant
- * @param participantId The ID of the participant
+ * Updates a participant's status in a series
+ * @param participantId The ID of the series participant
  * @param participantData The updated participant data
- * @returns Promise with the updated participant
+ * @returns Promise with the updated series participant
  */
 export const updateSeriesParticipant = async (
   participantId: string,
   participantData: Partial<SeriesParticipant>
 ): Promise<SeriesParticipant> => {
   try {
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('series_participants')
-      .update({
-        ...participantData,
-        updated_at: new Date().toISOString()
-      })
+      .update(participantData)
       .eq('id', participantId)
       .select()
       .single();
@@ -387,11 +287,12 @@ export const updateSeriesParticipant = async (
 
 /**
  * Removes a participant from a series
- * @param participantId The ID of the participant
- * @returns Promise with the result
+ * @param participantId The ID of the series participant to remove
+ * @returns Promise indicating success
  */
 export const removeSeriesParticipant = async (participantId: string): Promise<boolean> => {
   try {
+    const supabase = await createClient();
     const { error } = await supabase
       .from('series_participants')
       .delete()
@@ -410,32 +311,32 @@ export const removeSeriesParticipant = async (participantId: string): Promise<bo
 };
 
 /**
- * Checks if a user is registered for a series
+ * Checks if a participant is invited to a series
  * @param seriesId The ID of the series
- * @param userId The ID of the user
- * @returns Promise with the result
+ * @param participantId The ID of the participant
+ * @returns Promise with boolean indicating if participant is invited
  */
-export const isUserRegisteredForSeries = async (seriesId: string, userId: string): Promise<boolean> => {
+export const isParticipantInvitedToSeries = async (
+  seriesId: string,
+  participantId: string
+): Promise<boolean> => {
   try {
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('series_participants')
-      .select('id')
+      .select()
       .eq('series_id', seriesId)
-      .eq('user_id', userId)
+      .eq('participant_id', participantId)
       .single();
 
     if (error) {
-      if (error.code === 'PGRST116') {
-        // No rows returned, user is not registered
-        return false;
-      }
-      console.error('Error checking series registration:', error);
+      if (error.code === 'PGRST116') return false;
       throw error;
     }
 
-    return !!data;
+    return true;
   } catch (error) {
-    console.error('Error in isUserRegisteredForSeries:', error);
+    console.error('Error in isParticipantInvitedToSeries:', error);
     throw error;
   }
 }; 

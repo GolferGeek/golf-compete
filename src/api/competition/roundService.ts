@@ -6,13 +6,16 @@ import {
     HoleScore,
     CreateHoleScoreInput,
     UpdateHoleScoreInput,
-    EventRoundSummary
-} from '@/types/competition/rounds/types';
-import { Event } from '@/types/competition/events/Event';
+    EventRoundSummary,
+    WeatherCondition,
+    CourseCondition
+} from '@/types/round';
+import { Event } from '@/types/competition/events/event';
 import { supabaseClient } from '@/lib/auth';
 import { getEventById } from '@/lib/events';
 import { getEventParticipants } from '@/lib/participants';
 import { CoursesApiClient } from '@/lib/apiClient/courses';
+import { RoundsApiClient } from '@/lib/apiClient/rounds';
 
 /**
  * Creates a new round
@@ -23,17 +26,43 @@ export const createRound = async (input: CreateRoundInput): Promise<Round> => {
         if (userError) throw userError;
         if (!user) throw new Error('User not authenticated');
 
-        const { data, error } = await supabaseClient
-            .from('rounds')
-            .insert({
-                ...input,
-                profile_id: user.id
-            })
-            .select()
-            .single();
+        // Convert date to ISO string if provided
+        const roundDate = input.date_played || new Date().toISOString();
 
-        if (error) throw error;
-        return data;
+        const response = await RoundsApiClient.createRound({
+            courseTeeId: input.tee_set_id,
+            roundDate,
+            status: 'draft'
+        });
+
+        if (!response.success || !response.data) {
+            throw new Error(response.error?.message || 'Failed to create round');
+        }
+
+        // Construct Round object with all required properties
+        return {
+            id: response.data.id,
+            user_id: response.data.userId,
+            course_id: response.data.course?.id || '',
+            bag_id: input.bag_id,
+            tee_set_id: response.data.courseTeeId,
+            date_played: roundDate,
+            weather_conditions: input.weather_conditions || [],
+            course_conditions: input.course_conditions || [],
+            temperature_start: input.temperature_start,
+            temperature_end: input.temperature_end,
+            wind_speed_start: input.wind_speed_start,
+            wind_speed_end: input.wind_speed_end,
+            wind_direction_start: input.wind_direction_start,
+            wind_direction_end: input.wind_direction_end,
+            total_score: 0,
+            total_putts: 0,
+            fairways_hit: 0,
+            greens_in_regulation: 0,
+            notes: input.notes || '',
+            created_at: response.data.createdAt,
+            updated_at: response.data.updatedAt
+        };
     } catch (error) {
         console.error('Error in createRound:', error);
         throw error;
@@ -46,15 +75,41 @@ export const createRound = async (input: CreateRoundInput): Promise<Round> => {
 export const updateRound = async (input: UpdateRoundInput): Promise<Round> => {
     try {
         const { id, ...updateData } = input;
-        const { data, error } = await supabaseClient
-            .from('rounds')
-            .update(updateData)
-            .eq('id', id)
-            .select()
-            .single();
+        
+        const response = await RoundsApiClient.updateRound(id, {
+            courseTeeId: updateData.tee_set_id,
+            roundDate: updateData.date_played,
+            status: 'draft'
+        });
 
-        if (error) throw error;
-        return data;
+        if (!response.success || !response.data) {
+            throw new Error(response.error?.message || 'Failed to update round');
+        }
+
+        // Ensure all required Round properties are present
+        return {
+            id: response.data.id,
+            user_id: response.data.userId,
+            course_id: response.data.course?.id || '',
+            bag_id: updateData.bag_id || response.data.bag_id || '',
+            tee_set_id: response.data.courseTeeId,
+            date_played: updateData.date_played || response.data.roundDate,
+            weather_conditions: updateData.weather_conditions || [],
+            course_conditions: updateData.course_conditions || [],
+            temperature_start: updateData.temperature_start,
+            temperature_end: updateData.temperature_end,
+            wind_speed_start: updateData.wind_speed_start,
+            wind_speed_end: updateData.wind_speed_end,
+            wind_direction_start: updateData.wind_direction_start,
+            wind_direction_end: updateData.wind_direction_end,
+            total_score: 0,
+            total_putts: 0,
+            fairways_hit: 0,
+            greens_in_regulation: 0,
+            notes: updateData.notes || '',
+            created_at: response.data.createdAt,
+            updated_at: response.data.updatedAt
+        };
     } catch (error) {
         console.error('Error in updateRound:', error);
         throw error;
@@ -66,80 +121,52 @@ export const updateRound = async (input: UpdateRoundInput): Promise<Round> => {
  */
 export const getRoundWithDetails = async (roundId: string): Promise<RoundWithDetails> => {
     try {
-        // First get the basic round data to get the course ID
-        const { data: round, error: roundError } = await supabaseClient
-            .from('rounds')
-            .select('*, bag:bags(id, name, description), event:events!left(id, name, event_date)')
-            .eq('id', roundId)
-            .single();
-
-        if (roundError) throw roundError;
-        if (!round) throw new Error('Round not found');
+        // Get round with scores
+        const roundResponse = await RoundsApiClient.getRoundById(roundId, true);
+        if (!roundResponse.success || !roundResponse.data) {
+            throw new Error(roundResponse.error?.message || 'Round not found');
+        }
 
         // Get course details using API client
-        const courseResponse = await CoursesApiClient.getCourseById(round.course_id);
+        const courseResponse = await CoursesApiClient.getCourseById(roundResponse.data.course?.id);
         if (!courseResponse.success || !courseResponse.data) {
             throw new Error('Failed to fetch course details');
         }
 
         // Get tee set details using API client
-        const teeResponse = await CoursesApiClient.getCourseTees(round.course_id);
+        const teeResponse = await CoursesApiClient.getCourseTees(roundResponse.data.course?.id);
         if (!teeResponse.success || !teeResponse.data || !teeResponse.data.tees) {
             throw new Error('Failed to fetch tee sets');
         }
 
         // Find the specific tee set for this round
-        const teeSet = teeResponse.data.tees.find(tee => tee.id === round.tee_set_id);
+        const teeSet = teeResponse.data.tees.find(tee => tee.id === roundResponse.data.courseTeeId);
         if (!teeSet) {
             throw new Error('Tee set not found');
         }
 
-        // Get the hole scores
-        const { data: holeScores, error: scoresError } = await supabaseClient
-            .from('hole_scores')
-            .select('*')
-            .eq('round_id', roundId)
-            .order('hole_number');
-
-        if (scoresError) throw scoresError;
-
-        // Construct the response with the fetched data
+        // Map the response to RoundWithDetails format
         return {
-            ...round,
-            course: {
-                id: courseResponse.data.id,
-                name: courseResponse.data.name,
-                city: courseResponse.data.city,
-                state: courseResponse.data.state
-            },
-            tee_set: {
-                id: teeSet.id,
-                name: teeSet.teeName,
-                color: teeSet.gender, // Using gender as color as per the API client pattern
-                rating: teeSet.courseRating,
-                slope: teeSet.slopeRating,
-                length: teeSet.yardage
-            },
-            hole_scores: holeScores || []
+            ...roundResponse.data,
+            tee_set_id: roundResponse.data.courseTeeId,
+            date_played: new Date(roundResponse.data.roundDate),
+            course: courseResponse.data,
+            tee_set: teeSet,
+            hole_scores: roundResponse.data.scores?.map(score => ({
+                id: score.id,
+                round_id: score.roundId,
+                hole_number: score.holeNumber,
+                strokes: score.strokes,
+                putts: score.putts,
+                fairway_hit: score.fairwayHit,
+                green_in_regulation: score.greenInRegulation,
+            })) || [],
         };
     } catch (error) {
         console.error('Error in getRoundWithDetails:', error);
         throw error;
     }
 };
-
-interface RoundWithProfile {
-    id: string;
-    profile_id: string;
-    total_score: number;
-    total_putts: number;
-    fairways_hit: number;
-    greens_in_regulation: number;
-    profile: {
-        first_name: string;
-        last_name: string;
-    };
-}
 
 /**
  * Gets all rounds for an event
@@ -148,84 +175,37 @@ export const getEventRounds = async (eventId: string): Promise<EventRoundSummary
     try {
         console.log(`Getting rounds for event ID: ${eventId}`);
         
-        // Get the rounds without relying on the join to profiles
-        const { data: roundsData, error: roundsError } = await supabaseClient
-            .from('rounds')
-            .select(`
-                id,
-                profile_id,
-                total_score,
-                total_putts,
-                fairways_hit,
-                greens_in_regulation
-            `)
-            .eq('event_id', eventId);
+        // Get all rounds for the event
+        const roundsResponse = await RoundsApiClient.getRounds({
+            eventId,
+            includeScores: true,
+        });
 
-        if (roundsError) {
-            console.error('Error fetching rounds:', roundsError);
-            throw roundsError;
+        if (!roundsResponse.success) {
+            throw new Error(roundsResponse.error?.message || 'Failed to fetch rounds');
         }
 
-        console.log(`Found ${roundsData?.length || 0} rounds for event`);
+        console.log(`Found ${roundsResponse.data?.rounds.length || 0} rounds for event`);
         
-        if (!roundsData || roundsData.length === 0) {
+        if (!roundsResponse.data?.rounds.length) {
             return {
                 event_id: eventId,
                 rounds: []
             };
         }
 
-        // Get profiles for each round separately
-        const profileIds = roundsData.map(round => round.profile_id).filter(Boolean);
-        console.log(`Getting profiles for IDs:`, profileIds);
-        
-        let profileData = {};
-        
-        if (profileIds.length > 0) {
-            const { data: profilesData, error: profilesError } = await supabaseClient
-                .from('profiles')
-                .select('id, first_name, last_name, name')
-                .in('id', profileIds);
-
-            if (profilesError) {
-                console.error('Error fetching profiles:', profilesError);
-                // Continue without profile data rather than failing
-            } else if (profilesData) {
-                // Create a map of profile IDs to profile data
-                profileData = profilesData.reduce((acc, profile) => {
-                    acc[profile.id] = profile;
-                    return acc;
-                }, {});
-            }
-        }
-
-        // Combine the data
+        // Map the response to EventRoundSummary format
         return {
             event_id: eventId,
-            rounds: roundsData.map(round => {
-                const profile = profileData[round.profile_id];
-                let displayName = 'Player';
-                
-                if (profile) {
-                    if (profile.first_name || profile.last_name) {
-                        displayName = `${profile.first_name || ''} ${profile.last_name || ''}`.trim();
-                    } else if (profile.name) {
-                        displayName = profile.name;
-                    }
-                } else {
-                    console.log(`No profile found for user ID: ${round.profile_id}`);
-                }
-
-                return {
-                    user_id: round.profile_id, // Keep returning as user_id for backward compatibility
-                    user_name: displayName,
-                    round_id: round.id,
-                    total_score: round.total_score,
-                    total_putts: round.total_putts,
-                    fairways_hit: round.fairways_hit,
-                    greens_in_regulation: round.greens_in_regulation
-                };
-            })
+            rounds: roundsResponse.data.rounds.map(round => ({
+                user_id: round.userId,
+                user_name: round.user?.name || '',
+                round_id: round.id,
+                total_score: round.grossScore || 0,
+                total_putts: round.scores?.reduce((sum, score) => sum + (score.putts || 0), 0) || 0,
+                fairways_hit: round.scores?.filter(score => score.fairwayHit).length || 0,
+                greens_in_regulation: round.scores?.filter(score => score.greenInRegulation).length || 0,
+            }))
         };
     } catch (error) {
         console.error('Error in getEventRounds:', error);
@@ -238,14 +218,27 @@ export const getEventRounds = async (eventId: string): Promise<EventRoundSummary
  */
 export const createHoleScore = async (input: CreateHoleScoreInput): Promise<HoleScore> => {
     try {
-        const { data, error } = await supabaseClient
-            .from('hole_scores')
-            .insert(input)
-            .select()
-            .single();
+        const response = await RoundsApiClient.createScore(input.round_id, {
+            holeNumber: input.hole_number,
+            strokes: input.strokes,
+            putts: input.putts,
+            fairwayHit: input.fairway_hit,
+            greenInRegulation: input.green_in_regulation,
+        });
 
-        if (error) throw error;
-        return data;
+        if (!response.success || !response.data) {
+            throw new Error(response.error?.message || 'Failed to create hole score');
+        }
+
+        return {
+            id: response.data.id,
+            round_id: response.data.roundId,
+            hole_number: response.data.holeNumber,
+            strokes: response.data.strokes,
+            putts: response.data.putts,
+            fairway_hit: response.data.fairwayHit,
+            green_in_regulation: response.data.greenInRegulation,
+        };
     } catch (error) {
         console.error('Error in createHoleScore:', error);
         throw error;
@@ -257,16 +250,27 @@ export const createHoleScore = async (input: CreateHoleScoreInput): Promise<Hole
  */
 export const updateHoleScore = async (input: UpdateHoleScoreInput): Promise<HoleScore> => {
     try {
-        const { id, ...updateData } = input;
-        const { data, error } = await supabaseClient
-            .from('hole_scores')
-            .update(updateData)
-            .eq('id', id)
-            .select()
-            .single();
+        const { id, round_id, ...updateData } = input;
+        const response = await RoundsApiClient.updateScore(round_id, id, {
+            strokes: updateData.strokes,
+            putts: updateData.putts,
+            fairwayHit: updateData.fairway_hit,
+            greenInRegulation: updateData.green_in_regulation,
+        });
 
-        if (error) throw error;
-        return data;
+        if (!response.success || !response.data) {
+            throw new Error(response.error?.message || 'Failed to update hole score');
+        }
+
+        return {
+            id: response.data.id,
+            round_id: response.data.roundId,
+            hole_number: response.data.holeNumber,
+            strokes: response.data.strokes,
+            putts: response.data.putts,
+            fairway_hit: response.data.fairwayHit,
+            green_in_regulation: response.data.greenInRegulation,
+        };
     } catch (error) {
         console.error('Error in updateHoleScore:', error);
         throw error;
@@ -278,14 +282,9 @@ export const updateHoleScore = async (input: UpdateHoleScoreInput): Promise<Hole
  */
 export const initializeEventRounds = async (eventId: string): Promise<EventRoundSummary> => {
     try {
-        // Get event details to get the course and tee set
-        const { data: event, error: eventError } = await supabaseClient
-            .from('events')
-            .select('*')
-            .eq('id', eventId)
-            .single();
-
-        if (eventError || !event) throw new Error('Event not found');
+        // Get event details
+        const event = await getEventById(eventId);
+        if (!event) throw new Error('Event not found');
 
         // Get all participants
         const participants = await getEventParticipants(eventId);
@@ -297,48 +296,30 @@ export const initializeEventRounds = async (eventId: string): Promise<EventRound
             if (participant.status !== 'confirmed') return null;
 
             // Get the default tee set for the course
-            const { data: teeSets, error: teeSetError } = await supabaseClient
-                .from('tee_sets')
-                .select('id')
-                .eq('course_id', event.course_id)
-                .eq('is_default', true)
-                .single();
+            const teeResponse = await CoursesApiClient.getCourseTees(event.course_id);
+            if (!teeResponse.success || !teeResponse.data?.tees) {
+                throw new Error('Failed to fetch tee sets');
+            }
+            const defaultTeeSet = teeResponse.data.tees.find(tee => tee.is_default);
+            if (!defaultTeeSet) throw new Error('No default tee set found');
 
-            if (teeSetError) throw teeSetError;
+            // Create the round
+            const response = await RoundsApiClient.createRound({
+                eventId,
+                courseTeeId: defaultTeeSet.id,
+                roundDate: event.event_date.toISOString(),
+                status: 'pending',
+            });
 
-            // Get the participant's default bag
-            const { data: bags, error: bagError } = await supabaseClient
-                .from('bags')
-                .select('id')
-                .eq('user_id', participant.user_id)
-                .eq('is_default', true)
-                .single();
+            if (!response.success || !response.data) {
+                throw new Error(response.error?.message || 'Failed to create round');
+            }
 
-            if (bagError) throw bagError;
-
-            const roundInput: CreateRoundInput = {
-                event_id: eventId,
-                course_id: event.course_id,
-                tee_set_id: teeSets.id,
-                bag_id: bags.id,
-                date_played: event.event_date,
-                weather_conditions: [],
-                course_conditions: [],
-            };
-
-            const { data: round, error } = await supabaseClient
-                .from('rounds')
-                .insert(roundInput)
-                .select()
-                .single();
-
-            if (error) throw error;
-            return round;
+            return response.data;
         });
 
         // Wait for all rounds to be created
-        const rounds = await Promise.all(roundPromises);
-        const validRounds = rounds.filter(r => r !== null);
+        await Promise.all(roundPromises);
 
         // Return the event rounds summary
         return await getEventRounds(eventId);

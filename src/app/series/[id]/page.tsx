@@ -31,7 +31,7 @@ import { SeriesAuthGuard } from '@/components/auth/SeriesAuthGuard';
 
 interface SeriesDetailPageProps {
   params: {
-    id: string;
+    seriesId: string;
   };
 }
 
@@ -209,9 +209,10 @@ function SeriesDetailContent({ seriesId }: { seriesId: string }) {
 }
 
 export default function SeriesDetailPage({ params }: SeriesDetailPageProps) {
+  const { seriesId } = params;
   return (
-    <SeriesAuthGuard seriesId={params.id}>
-      <SeriesDetailContent seriesId={params.id} />
+    <SeriesAuthGuard seriesId={seriesId}>
+      <SeriesDetailContent seriesId={seriesId} />
     </SeriesAuthGuard>
   );
 } 

@@ -5,10 +5,10 @@ import { createClient } from '@supabase/supabase-js';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { userId: string } }
 ) {
   try {
-    console.log('Starting single user API request for ID:', params.id);
+    console.log('Starting single user API request for ID:', params.userId);
     
     // Log environment variables (safely)
     const hasUrl = !!process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -51,7 +51,7 @@ export async function GET(
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('*')
-      .eq('id', params.id)
+      .eq('id', params.userId)
       .single();
 
     if (profileError) {
@@ -65,7 +65,7 @@ export async function GET(
     console.log('Fetching auth user...');
     // Get auth user data
     const { data: { user }, error: authError } = await supabase.auth.admin.getUserById(
-      params.id
+      params.userId
     );
 
     if (authError) {
@@ -117,10 +117,10 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { userId: string } }
 ) {
   try {
-    console.log('Starting user update request for ID:', params.id);
+    console.log('Starting user update request for ID:', params.userId);
     
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
       throw new Error('Missing required environment variables');
@@ -159,7 +159,7 @@ export async function PATCH(
       .from('profiles')
       .upsert({
         ...data,
-        id: params.id,
+        id: params.userId,
         updated_at: new Date().toISOString()
       })
       .select()
@@ -175,7 +175,7 @@ export async function PATCH(
 
     // Get updated auth user data
     const { data: { user }, error: authError } = await supabase.auth.admin.getUserById(
-      params.id
+      params.userId
     );
 
     if (authError) {
@@ -199,7 +199,7 @@ export async function PATCH(
       id: user.id,
       email: user.email,
       created_at: user.created_at,
-      updated_at: profile.updated_at,
+      updated_at: profile?.updated_at,
       last_sign_in_at: user.last_sign_in_at,
       profile
     };
@@ -218,35 +218,26 @@ export async function PATCH(
   }
 }
 
-// Initialize Supabase admin client with service role key
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
-
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { userId: string } }
 ) {
   try {
-    const userId = params.id;
-
-    // First delete the user's profile
-    const { error: profileError } = await supabaseAdmin
-      .from('profiles')
-      .delete()
-      .eq('id', userId);
-
-    if (profileError) {
-      console.error('Error deleting user profile:', profileError);
-      return NextResponse.json(
-        { error: `Failed to delete user profile: ${profileError.message}` },
-        { status: 500 }
-      );
+    console.log('Starting user deletion request for ID:', params.userId);
+    
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      throw new Error('Missing required environment variables');
     }
 
-    // Then delete the user from auth
-    const { error: authError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.SUPABASE_SERVICE_ROLE_KEY
+    );
+
+    // Delete user from auth
+    const { error: authError } = await supabase.auth.admin.deleteUser(
+      params.userId
+    );
 
     if (authError) {
       console.error('Error deleting auth user:', authError);
@@ -256,11 +247,29 @@ export async function DELETE(
       );
     }
 
+    // Delete profile
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .delete()
+      .eq('id', params.userId);
+
+    if (profileError) {
+      console.error('Error deleting profile:', profileError);
+      return NextResponse.json(
+        { error: `Failed to delete profile: ${profileError.message}` },
+        { status: 500 }
+      );
+    }
+
+    console.log('User successfully deleted');
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error in DELETE /api/users/[id]:', error);
+    console.error('Error in user deletion API:', error);
     return NextResponse.json(
-      { error: 'Failed to delete user' },
+      { 
+        error: error instanceof Error ? error.message : 'Internal server error',
+        details: error instanceof Error ? error.stack : undefined
+      },
       { status: 500 }
     );
   }

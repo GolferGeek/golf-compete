@@ -1,5 +1,5 @@
 -- Drop existing tables and types if they exist
-DROP TABLE IF EXISTS hole_scores CASCADE;
+DROP TABLE IF EXISTS round_holes CASCADE;
 DROP TABLE IF EXISTS rounds CASCADE;
 DROP TYPE IF EXISTS weather_condition CASCADE;
 DROP TYPE IF EXISTS course_condition CASCADE;
@@ -14,54 +14,44 @@ CREATE TYPE course_condition AS ENUM ('dry', 'wet', 'cart_path_only', 'frost_del
 CREATE TABLE rounds (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
-    event_id UUID REFERENCES events(id) ON DELETE SET NULL, -- Optional link to an event
+    event_id UUID REFERENCES events(id) ON DELETE SET NULL,
     course_id UUID NOT NULL REFERENCES courses(id),
     tee_set_id UUID NOT NULL REFERENCES tee_sets(id),
     date_played TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    weather_conditions weather_condition[],  -- Array of conditions that may have occurred during round
-    course_conditions course_condition[],    -- Array of conditions that may have occurred during round
-    temperature_start INTEGER,               -- Temperature in Fahrenheit at start
-    temperature_end INTEGER,                 -- Temperature in Fahrenheit at end
-    wind_speed_start INTEGER,               -- Wind speed in MPH at start
-    wind_speed_end INTEGER,                 -- Wind speed in MPH at end
-    wind_direction_start VARCHAR(3),        -- Wind direction at start (e.g., 'NW', 'SE')
-    wind_direction_end VARCHAR(3),          -- Wind direction at end
-    total_score INTEGER,                    -- Calculated from hole_scores
-    total_putts INTEGER,                    -- Calculated from hole_scores
-    fairways_hit INTEGER,                   -- Calculated from hole_scores
-    greens_in_regulation INTEGER,           -- Calculated from hole_scores
-    notes TEXT,                             -- General notes about the round
+    weather_conditions weather_condition[],
+    course_conditions course_condition[],
+    temperature_start INTEGER,
+    temperature_end INTEGER,
+    wind_speed_start INTEGER,
+    wind_speed_end INTEGER,
+    wind_direction_start VARCHAR(3),
+    wind_direction_end VARCHAR(3),
+    notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    CONSTRAINT valid_temperatures CHECK (
-        (temperature_start BETWEEN -20 AND 120) AND 
-        (temperature_end BETWEEN -20 AND 120)
-    ),
-    CONSTRAINT valid_wind_speeds CHECK (
-        (wind_speed_start BETWEEN 0 AND 100) AND 
-        (wind_speed_end BETWEEN 0 AND 100)
-    ),
-    CONSTRAINT valid_wind_directions CHECK (
-        wind_direction_start ~ '^[NSEW]{1,3}$' AND 
-        wind_direction_end ~ '^[NSEW]{1,3}$'
-    )
+    updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
 );
 
--- Create hole scores table
-CREATE TABLE hole_scores (
+-- Create round_holes table
+CREATE TABLE round_holes (
     id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     round_id UUID NOT NULL REFERENCES rounds(id) ON DELETE CASCADE,
-    hole_number INTEGER NOT NULL CHECK (hole_number BETWEEN 1 AND 18),
-    strokes INTEGER NOT NULL CHECK (strokes BETWEEN 1 AND 20),
-    putts INTEGER CHECK (putts BETWEEN 0 AND 10),
-    fairway_hit BOOLEAN,                    -- NULL for par 3s
+    hole_id UUID NOT NULL REFERENCES holes(id),
+    score INTEGER NOT NULL,
+    putts INTEGER NOT NULL,
+    fairway_hit BOOLEAN,  -- null for par 3s
     green_in_regulation BOOLEAN NOT NULL,
-    penalty_strokes INTEGER DEFAULT 0 CHECK (penalty_strokes BETWEEN 0 AND 5),
-    notes TEXT,                             -- Notes specific to this hole
+    penalty_strokes INTEGER NOT NULL DEFAULT 0,
+    notes TEXT,
     created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
-    UNIQUE(round_id, hole_number)           -- Ensure no duplicate holes per round
+    UNIQUE(round_id, hole_id)
 );
+
+-- Add indexes
+CREATE INDEX idx_round_holes_round_id ON round_holes(round_id);
+CREATE INDEX idx_rounds_user_id ON rounds(user_id);
+CREATE INDEX idx_rounds_event_id ON rounds(event_id);
+CREATE INDEX idx_rounds_course_id ON rounds(course_id);
 
 -- Create function to update round totals
 CREATE OR REPLACE FUNCTION update_round_totals()
@@ -102,13 +92,6 @@ CREATE TRIGGER update_round_totals_trigger
 AFTER INSERT OR UPDATE OR DELETE ON hole_scores
 FOR EACH ROW
 EXECUTE FUNCTION update_round_totals();
-
--- Add indexes for common queries
-CREATE INDEX idx_rounds_user_id ON rounds(user_id);
-CREATE INDEX idx_rounds_event_id ON rounds(event_id);
-CREATE INDEX idx_rounds_course_id ON rounds(course_id);
-CREATE INDEX idx_rounds_date_played ON rounds(date_played);
-CREATE INDEX idx_hole_scores_round_id ON hole_scores(round_id);
 
 -- Add RLS policies
 ALTER TABLE rounds ENABLE ROW LEVEL SECURITY;

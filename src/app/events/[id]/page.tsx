@@ -33,14 +33,13 @@ import { EventAuthGuard } from '@/components/auth/EventAuthGuard';
 
 interface EventDayPageProps {
   params: {
-    id: string;
+    eventId: string;
   };
 }
 
 export default function EventDayPage({ params }: EventDayPageProps) {
   const router = useRouter();
-  const unwrappedParams = React.use(params as any) as { id: string };
-  const eventId = unwrappedParams.id;
+  const { eventId } = params;
   
   const [event, setEvent] = useState<Event | null>(null);
   const [rounds, setRounds] = useState<EventRoundSummary | null>(null);

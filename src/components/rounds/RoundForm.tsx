@@ -20,7 +20,7 @@ import {
   Divider,
 } from '@mui/material';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 import { 
   WeatherCondition, 
   CourseCondition, 
@@ -127,7 +127,7 @@ export default function RoundForm({ eventId, initialCourseId, initialTeeSetId, i
 
         // Load bags for the current user
         // TODO: Replace with BagsApiClient once implemented
-        const { data: bagsData, error: bagsError } = await supabase
+        const { data: bagsData, error: bagsError } = await createClient
           .from('bags')
           .select('id, name, description')
           .eq('user_id', user.id)
@@ -269,36 +269,34 @@ export default function RoundForm({ eventId, initialCourseId, initialTeeSetId, i
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitting(true);
-    setError(null);
-    setFormErrors({});
+    
+    if (!formData.course_id || !formData.tee_set_id) {
+      setError('Please select a course and tee set');
+      return;
+    }
 
     try {
-      // Validate required fields
-      const errors: Record<string, string> = {};
-      if (!formData.course_id) errors.course_id = 'Course is required';
-      if (!formData.tee_set_id) errors.tee_set_id = 'Tee set is required';
-      if (bags.length > 0 && !formData.bag_id) errors.bag_id = 'Bag is required';
-      
-      if (Object.keys(errors).length > 0) {
-        setFormErrors(errors);
-        setSubmitting(false);
-        return;
+      const response = await fetch('/api/rounds', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...formData,
+          weather_conditions: formData.weather_conditions || [],
+          course_conditions: formData.course_conditions || [],
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create round');
       }
 
-      // Create the round
-      const round = await createRound(formData as CreateRoundInput);
-      
-      // Redirect based on event presence
-      if (eventId) {
-        router.push(`/events/${eventId}/scoring`);
-      } else {
-        router.push(`/rounds/${round.id}/score`);
-      }
+      const data = await response.json();
+      router.push(`/rounds/${data.id}`);
     } catch (error) {
       console.error('Error creating round:', error);
-      setError('Failed to create round');
-      setSubmitting(false);
+      setError('Failed to create round. Please try again.');
     }
   };
 
@@ -315,29 +313,31 @@ export default function RoundForm({ eventId, initialCourseId, initialTeeSetId, i
       {eventRounds && (
         <Paper sx={{ mb: 4, p: 2 }}>
           <Typography variant="h6" gutterBottom>Event Rounds</Typography>
-          <Grid container spacing={2}>
+          <Box sx={{ display: 'grid', gap: 2 }}>
             {eventRounds.rounds.map((round) => (
-              <Grid item xs={12} key={round.round_id}>
-                <Box sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
-                  <Typography variant="subtitle1">{round.user_name}</Typography>
-                  <Grid container spacing={2}>
-                    <Grid item xs={3}>
-                      <Typography variant="body2">Score: {round.total_score}</Typography>
-                    </Grid>
-                    <Grid item xs={3}>
-                      <Typography variant="body2">Putts: {round.total_putts}</Typography>
-                    </Grid>
-                    <Grid item xs={3}>
-                      <Typography variant="body2">Fairways: {round.fairways_hit}</Typography>
-                    </Grid>
-                    <Grid item xs={3}>
-                      <Typography variant="body2">GIR: {round.greens_in_regulation}</Typography>
-                    </Grid>
-                  </Grid>
+              <Box key={round.round_id} sx={{ p: 2, border: 1, borderColor: 'divider', borderRadius: 1 }}>
+                <Typography variant="subtitle1">{round.user_name}</Typography>
+                <Box sx={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(4, 1fr)', 
+                  gap: 2 
+                }}>
+                  <Box>
+                    <Typography variant="body2">Score: {round.total_score}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="body2">Putts: {round.total_putts}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="body2">Fairways: {round.fairways_hit}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="body2">GIR: {round.greens_in_regulation}</Typography>
+                  </Box>
                 </Box>
-              </Grid>
+              </Box>
             ))}
-          </Grid>
+          </Box>
         </Paper>
       )}
 
@@ -353,20 +353,23 @@ export default function RoundForm({ eventId, initialCourseId, initialTeeSetId, i
         )}
 
         <form onSubmit={handleSubmit}>
-          <Grid container spacing={3}>
+          <Box sx={{ 
+            display: 'grid', 
+            gap: 3,
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }
+          }}>
             {!eventId ? (
-              // Course selection only for solo rounds
-              <Grid item xs={12} sm={6}>
+              <Box>
                 <FormControl fullWidth error={!!formErrors.course_id} size="small">
                   <InputLabel>Course</InputLabel>
                   <Select
-                    value={formData.course_id || ''}
-                    onChange={(e) => setFormData({ ...formData, course_id: e.target.value })}
+                    value={formData.course_id}
                     label="Course"
+                    onChange={(e) => setFormData({ ...formData, course_id: e.target.value })}
                   >
                     {courses.map((course) => (
                       <MenuItem key={course.id} value={course.id}>
-                        {course.name} - {course.city}, {course.state}
+                        {course.name} ({course.city}, {course.state})
                       </MenuItem>
                     ))}
                   </Select>
@@ -374,32 +377,31 @@ export default function RoundForm({ eventId, initialCourseId, initialTeeSetId, i
                     <FormHelperText>{formErrors.course_id}</FormHelperText>
                   )}
                 </FormControl>
-              </Grid>
+              </Box>
             ) : (
-              // For event rounds, show course info as text
-              <Grid item xs={12} sm={6}>
+              <Box>
                 <TextField
                   label="Course"
-                  value={event?.courses ? `${event.courses.name} - ${event.courses.city}, ${event.courses.state}` : ''}
+                  value={event?.courses?.name || ''}
                   disabled
                   fullWidth
                   size="small"
                 />
-              </Grid>
+              </Box>
             )}
 
-            <Grid item xs={12} sm={6}>
+            <Box>
               <FormControl fullWidth error={!!formErrors.tee_set_id} size="small">
                 <InputLabel>Tee Set</InputLabel>
                 <Select
-                  value={formData.tee_set_id || ''}
-                  onChange={(e) => setFormData({ ...formData, tee_set_id: e.target.value })}
+                  value={formData.tee_set_id}
                   label="Tee Set"
+                  onChange={(e) => setFormData({ ...formData, tee_set_id: e.target.value })}
                   disabled={!formData.course_id}
                 >
                   {teeSets.map((teeSet) => (
                     <MenuItem key={teeSet.id} value={teeSet.id}>
-                      {teeSet.name} - {teeSet.color} ({teeSet.rating}/{teeSet.slope})
+                      {teeSet.name} ({teeSet.rating}/{teeSet.slope})
                     </MenuItem>
                   ))}
                 </Select>
@@ -407,18 +409,18 @@ export default function RoundForm({ eventId, initialCourseId, initialTeeSetId, i
                   <FormHelperText>{formErrors.tee_set_id}</FormHelperText>
                 )}
               </FormControl>
-            </Grid>
+            </Box>
 
-            {/* Only show bag selection if user has bags */}
             {bags.length > 0 && (
-              <Grid item xs={12} sm={6}>
+              <Box>
                 <FormControl fullWidth error={!!formErrors.bag_id} size="small">
                   <InputLabel>Bag</InputLabel>
                   <Select
                     value={formData.bag_id || ''}
-                    onChange={(e) => setFormData({ ...formData, bag_id: e.target.value })}
                     label="Bag"
+                    onChange={(e) => setFormData({ ...formData, bag_id: e.target.value })}
                   >
+                    <MenuItem value="">None</MenuItem>
                     {bags.map((bag) => (
                       <MenuItem key={bag.id} value={bag.id}>
                         {bag.name}
@@ -429,25 +431,27 @@ export default function RoundForm({ eventId, initialCourseId, initialTeeSetId, i
                     <FormHelperText>{formErrors.bag_id}</FormHelperText>
                   )}
                 </FormControl>
-              </Grid>
+              </Box>
             )}
 
-            <Grid item xs={12} sm={6}>
+            <Box>
               <TextField
                 label="Date Played"
                 type="date"
-                fullWidth
-                InputLabelProps={{ shrink: true }}
-                value={formData.date_played ? formatDateForInput(formData.date_played) : ''}
+                value={formatDateForInput(formData.date_played)}
                 onChange={(e) => setFormData({ 
                   ...formData, 
                   date_played: parseInputDate(e.target.value)
                 })}
+                fullWidth
+                InputLabelProps={{ shrink: true }}
+                error={!!formErrors.date_played}
+                helperText={formErrors.date_played}
                 size="small"
               />
-            </Grid>
+            </Box>
 
-            <Grid item xs={12}>
+            <Box sx={{ gridColumn: '1 / -1' }}>
               <Typography variant="subtitle2" gutterBottom>Weather Conditions</Typography>
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 {(['sunny', 'partly_cloudy', 'cloudy', 'light_rain', 'heavy_rain', 'windy'] as WeatherCondition[]).map((condition) => (
@@ -462,13 +466,14 @@ export default function RoundForm({ eventId, initialCourseId, initialTeeSetId, i
                       setFormData({ ...formData, weather_conditions: newConditions });
                     }}
                     color={formData.weather_conditions?.includes(condition) ? 'primary' : 'default'}
+                    variant={formData.weather_conditions?.includes(condition) ? 'filled' : 'outlined'}
                     sx={{ textTransform: 'capitalize' }}
                   />
                 ))}
               </Box>
-            </Grid>
+            </Box>
 
-            <Grid item xs={12}>
+            <Box sx={{ gridColumn: '1 / -1' }}>
               <Typography variant="subtitle2" gutterBottom>Course Conditions</Typography>
               <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                 {(['dry', 'wet', 'cart_path_only', 'frost_delay'] as CourseCondition[]).map((condition) => (
@@ -483,42 +488,47 @@ export default function RoundForm({ eventId, initialCourseId, initialTeeSetId, i
                       setFormData({ ...formData, course_conditions: newConditions });
                     }}
                     color={formData.course_conditions?.includes(condition) ? 'primary' : 'default'}
+                    variant={formData.course_conditions?.includes(condition) ? 'filled' : 'outlined'}
                     sx={{ textTransform: 'capitalize' }}
                   />
                 ))}
               </Box>
-            </Grid>
+            </Box>
 
-            <Grid item xs={12}>
+            <Box sx={{ gridColumn: '1 / -1' }}>
               <TextField
                 fullWidth
                 multiline
-                rows={3}
+                rows={4}
                 label="Notes"
                 value={formData.notes || ''}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                error={!!formErrors.notes}
+                helperText={formErrors.notes}
                 size="small"
               />
-            </Grid>
+            </Box>
 
-            <Grid item xs={12} sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
-              <Button
-                variant="outlined"
-                onClick={() => router.back()}
-                disabled={submitting}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                variant="contained"
-                color="primary"
-                disabled={submitting}
-              >
-                {submitting ? <CircularProgress size={24} /> : 'Continue to Score Entry'}
-              </Button>
-            </Grid>
-          </Grid>
+            <Box sx={{ gridColumn: '1 / -1' }}>
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', gap: 2 }}>
+                <Button
+                  variant="outlined"
+                  onClick={() => router.back()}
+                  disabled={submitting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="contained"
+                  color="primary"
+                  disabled={submitting}
+                >
+                  {submitting ? <CircularProgress size={24} /> : 'Continue to Score Entry'}
+                </Button>
+              </Box>
+            </Box>
+          </Box>
         </form>
       </Paper>
     </Box>

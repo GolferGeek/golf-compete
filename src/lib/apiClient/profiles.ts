@@ -1,44 +1,13 @@
-import { type AuthProfile } from '@/api/internal/database/AuthService';
-import { handleApiResponse, buildQueryString } from './utils';
+import { type AuthProfile } from '@/api/internal/auth/AuthService';
+import { handleApiResponse, handleApiError, buildQueryString } from './utils';
+import { ApiResponse } from '@/types/api';
+import { ProfileMetadata, ProfileApiResponse, ProfilesApiResponse, ProfilesWithEmailApiResponse, ProfileWithEmail } from '@/types/profile';
 
-export interface ProfileWithEmail extends AuthProfile {
-  user_email?: string;
-}
-
-export interface ProfileApiResponse {
-  success: boolean;
-  data?: AuthProfile;
-  error?: {
-    message: string;
-    code: string;
-    details?: any;
-  };
-}
-
-export interface ProfilesApiResponse {
-  success: boolean;
-  data?: {
-    profiles: AuthProfile[];
-    total: number;
-  };
-  error?: {
-    message: string;
-    code: string;
-    details?: any;
-  };
-}
-
-export interface ProfilesWithEmailApiResponse {
-  success: boolean;
-  data?: {
-    profiles: ProfileWithEmail[];
-    total: number;
-  };
-  error?: {
-    message: string;
-    code: string;
-    details?: any;
-  };
+export interface QuickNote {
+  id: string;
+  note: string;
+  category: string;
+  created_at: string;
 }
 
 /**
@@ -107,56 +76,38 @@ export async function getProfilesNotInSeries(seriesId: string): Promise<Profiles
   return handleApiResponse<ProfilesWithEmailApiResponse>(response);
 }
 
-export interface QuickNote {
-  id: string;
-  note: string;
-  category: string;
-  created_at: string;
-}
+export const getProfileMetadata = async (profileId: string): Promise<ApiResponse<ProfileMetadata>> => {
+  try {
+    const response = await fetch(`/api/profiles/${profileId}/metadata`, {
+      method: 'GET',
+    });
+    return handleApiResponse(response);
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
 
-export interface ProfileMetadata {
-  quick_notes?: QuickNote[];
-  [key: string]: any;
-}
-
-/**
- * Fetch profile metadata for a user
- */
-export async function getProfileMetadata(userId: string): Promise<ProfileMetadata> {
-  const response = await fetch(`/api/profiles/${userId}/metadata`, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-  });
-
-  return handleApiResponse(response);
-}
-
-/**
- * Update profile metadata for a user
- */
-export async function updateProfileMetadata(
-  userId: string,
-  metadata: Partial<ProfileMetadata>
-): Promise<ProfileMetadata> {
-  const response = await fetch(`/api/profiles/${userId}/metadata`, {
-    method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(metadata),
-  });
-
-  return handleApiResponse(response);
-}
+export const updateProfileMetadata = async (profileId: string, metadata: Partial<ProfileMetadata>): Promise<ApiResponse<ProfileMetadata>> => {
+  try {
+    const response = await fetch(`/api/profiles/${profileId}/metadata`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(metadata),
+    });
+    return handleApiResponse(response);
+  } catch (error) {
+    return handleApiError(error);
+  }
+};
 
 /**
  * Update quick notes in profile metadata
  */
 export async function updateQuickNotes(
-  userId: string,
+  profileId: string,
   notes: QuickNote[]
-): Promise<ProfileMetadata> {
-  return updateProfileMetadata(userId, { quick_notes: notes });
+): Promise<ApiResponse<ProfileMetadata>> {
+  return updateProfileMetadata(profileId, { quick_notes: notes });
 } 

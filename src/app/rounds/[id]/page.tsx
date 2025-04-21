@@ -24,12 +24,12 @@ import { format } from 'date-fns';
 
 interface PageProps {
   params: Promise<{
-    id: string;
+    roundId: string;
   }>;
 }
 
 export default function RoundSummaryPage({ params }: PageProps) {
-  const { id } = use(params);
+  const { roundId } = use(params);
   const [round, setRound] = useState<RoundWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,7 +37,7 @@ export default function RoundSummaryPage({ params }: PageProps) {
   useEffect(() => {
     const loadRound = async () => {
       try {
-        const roundData = await getRoundWithDetails(id);
+        const roundData = await getRoundWithDetails(roundId);
         setRound(roundData);
         setLoading(false);
       } catch (error) {
@@ -48,7 +48,7 @@ export default function RoundSummaryPage({ params }: PageProps) {
     };
 
     loadRound();
-  }, [id]);
+  }, [roundId]);
 
   const calculateStats = () => {
     if (!round) return null;

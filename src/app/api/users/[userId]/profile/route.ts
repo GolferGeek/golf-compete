@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: { userId: string } }
 ) {
   try {
     console.log('Starting profile update API request');
@@ -45,7 +45,7 @@ export async function PUT(
       .from('profiles')
       .upsert({
         ...profile,
-        id: params.id,
+        id: params.userId,
         updated_at: new Date().toISOString()
       })
       .select()
@@ -62,7 +62,7 @@ export async function PUT(
     console.log('Profile updated successfully:', profileData);
     return NextResponse.json({ profile: profileData });
   } catch (error) {
-    console.error('Error in PUT /api/users/[id]/profile:', error);
+    console.error('Error in PUT /api/users/[userId]/profile:', error);
     return NextResponse.json(
       { error: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }

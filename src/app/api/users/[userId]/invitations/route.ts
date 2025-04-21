@@ -1,6 +1,6 @@
 import { type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import SeriesDbService from '@/api/internal/database/SeriesDbService';
+import { SeriesDbService } from '@/api/internal/database/SeriesDbService';
 import { createSuccessApiResponse, createErrorApiResponse } from '@/lib/api/utils';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
 import { ServiceError } from '@/api/base';

@@ -1,4 +1,5 @@
 import { Database } from './supabase';
+import { type AuthProfile } from '@/api/internal/auth/AuthService';
 
 // Raw database type
 export type ProfileRow = Database['public']['Tables']['profiles']['Row'];
@@ -28,4 +29,38 @@ export function cleanProfile(row: ProfileRow): Profile {
     updated_at: row.updated_at,
     multiple_clubs_sets: row.multiple_clubs_sets
   };
+}
+
+export interface QuickNote {
+  id: string;
+  note: string;
+  category: string;
+  created_at: string;
+}
+
+export interface ProfileMetadata {
+  quick_notes?: QuickNote[];
+  [key: string]: any;
+}
+
+export interface ProfileWithEmail extends AuthProfile {
+  email: string;
+}
+
+export interface ProfileApiResponse {
+  success: boolean;
+  data?: AuthProfile;
+  error?: string;
+}
+
+export interface ProfilesApiResponse {
+  success: boolean;
+  data?: AuthProfile[];
+  error?: string;
+}
+
+export interface ProfilesWithEmailApiResponse {
+  success: boolean;
+  data?: ProfileWithEmail[];
+  error?: string;
 } 

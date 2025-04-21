@@ -19,16 +19,16 @@ const ProfileMetadataSchema = z.object({
   quick_notes: z.array(QuickNoteSchema).optional(),
 }).and(z.record(z.unknown())); // Allow additional metadata fields
 
-// GET /api/profiles/[userId]/metadata
+// GET /api/profiles/[profileId]/metadata
 export async function GET(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: { profileId: string } }
 ) {
   try {
     const { data: profile, error } = await supabase
       .from('profiles')
       .select('metadata')
-      .eq('id', params.userId)
+      .eq('id', params.profileId)
       .single();
 
     if (error) {
@@ -49,10 +49,10 @@ export async function GET(
   }
 }
 
-// PATCH /api/profiles/[userId]/metadata
+// PATCH /api/profiles/[profileId]/metadata
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { userId: string } }
+  { params }: { params: { profileId: string } }
 ) {
   try {
     const body = await request.json();
@@ -72,7 +72,7 @@ export async function PATCH(
     const { data: profile, error: fetchError } = await supabase
       .from('profiles')
       .select('metadata')
-      .eq('id', params.userId)
+      .eq('id', params.profileId)
       .single();
 
     if (fetchError) {
@@ -91,7 +91,7 @@ export async function PATCH(
     const { error: updateError } = await supabase
       .from('profiles')
       .update({ metadata: updatedMetadata })
-      .eq('id', params.userId);
+      .eq('id', params.profileId);
 
     if (updateError) {
       console.error('Error updating profile metadata:', updateError);

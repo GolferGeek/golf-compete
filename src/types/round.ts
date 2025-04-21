@@ -1,15 +1,17 @@
+import { Database } from './supabase';
+
 export type WeatherCondition = 'sunny' | 'partly_cloudy' | 'cloudy' | 'light_rain' | 'heavy_rain' | 'windy';
 export type CourseCondition = 'dry' | 'wet' | 'cart_path_only' | 'frost_delay';
 
-export interface HoleScore {
+export interface RoundHole {
     id: string;
     round_id: string;
     hole_number: number;
-    strokes: number;
-    putts: number;
-    fairway_hit: boolean | null;  // null for par 3s
-    green_in_regulation: boolean;
-    penalty_strokes: number;
+    score?: number;
+    putts?: number;
+    fairway_hit?: boolean;
+    green_in_regulation?: boolean;
+    penalties?: number;
     notes?: string;
     created_at: string;
     updated_at: string;
@@ -17,116 +19,96 @@ export interface HoleScore {
 
 export interface Round {
     id: string;
-    user_id: string;
-    event_id?: string;  // Optional for standalone rounds
+    profile_id: string;
     course_id: string;
-    tee_set_id: string;
-    bag_id: string;     // Added bag reference
-    date_played: string;
-    weather_conditions: WeatherCondition[];
-    course_conditions: CourseCondition[];
-    temperature_start?: number;
-    temperature_end?: number;
-    wind_speed_start?: number;
-    wind_speed_end?: number;
-    wind_direction_start?: string;
-    wind_direction_end?: string;
-    total_score: number;
-    total_putts: number;
-    fairways_hit: number;
-    greens_in_regulation: number;
-    notes?: string;
+    bag_id?: string;
+    round_date: string;
+    status: 'draft' | 'in_progress' | 'completed';
+    handicap_index_used?: number;
+    course_handicap?: number;
+    net_score?: number;
+    gross_score?: number;
     created_at: string;
     updated_at: string;
+    holes?: RoundHole[];
 }
 
 // Extended type that includes related data
 export interface RoundWithDetails extends Round {
-    course: {
-        id: string;
-        name: string;
-        city: string;
-        state: string;
-    };
-    tee_set: {
-        id: string;
-        name: string;
-        color: string;
-        par: number;
-        rating: number;
-        slope: number;
-        yardage: number;
-    };
-    bag: {              // Added bag details
-        id: string;
-        name: string;
-        description?: string;
-        handicap?: number;
-    };
-    hole_scores: HoleScore[];
-    event?: {
-        id: string;
-        name: string;
-        date: string;
-    };
+    course: Database['public']['Tables']['courses']['Row'];
+    bag?: Database['public']['Tables']['bags']['Row'];
 }
 
 // Type for creating a new round
 export interface CreateRoundInput {
-    event_id?: string;
+    profile_id: string;
     course_id: string;
-    tee_set_id: string;
-    bag_id?: string;     // Made bag_id optional
-    date_played?: string;  // Will default to now if not provided
-    weather_conditions: WeatherCondition[];
-    course_conditions: CourseCondition[];
-    temperature_start?: number;
-    temperature_end?: number;
-    wind_speed_start?: number;
-    wind_speed_end?: number;
-    wind_direction_start?: string;
-    wind_direction_end?: string;
-    notes?: string;
+    bag_id?: string;
+    round_date: string;
+    status?: 'draft' | 'in_progress' | 'completed';
+    handicap_index_used?: number;
+    course_handicap?: number;
 }
 
 // Type for updating an existing round
-export interface UpdateRoundInput extends Partial<CreateRoundInput> {
-    id: string;
-    total_score?: number;
-    total_putts?: number;
-    fairways_hit?: number;
-    greens_in_regulation?: number;
+export interface UpdateRoundInput {
+    course_id?: string;
+    bag_id?: string;
+    round_date?: string;
+    status?: 'draft' | 'in_progress' | 'completed';
+    handicap_index_used?: number;
+    course_handicap?: number;
 }
 
 // Type for creating a new hole score
-export interface CreateHoleScoreInput {
+export interface CreateRoundHoleInput {
     round_id: string;
     hole_number: number;
-    strokes: number;
-    putts: number;
+    score?: number;
+    putts?: number;
     fairway_hit?: boolean;
-    green_in_regulation: boolean;
-    penalty_strokes?: number;
+    green_in_regulation?: boolean;
+    penalties?: number;
     notes?: string;
 }
 
 // Type for updating an existing hole score
-export interface UpdateHoleScoreInput extends Partial<Omit<CreateHoleScoreInput, 'round_id' | 'hole_number'>> {
+export interface UpdateRoundHoleInput {
+    score?: number;
+    putts?: number;
+    fairway_hit?: boolean;
+    green_in_regulation?: boolean;
+    penalties?: number;
+    notes?: string;
+}
+
+// Type for round with profile information (for leaderboards/summaries)
+export interface RoundWithProfile {
     id: string;
-    round_id: string;
-    hole_number: number;
+    profile_id: string;
+    total_score: number;
+    total_putts: number;
+    fairways_hit: number;
+    greens_in_regulation: number;
+    profile: {
+        first_name: string;
+        last_name: string;
+    };
 }
 
 // Type for event round summary
 export interface EventRoundSummary {
     event_id: string;
-    rounds: {
-        user_id: string;
-        user_name: string;
-        round_id: string;
-        total_score: number;
-        total_putts: number;
-        fairways_hit: number;
-        greens_in_regulation: number;
-    }[];
+    rounds: RoundWithProfile[];
+}
+
+export interface RoundStats {
+    total_putts?: number;
+    fairways_hit?: number;
+    total_fairways?: number;
+    fairways_hit_percentage?: number;
+    greens_in_regulation?: number;
+    total_greens?: number;
+    greens_in_regulation_percentage?: number;
+    total_penalties?: number;
 } 
