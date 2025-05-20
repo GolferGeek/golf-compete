@@ -20,7 +20,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Link from 'next/link';
 import { SelectChangeEvent } from '@mui/material/Select';
 import Divider from '@mui/material/Divider';
-import { type AuthProfile } from '@/api/internal/database/AuthService';
+import { type AuthProfile } from '@/api/internal/auth/AuthService';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface FormData {

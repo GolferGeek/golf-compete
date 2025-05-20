@@ -4,7 +4,7 @@ import React, { createContext, useContext, useState, ReactNode, useEffect } from
 import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from './AuthContext';
 import { User } from '@supabase/supabase-js';
-import { type AuthProfile } from '@/api/internal/database/AuthService';
+import { type AuthProfile } from '@/api/internal/auth/AuthService';
 import { CoursesApiClient } from '@/lib/apiClient/courses';
 
 // Define types

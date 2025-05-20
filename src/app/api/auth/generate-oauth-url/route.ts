@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createSuccessApiResponse, createErrorApiResponse } from '@/lib/api/utils';
-import AuthService from '@/api/internal/database/AuthService';
+import AuthService from '@/api/internal/auth/AuthService';
 
 // Define allowed providers
 const ALLOWED_PROVIDERS = ['google', 'github', 'facebook'] as const;
