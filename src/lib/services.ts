@@ -1,6 +1,6 @@
 import { ServiceManager } from '@/api/base';
 // Remove service imports - they will be instantiated in routes
-// import AuthService from '@/api/internal/database/AuthService';
+// import AuthService from '@/api/internal/auth/AuthService';
 // import DatabaseService from '@/api/internal/database/DatabaseService';
 // import StorageService from '@/api/internal/database/StorageService';
 // Remove client import - it will be created in routes

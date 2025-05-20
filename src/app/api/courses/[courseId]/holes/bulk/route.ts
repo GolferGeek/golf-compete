@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import CourseDbService from '@/api/internal/database/CourseDbService';
-import AuthService from '@/api/internal/database/AuthService';
+import AuthService from '@/api/internal/auth/AuthService';
 import { 
     validateRequestBody, 
     createSuccessApiResponse, 

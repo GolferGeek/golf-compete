@@ -10,7 +10,7 @@ import {
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
 import { ServiceError, ErrorCodes } from '@/api/base';
 import { type Series } from '@/types/database';
-import AuthService from '@/api/internal/database/AuthService';
+import AuthService from '@/api/internal/auth/AuthService';
 
 // Schema for updating a series (similar to create but all optional)
 const updateSeriesSchema = z.object({

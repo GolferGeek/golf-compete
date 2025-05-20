@@ -1,4 +1,4 @@
-import { type AuthProfile } from '@/api/internal/database/AuthService';
+import { type AuthProfile } from '@/api/internal/auth/AuthService';
 import { handleApiResponse } from './utils';
 
 // Define interfaces for payload/response types if needed
