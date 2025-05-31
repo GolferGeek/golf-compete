@@ -22,15 +22,48 @@ import SearchIcon from '@mui/icons-material/Search';
 import AddIcon from '@mui/icons-material/Add';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
-import { RoundWithDetails } from '@/types/round';
-import { supabaseClient } from '@/lib/auth';
-import RecentRounds from '@/components/rounds/RecentRounds';
+import { createClient } from '@/lib/supabase/client';
+import SimplifiedRoundsList from '@/components/rounds/SimplifiedRoundsList';
 
 type SortOption = 'date_desc' | 'date_asc' | 'score_asc' | 'score_desc';
 
+interface SimplifiedRound {
+  id: string;
+  user_id: string;
+  course_id: string;
+  course_tee_id: string;
+  bag_id?: string;
+  round_date: string;
+  total_score?: number;
+  weather_conditions?: string;
+  course_conditions?: string;
+  temperature?: number;
+  wind_conditions?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  courses: {
+    id: string;
+    name: string;
+    city?: string;
+    state?: string;
+  };
+  course_tees: {
+    id: string;
+    name: string;
+    men_rating?: number;
+    men_slope?: number;
+  };
+  bags?: {
+    id: string;
+    name: string;
+    handicap?: number;
+  };
+}
+
 export default function RoundsPage() {
   const { user } = useAuth();
-  const [rounds, setRounds] = useState<RoundWithDetails[]>([]);
+  const [rounds, setRounds] = useState<SimplifiedRound[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,21 +77,21 @@ export default function RoundsPage() {
         setLoading(true);
         setError(null);
 
-        const { data, error: roundsError } = await supabaseClient
+        const supabase = createClient();
+        const { data, error: roundsError } = await supabase
           .from('rounds')
           .select(`
             *,
-            course:courses(id, name, city, state),
-            tee_set:tee_sets(id, name, color, rating, slope, length),
-            bag:bags(id, name, description, handicap),
-            hole_scores(*)
+            courses (id, name, city, state),
+            course_tees (id, name, men_rating, men_slope),
+            bags (id, name, handicap)
           `)
-          .eq('profile_id', user.id)
-          .order('date_played', { ascending: false });
+          .eq('user_id', user.id)
+          .order('round_date', { ascending: false });
 
         if (roundsError) throw roundsError;
 
-        setRounds(data as RoundWithDetails[]);
+        setRounds(data as SimplifiedRound[]);
       } catch (error) {
         console.error('Error loading rounds:', error);
         setError('Failed to load rounds');
@@ -73,17 +106,23 @@ export default function RoundsPage() {
   const filteredAndSortedRounds = rounds
     .filter(round => 
       searchTerm === '' || 
-      round.course.name.toLowerCase().includes(searchTerm.toLowerCase())
+      round.courses.name.toLowerCase().includes(searchTerm.toLowerCase())
     )
     .sort((a, b) => {
       switch (sortBy) {
         case 'date_desc':
-          return new Date(b.date_played).getTime() - new Date(a.date_played).getTime();
+          return new Date(b.round_date).getTime() - new Date(a.round_date).getTime();
         case 'date_asc':
-          return new Date(a.date_played).getTime() - new Date(b.date_played).getTime();
+          return new Date(a.round_date).getTime() - new Date(b.round_date).getTime();
         case 'score_desc':
+          if (!a.total_score && !b.total_score) return 0;
+          if (!a.total_score) return 1;
+          if (!b.total_score) return -1;
           return b.total_score - a.total_score;
         case 'score_asc':
+          if (!a.total_score && !b.total_score) return 0;
+          if (!a.total_score) return 1;
+          if (!b.total_score) return -1;
           return a.total_score - b.total_score;
         default:
           return 0;
@@ -103,7 +142,7 @@ export default function RoundsPage() {
             variant="contained"
             startIcon={<AddIcon />}
           >
-            Play Round
+            Start Round
           </Button>
         </Box>
 
@@ -143,12 +182,10 @@ export default function RoundsPage() {
           </Grid>
         </Paper>
 
-        <RecentRounds
+        <SimplifiedRoundsList
           rounds={filteredAndSortedRounds}
           loading={loading}
           error={error}
-          limit={filteredAndSortedRounds.length}
-          showViewAll={false}
         />
       </Box>
     </Container>

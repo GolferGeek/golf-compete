@@ -8,11 +8,20 @@ import {
   ErrorCodes,
   createSuccessResponse,
   createErrorResponse
-} from '../base';
-import { type AuthProfile as DatabaseAuthProfile } from '@/types/database'; // Import shared type
+} from '../../base';
 
-// Re-export the AuthProfile type
-export type AuthProfile = DatabaseAuthProfile;
+// Define AuthProfile type directly
+export interface AuthProfile {
+  id: string;
+  first_name: string | null;
+  last_name: string | null;
+  username: string | null;
+  handicap: number | null;
+  is_admin: boolean | null;
+  created_at: string | null;
+  updated_at: string | null;
+  multiple_clubs_sets: boolean | null;
+}
 
 export interface AuthUser {
   user: User | null;

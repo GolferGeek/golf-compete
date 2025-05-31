@@ -23,8 +23,8 @@ async function getEventData(eventId: string) {
     return data.data;
 }
 
-export default async function EventScorecardPage({ params }: { params: { id: string } }) {
-    const eventId = params.id;
+export default async function EventScorecardPage({ params }: { params: { eventId: string } }) {
+    const eventId = params.eventId;
     if (!eventId) notFound();
 
     // Check if user has access to this event

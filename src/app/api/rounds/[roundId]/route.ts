@@ -1,89 +1,90 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import RoundDbService from '@/api/internal/database/RoundDbService';
 import { 
     validateRequestBody,
     createSuccessApiResponse, 
     createErrorApiResponse 
 } from '@/lib/api/utils';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
-import { ServiceError, ErrorCodes } from '@/api/base';
-import { type Round } from '@/types/database';
 
-// Schema for updating a round
+// Schema for updating a simplified round
 const updateRoundSchema = z.object({
-  // user_id, event_id, course_tee_id usually shouldn't change
+  course_id: z.string().uuid().optional(),
+  course_tee_id: z.string().uuid().optional(),
+  bag_id: z.string().uuid().optional().nullable(),
   round_date: z.string().datetime().optional(),
-  status: z.enum(['pending', 'in_progress', 'completed', 'dnf']).optional(),
-  handicap_index_used: z.number().optional().nullable(),
-  course_handicap: z.number().int().optional().nullable(),
-  net_score: z.number().int().optional().nullable(),
-  gross_score: z.number().int().optional().nullable(),
+  total_score: z.number().int().optional().nullable(),
+  weather_conditions: z.string().optional().nullable(),
+  course_conditions: z.string().optional().nullable(),
+  temperature: z.number().int().optional().nullable(),
+  wind_conditions: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
 }).partial();
 
 /**
  * @swagger
  * /api/rounds/{roundId}:
  *   get:
- *     summary: Get a specific round by ID
- *     description: Retrieves details for a single round, potentially including scores.
+ *     summary: Get a specific simplified round by ID
+ *     description: Retrieves details for a single round with total score and context.
  *     tags: [Rounds]
+ *     security: [{ bearerAuth: [] }]
  *     parameters:
  *       - in: path
  *         name: roundId
  *         required: true
  *         schema: { type: string, format: uuid }
- *       - in: query
- *         name: include_scores
- *         schema: { type: boolean }
  *     responses:
  *       200: { description: Round details }
+ *       401: { description: Unauthorized }
+ *       403: { description: Forbidden (not user's round) }
  *       404: { description: Round not found }
  *       500: { description: Internal server error }
  */
-export async function GET(request: NextRequest, { params }: { params: { roundId: string } }) {
-    const { roundId } = params;
-    const { searchParams } = new URL(request.url);
-    const includeScores = searchParams.get('include_scores') === 'true';
+async function getRoundHandler(
+  request: NextRequest, 
+  context: { params?: any },
+  auth: AuthenticatedContext
+) {
+  try {
+    const roundId = context.params?.roundId;
 
     if (!roundId) {
-        return createErrorApiResponse('Round ID is required', 'VALIDATION_ERROR', 400);
+      return createErrorApiResponse('Round ID is required', 'VALIDATION_ERROR', 400);
     }
 
     const supabase = await createClient();
-    const roundDbService = new RoundDbService(supabase);
+    const { data, error } = await supabase
+      .from('rounds')
+      .select(`
+        *,
+        courses:course_id(id, name, description),
+        tee_sets:course_tee_id(id, name, color, men_rating, women_rating, men_slope, women_slope),
+        bags:bag_id(id, name, description)
+      `)
+      .eq('id', roundId)
+      .eq('user_id', auth.user.id)
+      .single();
 
-    try {
-        let response;
-        if (includeScores) {
-            response = await roundDbService.getRoundWithScores(roundId);
-        } else {
-            response = await roundDbService.getRoundById(roundId);
-        }
-
-        if (response.error) {
-            if (response.error instanceof ServiceError && response.error.code === ErrorCodes.DB_NOT_FOUND) {
-                return createErrorApiResponse('Round not found', response.error.code, 404);
-            }
-            throw response.error;
-        }
-        if (!response.data) {
-             return createErrorApiResponse('Round not found', ErrorCodes.DB_NOT_FOUND, 404);
-        }
-        return createSuccessApiResponse(response.data);
-    } catch (error: any) {
-        console.error(`[API /rounds/${roundId} GET] Error:`, error);
-        return createErrorApiResponse('Failed to fetch round', 'FETCH_ROUND_ERROR', 500);
+    if (error) throw error;
+    if (!data) {
+      return createErrorApiResponse('Round not found', 'NOT_FOUND', 404);
     }
+
+    return createSuccessApiResponse(data);
+  } catch (error) {
+    console.error(`[GET] /api/rounds/${context.params?.roundId} error:`, error);
+    return createErrorApiResponse('Failed to fetch round', 'FETCH_ROUND_ERROR', 500);
+  }
 }
 
 /**
  * @swagger
  * /api/rounds/{roundId}:
  *   put:
- *     summary: Update a round
- *     description: Updates details for a specific round (e.g., status, scores).
+ *     summary: Update a simplified round
+ *     description: Updates details for a specific round including total score and context.
  *     tags: [Rounds]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
@@ -95,7 +96,19 @@ export async function GET(request: NextRequest, { params }: { params: { roundId:
  *       required: true
  *       content:
  *         application/json:
- *           schema: { $ref: '#/components/schemas/UpdateRoundInput' } # Based on updateRoundSchema
+ *           schema:
+ *             type: object
+ *             properties:
+ *               course_id: { type: string, format: uuid }
+ *               course_tee_id: { type: string, format: uuid }
+ *               bag_id: { type: string, format: uuid, nullable: true }
+ *               round_date: { type: string, format: date-time }
+ *               total_score: { type: integer, nullable: true }
+ *               weather_conditions: { type: string, nullable: true }
+ *               course_conditions: { type: string, nullable: true }
+ *               temperature: { type: integer, nullable: true }
+ *               wind_conditions: { type: string, nullable: true }
+ *               notes: { type: string, nullable: true }
  *     responses:
  *       200: { description: Round updated successfully }
  *       400: { description: Validation error }
@@ -104,68 +117,75 @@ export async function GET(request: NextRequest, { params }: { params: { roundId:
  *       404: { description: Round not found }
  *       500: { description: Internal server error }
  */
-const updateRoundHandler = async (
-    request: NextRequest, 
-    context: { params?: any }, 
-    auth: AuthenticatedContext
-) => {
-    const roundId = context.params?.roundId as string | undefined;
+async function updateRoundHandler(
+  request: NextRequest, 
+  context: { params?: any }, 
+  auth: AuthenticatedContext
+) {
+  try {
+    const roundId = context.params?.roundId;
     if (!roundId) {
-        return createErrorApiResponse('Round ID is required', 'VALIDATION_ERROR', 400);
+      return createErrorApiResponse('Round ID is required', 'VALIDATION_ERROR', 400);
     }
 
     const validationResult = await validateRequestBody(request, updateRoundSchema);
     if (validationResult instanceof NextResponse) return validationResult;
     if (Object.keys(validationResult).length === 0) {
-         return createErrorApiResponse('No update data provided', 'VALIDATION_ERROR', 400);
+      return createErrorApiResponse('No update data provided', 'VALIDATION_ERROR', 400);
     }
 
-    // Construct payload, handling nulls
-    const updatePayload: Partial<Omit<Round, 'id' | 'event_id' | 'user_id' | 'created_at' | 'updated_at' | 'course_tee_id'> > = {
-        ...validationResult,
-        handicap_index_used: validationResult.handicap_index_used ?? undefined,
-        course_handicap: validationResult.course_handicap ?? undefined,
-        net_score: validationResult.net_score ?? undefined,
-        gross_score: validationResult.gross_score ?? undefined,
-    };
-    
-    const userId = auth.user.id;
     const supabase = await createClient();
-    const roundDbService = new RoundDbService(supabase);
 
-    try {
-        // Authorization Check: Only allow user who owns the round?
-        const checkResponse = await roundDbService.getRoundById(roundId);
-        if (!checkResponse.data || checkResponse.error) {
-             return createErrorApiResponse('Round not found or error checking ownership', 'NOT_FOUND', 404);
-        }
-        if (checkResponse.data.user_id !== userId) { 
-             return createErrorApiResponse('Forbidden: You do not own this round', 'FORBIDDEN', 403);
-        }
+    // First verify the round exists and belongs to the user
+    const { data: existingRound, error: fetchError } = await supabase
+      .from('rounds')
+      .select('id, user_id')
+      .eq('id', roundId)
+      .eq('user_id', auth.user.id)
+      .single();
 
-        const updateResponse = await roundDbService.updateRound(roundId, updatePayload);
-        if (updateResponse.error) throw updateResponse.error;
-
-        return createSuccessApiResponse(updateResponse.data);
-
-    } catch (error: any) {
-        console.error(`[API /rounds/${roundId} PUT] Error:`, error);
-        if (error instanceof ServiceError) {
-            let status = error.code === ErrorCodes.DB_NOT_FOUND ? 404 : 400;
-            return createErrorApiResponse(error.message, error.code, status);
-        }
-        return createErrorApiResponse('Failed to update round', 'UPDATE_ROUND_ERROR', 500);
+    if (fetchError || !existingRound) {
+      return createErrorApiResponse('Round not found or access denied', 'NOT_FOUND', 404);
     }
-};
 
-export const PUT = withAuth(updateRoundHandler);
+    // Update the round
+    const { data, error } = await supabase
+      .from('rounds')
+      .update({
+        ...validationResult,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', roundId)
+      .eq('user_id', auth.user.id)
+      .select(`
+        *,
+        courses:course_id(id, name, description),
+        tee_sets:course_tee_id(id, name, color, men_rating, women_rating, men_slope, women_slope),
+        bags:bag_id(id, name, description)
+      `)
+      .single();
+
+    if (error) throw error;
+    if (!data) {
+      return createErrorApiResponse('Round not found', 'NOT_FOUND', 404);
+    }
+
+    return createSuccessApiResponse(data);
+  } catch (error) {
+    console.error(`[PUT] /api/rounds/${context.params?.roundId} error:`, error);
+    if (error instanceof z.ZodError) {
+      return createErrorApiResponse('Invalid round data', 'VALIDATION_ERROR', 400);
+    }
+    return createErrorApiResponse('Failed to update round', 'UPDATE_ROUND_ERROR', 500);
+  }
+}
 
 /**
  * @swagger
  * /api/rounds/{roundId}:
  *   delete:
- *     summary: Delete a round
- *     description: Deletes a specific round and its associated scores. Requires ownership.
+ *     summary: Delete a simplified round
+ *     description: Deletes a specific round. Requires ownership.
  *     tags: [Rounds]
  *     security: [{ bearerAuth: [] }]
  *     parameters:
@@ -180,43 +200,46 @@ export const PUT = withAuth(updateRoundHandler);
  *       404: { description: Round not found }
  *       500: { description: Internal server error }
  */
-const deleteRoundHandler = async (
-    request: NextRequest, 
-    context: { params?: any }, 
-    auth: AuthenticatedContext
-) => {
-    const roundId = context.params?.roundId as string | undefined;
+async function deleteRoundHandler(
+  request: NextRequest, 
+  context: { params?: any }, 
+  auth: AuthenticatedContext
+) {
+  try {
+    const roundId = context.params?.roundId;
     if (!roundId) {
-        return createErrorApiResponse('Round ID is required', 'VALIDATION_ERROR', 400);
+      return createErrorApiResponse('Round ID is required', 'VALIDATION_ERROR', 400);
     }
-    const userId = auth.user.id;
+
     const supabase = await createClient();
-    const roundDbService = new RoundDbService(supabase);
 
-    try {
-        // Authorization Check
-        const checkResponse = await roundDbService.getRoundById(roundId);
-        if (!checkResponse.data || checkResponse.error) {
-             return createErrorApiResponse('Round not found or error checking ownership', 'NOT_FOUND', 404);
-        }
-        if (checkResponse.data.user_id !== userId) { 
-             return createErrorApiResponse('Forbidden: You do not own this round', 'FORBIDDEN', 403);
-        }
+    // Verify ownership before deletion
+    const { data: existingRound, error: fetchError } = await supabase
+      .from('rounds')
+      .select('id, user_id')
+      .eq('id', roundId)
+      .eq('user_id', auth.user.id)
+      .single();
 
-        // Perform delete (service method handles deleting scores first)
-        const deleteResponse = await roundDbService.deleteRound(roundId);
-        if (deleteResponse.error) throw deleteResponse.error;
-
-        return new NextResponse(null, { status: 204 }); // No Content
-
-    } catch (error: any) {
-        console.error(`[API /rounds/${roundId} DELETE] Error:`, error);
-        if (error instanceof ServiceError) {
-             let status = error.code === ErrorCodes.DB_NOT_FOUND ? 404 : 500;
-            return createErrorApiResponse(error.message, error.code, status);
-        }
-        return createErrorApiResponse('Failed to delete round', 'DELETE_ROUND_ERROR', 500);
+    if (fetchError || !existingRound) {
+      return createErrorApiResponse('Round not found or access denied', 'NOT_FOUND', 404);
     }
-};
 
+    const { error } = await supabase
+      .from('rounds')
+      .delete()
+      .eq('id', roundId)
+      .eq('user_id', auth.user.id);
+
+    if (error) throw error;
+
+    return new NextResponse(null, { status: 204 });
+  } catch (error) {
+    console.error(`[DELETE] /api/rounds/${context.params?.roundId} error:`, error);
+    return createErrorApiResponse('Failed to delete round', 'DELETE_ROUND_ERROR', 500);
+  }
+}
+
+export const GET = withAuth(getRoundHandler);
+export const PUT = withAuth(updateRoundHandler);
 export const DELETE = withAuth(deleteRoundHandler); 

@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import AuthService from '@/api/internal/database/AuthService';
+import AuthService from '@/api/internal/auth/AuthService';
 
 // Helper to ensure we use the correct origin
 const getSafeOrigin = (requestOrigin: string) => {

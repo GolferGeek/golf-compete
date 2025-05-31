@@ -1,7 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import RoundDbService from '@/api/internal/database/RoundDbService';
 import { 
     validateRequestBody, 
     validateQueryParams, 
@@ -9,20 +8,34 @@ import {
     createErrorApiResponse 
 } from '@/lib/api/utils';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
-import { ServiceError } from '@/api/base';
-import { type Round } from '@/types/database';
 
-// Schema for creating a round
+// Schema for creating a simplified round
 const createRoundSchema = z.object({
-  event_id: z.string().uuid(),
-  user_id: z.string().uuid(), // Or get from auth context?
+  course_id: z.string().uuid(),
   course_tee_id: z.string().uuid(),
-  round_date: z.string().datetime(),
-  status: z.enum(['pending', 'in_progress', 'completed', 'dnf']).default('pending'),
-  handicap_index_used: z.number().optional().nullable(),
-  course_handicap: z.number().int().optional().nullable(),
-  // Scores are added separately
+  bag_id: z.string().uuid().optional(),
+  round_date: z.string().datetime().optional(),
+  total_score: z.number().int().optional(),
+  weather_conditions: z.string().optional(),
+  course_conditions: z.string().optional(),
+  temperature: z.number().int().optional(),
+  wind_conditions: z.string().optional(),
+  notes: z.string().optional(),
 });
+
+// Schema for updating a round
+const updateRoundSchema = z.object({
+  course_id: z.string().uuid().optional(),
+  course_tee_id: z.string().uuid().optional(),
+  bag_id: z.string().uuid().optional().nullable(),
+  round_date: z.string().datetime().optional(),
+  total_score: z.number().int().optional().nullable(),
+  weather_conditions: z.string().optional().nullable(),
+  course_conditions: z.string().optional().nullable(),
+  temperature: z.number().int().optional().nullable(),
+  wind_conditions: z.string().optional().nullable(),
+  notes: z.string().optional().nullable(),
+}).partial();
 
 // Schema for query parameters when fetching rounds
 const fetchRoundsQuerySchema = z.object({
@@ -30,133 +43,200 @@ const fetchRoundsQuerySchema = z.object({
   page: z.coerce.number().int().positive().optional().default(1),
   sortBy: z.string().optional().default('round_date'),
   sortDir: z.enum(['asc', 'desc']).optional().default('desc'),
-  userId: z.string().uuid().optional(),
-  eventId: z.string().uuid().optional(),
-  status: z.string().optional(),
+  courseId: z.string().uuid().optional(),
+  bagId: z.string().uuid().optional(),
   dateAfter: z.string().datetime({ message: 'Invalid date format for dateAfter' }).optional(),
   dateBefore: z.string().datetime({ message: 'Invalid date format for dateBefore' }).optional(),
+  hasScore: z.coerce.boolean().optional(),
 });
 
 /**
  * @swagger
  * /api/rounds:
  *   get:
- *     summary: List rounds
- *     description: Retrieves a paginated list of rounds, optionally filtered.
+ *     summary: List simplified rounds
+ *     description: Retrieves a paginated list of simplified rounds with total scores.
  *     tags: [Rounds]
- *     parameters: # Add query params like userId, eventId, status etc.
- *       # ... (schema based on fetchRoundsQuerySchema)
+ *     security: [{ bearerAuth: [] }]
+ *     parameters:
+ *       - { name: limit, in: query, schema: { type: integer, default: 20 } }
+ *       - { name: page, in: query, schema: { type: integer, default: 1 } }
+ *       - { name: sortBy, in: query, schema: { type: string, default: 'round_date' } }
+ *       - { name: sortDir, in: query, schema: { type: string, enum: [asc, desc], default: 'desc' } }
+ *       - { name: courseId, in: query, schema: { type: string, format: uuid } }
+ *       - { name: bagId, in: query, schema: { type: string, format: uuid } }
+ *       - { name: dateAfter, in: query, schema: { type: string, format: date-time } }
+ *       - { name: dateBefore, in: query, schema: { type: string, format: date-time } }
+ *       - { name: hasScore, in: query, schema: { type: boolean } }
  *     responses:
- *       200: { description: List of rounds }
+ *       200: { description: List of rounds with pagination }
  *       400: { description: Invalid query parameters }
+ *       401: { description: Unauthorized }
  *       500: { description: Internal server error }
  */
-export async function GET(request: NextRequest) {
+async function getRoundsHandler(
+  request: NextRequest,
+  _: any,
+  auth: AuthenticatedContext
+) {
+  try {
     const queryValidation = await validateQueryParams(request, fetchRoundsQuerySchema);
     if (queryValidation instanceof NextResponse) return queryValidation;
 
     const { 
-        limit, 
-        page, 
-        sortBy, 
-        sortDir, 
-        userId, 
-        eventId, 
-        status, 
-        dateAfter,
-        dateBefore
+      limit, 
+      page, 
+      sortBy, 
+      sortDir, 
+      courseId, 
+      bagId,
+      dateAfter,
+      dateBefore,
+      hasScore
     } = queryValidation;
-    const offset = (page - 1) * limit;
 
-    // Construct filters
-    const filters: Record<string, any> = {};
-    if (userId) filters.user_id = userId;
-    if (eventId) filters.event_id = eventId;
-    if (status) filters.status = status;
+    const offset = (page - 1) * limit;
+    const supabase = await createClient();
+
+    let query = supabase
+      .from('rounds')
+      .select(`
+        *,
+        courses:course_id(id, name),
+        tee_sets:course_tee_id(id, name, color),
+        bags:bag_id(id, name)
+      `, { count: 'exact' })
+      .eq('user_id', auth.user.id);
+
+    // Apply filters
+    if (courseId) {
+      query = query.eq('course_id', courseId);
+    }
+    if (bagId) {
+      query = query.eq('bag_id', bagId);
+    }
     if (dateAfter) {
-        filters.round_date = { ...(filters.round_date || {}), gte: dateAfter };
+      query = query.gte('round_date', dateAfter);
     }
     if (dateBefore) {
-        filters.round_date = { ...(filters.round_date || {}), lte: dateBefore };
+      query = query.lte('round_date', dateBefore);
+    }
+    if (hasScore !== undefined) {
+      if (hasScore) {
+        query = query.not('total_score', 'is', null);
+      } else {
+        query = query.is('total_score', null);
+      }
     }
 
-    const ordering = sortBy ? { column: sortBy, direction: sortDir } : undefined;
+    // Apply pagination and sorting
+    const { data, error, count } = await query
+      .order(sortBy, { ascending: sortDir === 'asc' })
+      .range(offset, offset + limit - 1);
 
-    const supabase = await createClient();
-    const roundDbService = new RoundDbService(supabase);
+    if (error) throw error;
 
-    try {
-        const response = await roundDbService.fetchRounds(
-            { pagination: { limit, offset, page }, ordering, filters }, 
-            { useCamelCase: true }
-        );
-        if (response.error) throw response.error;
-        return createSuccessApiResponse(response);
-    } catch (error: any) {
-        console.error('[API /rounds GET] Error:', error);
-        return createErrorApiResponse('Failed to fetch rounds', 'FETCH_ROUNDS_ERROR', 500);
+    return createSuccessApiResponse({
+      data,
+      pagination: {
+        page,
+        limit,
+        total: count || 0,
+        totalPages: count ? Math.ceil(count / limit) : 0
+      }
+    });
+  } catch (error) {
+    console.error('[GET] /api/rounds error:', error);
+    if (error instanceof z.ZodError) {
+      return createErrorApiResponse('Invalid request parameters', 'VALIDATION_ERROR', 400);
     }
+    return createErrorApiResponse('Failed to fetch rounds', 'FETCH_ROUNDS_ERROR', 500);
+  }
 }
 
 /**
  * @swagger
  * /api/rounds:
  *   post:
- *     summary: Create a new round
- *     description: Creates a new round record, usually associated with an event participant.
+ *     summary: Create a new simplified round
+ *     description: Creates a new round record with optional total score and context.
  *     tags: [Rounds]
  *     security: [{ bearerAuth: [] }]
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
- *           schema: { $ref: '#/components/schemas/CreateRoundInput' } # Based on createRoundSchema
+ *           schema:
+ *             type: object
+ *             required: [course_id, course_tee_id]
+ *             properties:
+ *               course_id: { type: string, format: uuid }
+ *               course_tee_id: { type: string, format: uuid }
+ *               bag_id: { type: string, format: uuid }
+ *               round_date: { type: string, format: date-time }
+ *               total_score: { type: integer }
+ *               weather_conditions: { type: string }
+ *               course_conditions: { type: string }
+ *               temperature: { type: integer }
+ *               wind_conditions: { type: string }
+ *               notes: { type: string }
  *     responses:
  *       201: { description: Round created successfully }
  *       400: { description: Validation error }
  *       401: { description: Unauthorized }
- *       403: { description: Forbidden (e.g., user not part of the event) }
  *       500: { description: Internal server error }
  */
-const createRoundHandler = async (
-    request: NextRequest, 
-    context: { params?: any }, 
-    auth: AuthenticatedContext
-) => {
+async function createRoundHandler(
+  request: NextRequest, 
+  _: any, 
+  auth: AuthenticatedContext
+) {
+  try {
     const validationResult = await validateRequestBody(request, createRoundSchema);
-    if (validationResult instanceof NextResponse) return validationResult;
-
-    // Authorization: Ensure the authenticated user matches the user_id in the payload
-    // OR that the user has permission to create a round for someone else (e.g., admin)
-    if (validationResult.user_id !== auth.user.id) {
-        // TODO: Add admin check or other permission logic if needed
-        return createErrorApiResponse('Forbidden: Cannot create round for another user.', 'FORBIDDEN', 403);
-    }
-
-    // Construct payload, handling nulls
-    const roundPayload: Omit<Round, 'id' | 'created_at' | 'updated_at'> = {
-        ...validationResult,
-        handicap_index_used: validationResult.handicap_index_used ?? undefined,
-        course_handicap: validationResult.course_handicap ?? undefined,
-    };
+    if (validationResult instanceof Response) return validationResult;
 
     const supabase = await createClient();
-    const roundDbService = new RoundDbService(supabase);
 
-    try {
-        // TODO: Add check to ensure user is a participant in the event?
-        const createResponse = await roundDbService.createRound(roundPayload);
-        if (createResponse.error || !createResponse.data) {
-            throw createResponse.error || new Error('Failed to create round, no data returned');
-        }
-        return createSuccessApiResponse(createResponse.data, 201);
-    } catch (error: any) {
-        console.error('[API /rounds POST] Error:', error);
-        if (error instanceof ServiceError) {
-            return createErrorApiResponse(error.message, error.code, 400);
-        }
-        return createErrorApiResponse('Failed to create round', 'CREATE_ROUND_ERROR', 500);
+    // If bag_id is not provided, try to get user's default bag
+    let bagId = validationResult.bag_id;
+    if (!bagId) {
+      const { data: defaultBag } = await supabase
+        .from('bags')
+        .select('id')
+        .eq('user_id', auth.user.id)
+        .eq('is_default', true)
+        .single();
+      
+      bagId = defaultBag?.id;
     }
-};
 
+    const { data, error } = await supabase
+      .from('rounds')
+      .insert({
+        ...validationResult,
+        user_id: auth.user.id,
+        bag_id: bagId,
+        round_date: validationResult.round_date || new Date().toISOString()
+      })
+      .select(`
+        *,
+        courses:course_id(id, name),
+        tee_sets:course_tee_id(id, name, color),
+        bags:bag_id(id, name)
+      `)
+      .single();
+
+    if (error) throw error;
+
+    return createSuccessApiResponse(data, 201);
+  } catch (error) {
+    console.error('[POST] /api/rounds error:', error);
+    if (error instanceof z.ZodError) {
+      return createErrorApiResponse('Invalid round data', 'VALIDATION_ERROR', 400);
+    }
+    return createErrorApiResponse('Failed to create round', 'CREATE_ROUND_ERROR', 500);
+  }
+}
+
+export const GET = withAuth(getRoundsHandler);
 export const POST = withAuth(createRoundHandler); 

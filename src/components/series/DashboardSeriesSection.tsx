@@ -20,7 +20,7 @@ import {
 import Link from 'next/link';
 import AddIcon from '@mui/icons-material/Add';
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
-import { format } from 'date-fns';
+import { format, isValid, parseISO } from 'date-fns';
 import { respondToInvitation } from '@/api/competition/seriesParticipantService';
 
 // Define the UserSeries interface matching the API response
@@ -30,7 +30,7 @@ interface UserSeries {
   userId: string;
   seriesId: string;
   role: string;
-  participantStatus: string;
+  participantStatus: string | null | undefined;
   joinedAt: string;
   seriesName: string;
   seriesDescription?: string;
@@ -47,10 +47,26 @@ interface Props {
   onInvitationResponse?: () => void;
 }
 
+// Helper function to safely format dates
+const safeFormatDate = (dateString: string | null | undefined, formatString: string): string => {
+  if (!dateString) return 'N/A';
+  
+  try {
+    const date = parseISO(dateString);
+    if (!isValid(date)) return 'Invalid Date';
+    return format(date, formatString);
+  } catch (error) {
+    console.warn('Error formatting date:', dateString, error);
+    return 'Invalid Date';
+  }
+};
+
 export default function DashboardSeriesSection({ series, loading, error, onInvitationResponse }: Props) {
   const theme = useTheme();
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | null | undefined) => {
+    if (!status) return 'default';
+    
     switch (status.toLowerCase()) {
       case 'active':
       case 'confirmed':
@@ -170,10 +186,7 @@ export default function DashboardSeriesSection({ series, loading, error, onInvit
                       {s.seriesName}
                     </Link>
                   }
-                  secondary={`${format(new Date(s.seriesStartDate), 'MMM d')} - ${format(
-                    new Date(s.seriesEndDate),
-                    'MMM d, yyyy'
-                  )}`}
+                  secondary={`${safeFormatDate(s.seriesStartDate, 'MMM d')} - ${safeFormatDate(s.seriesEndDate, 'MMM d, yyyy')}`}
                 />
                 <Box sx={{ mt: 1, display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
                   <Chip
@@ -182,7 +195,7 @@ export default function DashboardSeriesSection({ series, loading, error, onInvit
                     color={s.role === 'admin' ? 'primary' : 'default'}
                   />
                   <Chip
-                    label={s.participantStatus}
+                    label={s.participantStatus || 'unknown'}
                     size="small"
                     color={getStatusColor(s.participantStatus)}
                   />

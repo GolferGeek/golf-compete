@@ -1,114 +1,112 @@
 "use client";
 
 import React, { useState, useEffect, use } from 'react';
+import Link from 'next/link';
 import {
   Box,
   Paper,
-  Grid,
   Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
   Divider,
   Card,
   CardContent,
   CircularProgress,
   Alert,
+  Button,
+  Chip,
+  Container,
 } from '@mui/material';
-import { getRoundWithDetails } from '@/api/competition/roundService';
-import { RoundWithDetails } from '@/types/round';
+import EditIcon from '@mui/icons-material/Edit';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import { useAuth } from '@/contexts/AuthContext';
+import { createClient } from '@/lib/supabase/client';
 import { format } from 'date-fns';
 
 interface PageProps {
   params: Promise<{
-    roundId: string;
+    id: string;
   }>;
 }
 
-export default function RoundSummaryPage({ params }: PageProps) {
-  const { roundId } = use(params);
-  const [round, setRound] = useState<RoundWithDetails | null>(null);
+interface SimplifiedRound {
+  id: string;
+  user_id: string;
+  course_id: string;
+  course_tee_id: string;
+  bag_id?: string;
+  round_date: string;
+  total_score?: number;
+  weather_conditions?: string;
+  course_conditions?: string;
+  temperature?: number;
+  wind_conditions?: string;
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  courses: {
+    id: string;
+    name: string;
+    city?: string;
+    state?: string;
+  };
+  course_tees: {
+    id: string;
+    name: string;
+    men_rating?: number;
+    men_slope?: number;
+  };
+  bags?: {
+    id: string;
+    name: string;
+    handicap?: number;
+  };
+}
+
+export default function RoundDetailPage({ params }: PageProps) {
+  const { id: roundId } = use(params);
+  const { user } = useAuth();
+  const [round, setRound] = useState<SimplifiedRound | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const loadRound = async () => {
+      if (!user) return;
+
       try {
-        const roundData = await getRoundWithDetails(roundId);
-        setRound(roundData);
-        setLoading(false);
+        const supabase = createClient();
+        const { data, error: roundError } = await supabase
+          .from('rounds')
+          .select(`
+            *,
+            courses (id, name, city, state),
+            course_tees (id, name, men_rating, men_slope),
+            bags (id, name, handicap)
+          `)
+          .eq('id', roundId)
+          .eq('user_id', user.id)
+          .single();
+
+        if (roundError) throw roundError;
+        setRound(data as SimplifiedRound);
       } catch (error) {
         console.error('Error loading round:', error);
         setError('Failed to load round details');
+      } finally {
         setLoading(false);
       }
     };
 
     loadRound();
-  }, [roundId]);
-
-  const calculateStats = () => {
-    if (!round) return null;
-
-    const totalPutts = round.hole_scores.reduce((sum, score) => sum + (score.putts || 0), 0);
-    const fairwaysHit = round.hole_scores.filter(score => score.fairway_hit).length;
-    const totalFairways = round.hole_scores.filter(score => score.hole_number > 3).length; // Exclude par 3s
-    const greensInRegulation = round.hole_scores.filter(score => score.green_in_regulation).length;
-    const totalPenalties = round.hole_scores.reduce((sum, score) => sum + (score.penalty_strokes || 0), 0);
-
-    // Only include stats that have data
-    const stats: Record<string, any> = {};
-
-    const hasPutts = round.hole_scores.some(score => score.putts > 0);
-    const hasFairways = round.hole_scores.some(score => score.fairway_hit !== null);
-    const hasGIR = round.hole_scores.some(score => score.green_in_regulation);
-    const hasPenalties = round.hole_scores.some(score => score.penalty_strokes > 0);
-
-    if (hasPutts) {
-      stats.putting = {
-        total: totalPutts,
-        average: (totalPutts / 18).toFixed(1)
-      };
-    }
-
-    if (hasFairways) {
-      stats.fairways = {
-        hit: fairwaysHit,
-        percentage: ((fairwaysHit / totalFairways) * 100).toFixed(1)
-      };
-    }
-
-    if (hasGIR && greensInRegulation > 0) {
-      stats.greens = {
-        hit: greensInRegulation,
-        percentage: ((greensInRegulation / 18) * 100).toFixed(1)
-      };
-    }
-
-    if (hasPenalties) {
-      stats.penalties = {
-        total: totalPenalties
-      };
-    }
-
-    return {
-      stats: Object.keys(stats).length > 0 ? stats : null,
-      showPutts: hasPutts,
-      showFairways: hasFairways,
-      showGIR: hasGIR && greensInRegulation > 0,
-      showPenalties: hasPenalties
-    };
-  };
+  }, [roundId, user]);
 
   const calculateHandicapDifferential = () => {
-    if (!round?.tee_set?.rating || !round?.tee_set?.slope) return null;
+    if (!round?.course_tees?.men_rating || !round?.course_tees?.men_slope || !round?.total_score) {
+      return null;
+    }
 
     const score = round.total_score;
-    const rating = round.tee_set.rating;
-    const slope = round.tee_set.slope;
+    const rating = round.course_tees.men_rating;
+    const slope = round.course_tees.men_slope;
 
     // Formula: (Score - Course Rating) × 113 / Slope Rating
     const differential = ((score - rating) * 113) / slope;
@@ -117,171 +115,219 @@ export default function RoundSummaryPage({ params }: PageProps) {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
-        <CircularProgress />
-      </Box>
+      <Container maxWidth="md">
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+          <CircularProgress />
+        </Box>
+      </Container>
     );
   }
 
   if (error || !round) {
     return (
-      <Box sx={{ p: 2 }}>
-        <Alert severity="error">{error || 'Round not found'}</Alert>
-      </Box>
+      <Container maxWidth="md">
+        <Box sx={{ p: 2 }}>
+          <Alert severity="error">{error || 'Round not found'}</Alert>
+        </Box>
+      </Container>
     );
   }
 
-  const stats = calculateStats();
   const handicapDifferential = calculateHandicapDifferential();
+  const isCompleted = round.total_score !== null;
 
   return (
-    <Box sx={{ maxWidth: 1200, mx: 'auto', p: 2 }}>
-      {/* Header */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={6}>
-            <Typography variant="h4" gutterBottom>
-              {round.course.name}
-            </Typography>
-            <Typography variant="subtitle1" color="text.secondary">
-              {format(new Date(round.date_played), 'MMMM d, yyyy')}
-            </Typography>
-            <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>
-              Bag: {round.bag.name} {round.bag.handicap && `(Handicap: ${round.bag.handicap})`}
-            </Typography>
-          </Grid>
-          <Grid item xs={12} md={6}>
-            <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' }, gap: 3 }}>
-              <Box>
-                <Typography variant="h6">Total Score</Typography>
-                <Typography variant="h4" color="primary">
-                  {round.total_score}
+    <Container maxWidth="md">
+      <Box sx={{ mt: 4, mb: 4 }}>
+        {/* Header */}
+        <Paper sx={{ p: 3, mb: 3 }}>
+          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+            <Box>
+              <Typography variant="h4" gutterBottom>
+                {round.courses.name}
+              </Typography>
+              <Typography variant="subtitle1" color="text.secondary">
+                {format(new Date(round.round_date), 'MMMM d, yyyy')}
+              </Typography>
+              {round.courses.city && round.courses.state && (
+                <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>
+                  {round.courses.city}, {round.courses.state}
                 </Typography>
-              </Box>
-              {handicapDifferential && (
-                <Box>
-                  <Typography variant="h6">Differential</Typography>
-                  <Typography variant="h4" color="secondary">
-                    {handicapDifferential}
-                  </Typography>
-                </Box>
               )}
             </Box>
-          </Grid>
-        </Grid>
-      </Paper>
+            
+            <Box sx={{ textAlign: 'right' }}>
+              {isCompleted ? (
+                <>
+                  <Typography variant="h6">Total Score</Typography>
+                  <Typography variant="h4" color="primary">
+                    {round.total_score}
+                  </Typography>
+                  {handicapDifferential && (
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="h6">Differential</Typography>
+                      <Typography variant="h4" color="secondary">
+                        {handicapDifferential}
+                      </Typography>
+                    </Box>
+                  )}
+                </>
+              ) : (
+                <Chip
+                  label="In Progress"
+                  color="warning"
+                  variant="outlined"
+                />
+              )}
+            </Box>
+          </Box>
 
-      {/* Stats Cards */}
-      {stats?.stats && (
-        <Grid container spacing={2} sx={{ mb: 3 }}>
-          {stats.stats.putting && (
-            <Grid item xs={12} sm={6} md={3}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>Putting</Typography>
-                  <Typography variant="h4">{stats.stats.putting.total}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {stats.stats.putting.average} putts per hole
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          )}
-          {stats.stats.fairways && (
-            <Grid item xs={12} sm={6} md={3}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>Fairways</Typography>
-                  <Typography variant="h4">{stats.stats.fairways.hit}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {stats.stats.fairways.percentage}% hit
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          )}
-          {stats.stats.greens && (
-            <Grid item xs={12} sm={6} md={3}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>GIR</Typography>
-                  <Typography variant="h4">{stats.stats.greens.hit}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {stats.stats.greens.percentage}% hit
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          )}
-          {stats.stats.penalties && (
-            <Grid item xs={12} sm={6} md={3}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>Penalties</Typography>
-                  <Typography variant="h4">{stats.stats.penalties.total}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Total penalty strokes
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Grid>
-          )}
-        </Grid>
-      )}
+          {/* Action Buttons */}
+          <Box sx={{ display: 'flex', gap: 2, mt: 2 }}>
+            {!isCompleted && (
+              <Button
+                component={Link}
+                href={`/rounds/${roundId}/play`}
+                variant="contained"
+                startIcon={<PlayArrowIcon />}
+              >
+                Continue Round
+              </Button>
+            )}
+            <Button
+              component={Link}
+              href="/rounds"
+              variant="outlined"
+            >
+              Back to Rounds
+            </Button>
+          </Box>
+        </Paper>
 
-      {/* Hole-by-Hole Breakdown */}
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h6" gutterBottom>
-          Hole-by-Hole Breakdown
-        </Typography>
-        <TableContainer>
-          <Table size="small">
-            <TableHead>
-              <TableRow>
-                <TableCell>Hole</TableCell>
-                <TableCell align="right">Par</TableCell>
-                <TableCell align="right">Score</TableCell>
-                {stats?.showPutts && <TableCell align="right">Putts</TableCell>}
-                {stats?.showFairways && <TableCell align="right">FIR</TableCell>}
-                {stats?.showGIR && <TableCell align="right">GIR</TableCell>}
-                <TableCell>Notes</TableCell>
-              </TableRow>
-            </TableHead>
-            <TableBody>
-              {round.hole_scores
-                .sort((a, b) => a.hole_number - b.hole_number)
-                .map((score) => (
-                  <TableRow key={score.hole_number}>
-                    <TableCell>{score.hole_number}</TableCell>
-                    <TableCell align="right">4</TableCell>
-                    <TableCell 
-                      align="right"
-                      sx={{
-                        color: score.strokes === 4 ? 'text.primary' :
-                               score.strokes < 4 ? 'success.main' : 'error.main'
-                      }}
-                    >
-                      {score.strokes}
-                    </TableCell>
-                    {stats?.showPutts && <TableCell align="right">{score.putts}</TableCell>}
-                    {stats?.showFairways && (
-                      <TableCell align="right">
-                        {score.hole_number <= 3 ? '-' : 
-                          (score.fairway_hit ? '✓' : '✗')}
-                      </TableCell>
-                    )}
-                    {stats?.showGIR && (
-                      <TableCell align="right">
-                        {score.green_in_regulation ? '✓' : '✗'}
-                      </TableCell>
-                    )}
-                    <TableCell>{score.notes || '-'}</TableCell>
-                  </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </Paper>
-    </Box>
+        {/* Round Details */}
+        <Card sx={{ mb: 3 }}>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              Round Details
+            </Typography>
+            
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
+              <Chip
+                label={`Tee: ${round.course_tees.name}`}
+                variant="outlined"
+              />
+              {round.course_tees.men_rating && (
+                <Chip
+                  label={`Rating: ${round.course_tees.men_rating}`}
+                  variant="outlined"
+                />
+              )}
+              {round.course_tees.men_slope && (
+                <Chip
+                  label={`Slope: ${round.course_tees.men_slope}`}
+                  variant="outlined"
+                />
+              )}
+              {round.bags && (
+                <Chip
+                  label={`Bag: ${round.bags.name}${round.bags.handicap ? ` (${round.bags.handicap})` : ''}`}
+                  variant="outlined"
+                />
+              )}
+            </Box>
+
+            {/* Conditions */}
+            {(round.weather_conditions || round.course_conditions || round.temperature || round.wind_conditions) && (
+              <>
+                <Typography variant="h6" gutterBottom>
+                  Conditions
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 3 }}>
+                  {round.weather_conditions && (
+                    <Chip label={round.weather_conditions} />
+                  )}
+                  {round.course_conditions && (
+                    <Chip label={round.course_conditions} />
+                  )}
+                  {round.temperature && (
+                    <Chip label={`${round.temperature}°F`} />
+                  )}
+                  {round.wind_conditions && (
+                    <Chip label={round.wind_conditions} />
+                  )}
+                </Box>
+              </>
+            )}
+
+            {/* Notes */}
+            {round.notes && (
+              <>
+                <Typography variant="h6" gutterBottom>
+                  Notes
+                </Typography>
+                <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
+                  {round.notes}
+                </Typography>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Round Statistics */}
+        {isCompleted && (
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                Round Statistics
+              </Typography>
+              
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 3 }}>
+                <Box>
+                  <Typography variant="body2" color="text.secondary">
+                    Total Score
+                  </Typography>
+                  <Typography variant="h6">
+                    {round.total_score}
+                  </Typography>
+                </Box>
+                
+                {round.course_tees.men_rating && round.total_score && (
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      vs Par (Est.)
+                    </Typography>
+                    <Typography variant="h6">
+                      {round.total_score - 72 > 0 ? '+' : ''}{round.total_score - 72}
+                    </Typography>
+                  </Box>
+                )}
+                
+                {handicapDifferential && (
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Handicap Differential
+                    </Typography>
+                    <Typography variant="h6">
+                      {handicapDifferential}
+                    </Typography>
+                  </Box>
+                )}
+                
+                {round.bags?.handicap && (
+                  <Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Expected Score
+                    </Typography>
+                    <Typography variant="h6">
+                      {Math.round(72 + round.bags.handicap)}
+                    </Typography>
+                  </Box>
+                )}
+              </Box>
+            </CardContent>
+          </Card>
+        )}
+      </Box>
+    </Container>
   );
 } 

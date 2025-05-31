@@ -1,0 +1,107 @@
+<context>
+# Overview
+This document outlines the plan to simplify the Golf Compete application by removing complex hole-by-hole scoring and refocusing on core features: handicap tracking with multiple bag setups and a robust, universal note-taking system. The goal is to streamline the user experience, reduce complexity, and provide a more focused tool for golfers to track progress and capture insights during rounds and practice sessions.
+
+# Core Features
+1.  **Simplified Round Tracking:**
+    *   What it does: Allows users to log a golf round with essential details like course, tees played, date, and final total score.
+    *   Why it's important: Provides the necessary data for handicap calculation without the burden of inputting scores for each hole.
+    *   How it works: User starts a round, selects course/tees, and optionally a bag setup. At the end of the round, they input their total score.
+
+2.  **Bag Setup Management & Handicap Tracking:**
+    *   What it does: Enables users to create and manage multiple golf bag configurations (e.g., "Full Bag," "Travel Set," "Simulator Clubs") and track a separate handicap index for each setup.
+    *   Why it's important: Golfers often use different sets of clubs or play in different conditions, which can affect their handicap. This allows for more accurate and context-specific handicap tracking.
+    *   How it works: Users can define bag setups with names and descriptions. When logging a round, they can associate it with a specific bag setup. Handicap calculations will consider the bag setup used for a given round.
+
+3.  **Universal Note-Taking System:**
+    *   What it does: Provides a flexible system for users to capture notes, thoughts, and insights. Notes can be standalone, linked to a specific round, a course, or even a particular hole number (contextually, without a dedicated `holes` table).
+    *   Why it's important: Centralizes all golf-related thoughts, observations, swing adjustments, and course strategies in one easily accessible place.
+    *   How it works: Users can create notes anytime. If a round is active, notes can be automatically associated with that round. Notes will support titles, free-form text, categories, and tags for organization and searchability.
+
+4.  **Simplified Course Information:**
+    *   What it does: Maintains a database of golf courses with essential information, primarily focusing on tee box details (name, color, slope, rating, yardage, par total).
+    *   Why it's important: Provides the necessary course and tee data for accurate handicap calculation and for users to select where they played.
+    *   How it works: Course data will be managed by admins. The `holes` table and all related hole-specific data will be removed.
+
+# User Experience
+*   **User Personas:** Golfers of all skill levels who want a simple way to track their handicap with different equipment sets and maintain a log of their golf-related thoughts, learnings, and on-course experiences.
+*   **Key User Flows:**
+    *   Starting a Round: User selects "Start Round," chooses course, tee, and bag setup. The round is active.
+    *   Taking Notes During Round: User taps "Add Note," enters text (optionally voice-to-text), can add category/tags, and optionally a hole number. Note is saved and linked to the active round.
+    *   Ending a Round: User selects "End Round," inputs total score. Handicap is updated for the selected bag setup.
+    *   Creating/Viewing Standalone Notes: User accesses a dedicated "Notes" section to create new notes or view/filter/search existing notes (whether linked to rounds or standalone).
+    *   Managing Bag Setups: User can create, edit, or delete bag setups and view their handicap associated with each.
+*   **UI/UX Considerations:**
+    *   Mobile-first design for on-course note-taking and round management.
+    *   Intuitive and quick note entry (e.g., prominent "Add Note" button during active rounds).
+    *   Clear separation between active round functions and general note management.
+    *   Simplified UI by removing all hole-by-hole scoring interfaces, scorecards, and detailed round statistics that depend on per-hole scores.
+</context>
+<PRD>
+# Technical Architecture
+*   **System Components:**
+    *   Frontend (Next.js/React): Updated UI components for simplified round flow, bag setup management, and universal note-taking.
+    *   Backend API (Next.js API Routes): Modified and new endpoints for managing simplified rounds, bag setups, and notes. Removal of scoring and hole-related endpoints.
+    *   Database (Supabase/PostgreSQL): Schema changes to remove `holes` and `scores` tables, simplify the `rounds` table, and add a `bag_setups` table and a universal `notes` table.
+*   **Data Models (Key Changes):**
+    *   `courses`: Remains, but without direct links to individual holes.
+    *   `course_tees`: Remains, crucial for slope/rating.
+    *   `rounds`: Simplified. Stores `user_id`, `course_id`, `course_tee_id`, `round_date`, `total_score`, `bag_setup_id`, and context notes (weather, equipment). No hole-by-hole score data.
+    *   `bag_setups`: New table (`id`, `user_id`, `setup_name`, `description`, `current_handicap`).
+    *   `notes`: New universal table (`id`, `user_id`, `note_text`, `note_title`, `category`, `tags`, `round_id` (optional), `course_id` (optional), `hole_number` (optional context)).
+    *   `holes` table: Removed.
+    *   `scores` table (per-hole scores): Removed.
+*   **APIs and Integrations:**
+    *   Internal APIs will be refactored. Endpoints related to hole details and per-hole scoring will be removed or significantly simplified.
+    *   New API endpoints for `bag_setups` CRUD and `notes` CRUD.
+    *   Handicap calculation logic will be updated to use total score and tee data from the `rounds` table, potentially segmented by `bag_setup_id`.
+*   **Infrastructure Requirements:** Existing Supabase infrastructure is likely sufficient. Focus will be on schema migration and API updates.
+
+# Development Roadmap
+*   **Phase 1: Database & Core Backend (Foundation)**
+    *   Finalize new database schema for `rounds`, `bag_setups`, `notes`. Confirm `courses` and `course_tees` simplification.
+    *   Develop and test database migration scripts (backup existing data, create new tables, migrate relevant data, drop old tables - `holes`, `scores`).
+    *   Update/create Supabase RLS policies for new/modified tables.
+    *   Develop core API endpoints for: 
+        *   CRUD operations for `bag_setups`.
+        *   CRUD operations for the universal `notes` table (including linking to rounds).
+        *   Simplified CRUD for `rounds` (start round with course/tee/bag, end round with total score).
+
+*   **Phase 2: Core Frontend - Round Flow & Note-Taking**
+    *   Implement UI for managing `bag_setups` (create, view, edit, select active).
+    *   Develop UI for starting a new round (selecting course, tees, bag setup).
+    *   Develop UI for ending a round and inputting `total_score`.
+    *   Implement basic note-taking UI: ability to create/view/edit/delete notes. Notes created during an active round should automatically link to it.
+    *   Display user's handicap per active bag setup (simple display, calculation logic can be refined later).
+
+*   **Phase 3: Frontend - Notes Organization & Display**
+    *   Enhance notes UI: filtering by round, course, category, tags; searching notes.
+    *   Display notes linked to a specific round when viewing round details.
+    *   Remove all UI elements related to hole-by-hole scoring, detailed scorecards, and per-hole statistics.
+    *   Simplify course display pages to show general info and tee box details only.
+
+*   **Phase 4: Handicap Calculation & Refinements**
+    *   Implement or refine handicap calculation logic based on total scores from simplified rounds and `bag_setup_id`.
+    *   UI for displaying handicap history per bag setup.
+    *   General UI polish and UX improvements based on the new simplified flow.
+
+# Logical Dependency Chain
+1.  **Database Schema Changes:** This is foundational. All other backend and frontend work depends on the new data structure.
+2.  **Migration Scripts:** Must be done carefully to preserve existing user and course data where possible, while removing scoring-related data.
+3.  **Core API Endpoints:** Basic CRUD for `notes`, `bag_setups`, and simplified `rounds` must be functional before frontend work can fully proceed.
+4.  **Frontend - Bag Setup Management:** Users need to be able to define their bags first.
+5.  **Frontend - Simplified Round Flow:** Starting a round, selecting a bag, and entering a total score.
+6.  **Frontend - Basic Note-Taking:** Ability to add notes during a round and link them.
+7.  **Frontend - Universal Note Viewing/Organization:** Accessing all notes outside of a specific round context.
+8.  **Handicap Calculation Logic:** Can be implemented once round data with total scores and bag setup linkage is available.
+9.  **UI Cleanup:** Removing old scoring-related UI elements can happen in parallel with new feature development but should be completed to avoid confusion.
+
+# Risks and Mitigations
+*   **Data Migration Complexity:** Risk of data loss or corruption if migration scripts are not thoroughly tested. Mitigation: Extensive testing in a staging environment, full database backups before migration.
+*   **Scope Creep for Notes Feature:** The notes system could become overly complex. Mitigation: Stick to the defined MVP for notes (text, title, category, tags, optional linking) and defer advanced features (rich text, attachments) for later.
+*   **User Adjustment:** Users accustomed to hole-by-hole scoring might need clear communication about the changes. Mitigation: In-app notifications or guides explaining the new simplified focus.
+*   **Handicap Calculation Accuracy:** Ensuring the simplified handicap calculation remains accurate and fair. Mitigation: Follow established USGA/WHS guidelines for handicap calculation based on total scores, course rating, and slope rating. Clearly display which scores are used for handicap purposes.
+
+# Appendix
+*   (Future: Add any specific UI mockups or detailed technical specs for new components as they are designed.)
+</PRD> 

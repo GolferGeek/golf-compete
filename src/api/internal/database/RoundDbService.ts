@@ -10,7 +10,7 @@ import {
     TableOptions,
     createSuccessResponse,
     keysToCamelCase
-} from '../base'; 
+} from '../../base'; 
 import { type Round, type Score } from '@/types/database'; // Import shared types
 
 /**

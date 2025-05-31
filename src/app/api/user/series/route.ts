@@ -2,7 +2,7 @@ import { type NextRequest, NextResponse } from 'next/server';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
 import { createSuccessApiResponse, createErrorApiResponse } from '@/lib/api/utils';
 import { createClient } from '@/lib/supabase/server'; // Need this
-import SeriesDbService from '@/api/internal/database/SeriesDbService'; // Import the new SeriesDbService
+import { SeriesDbService } from '@/api/internal/database/SeriesDbService'; // Import the new SeriesDbService
 import { keysToCamelCase } from '@/api/base'; // Import utility if needed for consistency
 
 // Define the expected shape of the joined data
@@ -79,7 +79,7 @@ const getUserSeriesHandler = async (
 
   try {
     // Call the method from SeriesDbService
-    const seriesResponse = await seriesDbService.fetchUserSeriesParticipations(user.id);
+    const seriesResponse = await seriesDbService.getUserParticipations(user.id);
 
     if (seriesResponse.error) {
       // Let withAuth handle ServiceError instances

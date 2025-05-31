@@ -1,8 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { Box, Container, Typography } from '@mui/material';
-import UserNotesManager from '@/components/notes/UserNotesManager';
+import { Container, Box, Typography } from '@mui/material';
+import NotesListView from '@/components/notes/NotesListView';
 import { useAuth } from '@/contexts/AuthContext';
 
 /**
@@ -11,11 +10,6 @@ import { useAuth } from '@/contexts/AuthContext';
  */
 export default function GolfNotesPage() {
   const { user } = useAuth();
-  const [notesUpdated, setNotesUpdated] = useState(0);
-  
-  const handleNotesUpdated = () => {
-    setNotesUpdated(prev => prev + 1);
-  };
   
   if (!user) {
     return (
@@ -33,7 +27,7 @@ export default function GolfNotesPage() {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box sx={{ mb: 4 }}>
-        <Typography variant="h5" gutterBottom>
+        <Typography variant="h4" gutterBottom>
           Golf Notes
         </Typography>
         <Typography variant="body1" color="text.secondary">
@@ -41,9 +35,10 @@ export default function GolfNotesPage() {
         </Typography>
       </Box>
       
-      <UserNotesManager 
+      <NotesListView 
         userId={user.id} 
-        onNotesUpdated={handleNotesUpdated} 
+        showCreateButton={true}
+        maxHeight="calc(100vh - 200px)"
       />
     </Container>
   );

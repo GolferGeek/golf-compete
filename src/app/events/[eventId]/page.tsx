@@ -1,137 +1,254 @@
-import { Box, Card, CardContent, Paper, Typography } from '@mui/material';
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  Box,
+  Typography,
+  Paper,
+  Grid,
+  Card,
+  CardContent,
+  Chip,
+  CircularProgress,
+  Alert,
+  Divider,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Button,
+} from '@mui/material';
 import { format } from 'date-fns';
-import { Round } from '@/types/round';
-import { getBagById } from '@/lib/bags';
+import { getEventById } from '@/lib/events';
+import { getEventRounds } from '@/api/competition/roundService';
+import { Event } from '@/types/events';
+import { EventRoundSummary } from '@/types/round';
+import Link from 'next/link';
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline';
+import ScoreboardIcon from '@mui/icons-material/Scoreboard';
+import { EventAuthGuard } from '@/components/auth/EventAuthGuard';
 
-interface RoundStats {
-  putting?: {
-    total: number;
-    average: string;
-  };
-  fairways?: {
-    hit: number;
-    percentage: string;
-  };
-  greens?: {
-    hit: number;
-    percentage: string;
-  };
-  penalties?: {
-    total: number;
+interface EventDayPageProps {
+  params: {
+    eventId: string;
   };
 }
 
-interface EventPageProps {
-  round: Round;
-  stats?: {
-    stats: RoundStats;
-    showPutts: boolean;
-    showFairways: boolean;
-    showGIR: boolean;
-    showPenalties: boolean;
+export default function EventDayPage({ params }: EventDayPageProps) {
+  const router = useRouter();
+  const { eventId } = params;
+  
+  const [event, setEvent] = useState<Event | null>(null);
+  const [rounds, setRounds] = useState<EventRoundSummary | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        // Load event details and rounds
+        const [eventData, roundsData] = await Promise.all([
+          getEventById(eventId),
+          getEventRounds(eventId)
+        ]);
+        
+        setEvent(eventData);
+        setRounds(roundsData);
+      } catch (err) {
+        console.error('Error loading event data:', err);
+        setError('Failed to load event data. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    }
+    
+    loadData();
+  }, [eventId]);
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'upcoming':
+        return 'info';
+      case 'in_progress':
+        return 'warning';
+      case 'completed':
+        return 'success';
+      case 'cancelled':
+        return 'error';
+      default:
+        return 'default';
+    }
   };
-  handicapDifferential?: number;
-}
 
-export default async function EventPage({ round, stats, handicapDifferential }: EventPageProps) {
-  const bag = await getBagById(round.bag_id);
-
-  return (
-    <>
-      {/* Header */}
-      <Paper sx={{ p: 3, mb: 3 }}>
-        <Box sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, gap: 2 }}>
-          <Box sx={{ flex: '1 1 50%' }}>
-            <Typography variant="h4" gutterBottom>
-              {round.course.name}
-            </Typography>
-            <Typography variant="subtitle1" color="text.secondary">
-              {format(new Date(round.date_played), 'MMMM d, yyyy')}
-            </Typography>
-            {bag && (
-              <Typography variant="subtitle2" color="text.secondary" sx={{ mt: 1 }}>
-                Bag: {bag.name} {bag.handicap && `(Handicap: ${bag.handicap})`}
+  const content = (
+    <Box sx={{ maxWidth: 1200, mx: 'auto', p: { xs: 2, sm: 3 } }}>
+      {loading ? (
+        <Box sx={{ display: 'flex', justifyContent: 'center', p: 3 }}>
+          <CircularProgress />
+        </Box>
+      ) : !event ? (
+        <Box sx={{ p: 3 }}>
+          <Alert severity="error">Event not found</Alert>
+        </Box>
+      ) : (
+        <>
+          {/* Event Header */}
+          <Paper elevation={2} sx={{ mb: 3, overflow: 'hidden' }}>
+            <Box sx={{ p: { xs: 2, sm: 3 } }}>
+              <Typography variant="h4" component="h1" gutterBottom>
+                {event.name}
               </Typography>
-            )}
-          </Box>
-          <Box sx={{ flex: '1 1 50%' }}>
-            <Box sx={{ display: 'flex', justifyContent: { xs: 'flex-start', md: 'flex-end' }, gap: 3 }}>
-              <Box>
-                <Typography variant="h6">Total Score</Typography>
-                <Typography variant="h4" color="primary">
-                  {round.total_score}
-                </Typography>
-              </Box>
-              {handicapDifferential && (
-                <Box>
-                  <Typography variant="h6">Differential</Typography>
-                  <Typography variant="h4" color="secondary">
-                    {handicapDifferential}
+              
+              <Grid container spacing={3}>
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Box>
+                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                        Date
+                      </Typography>
+                      <Typography variant="body1">
+                        {format(new Date(event.event_date), 'MMMM d, yyyy')}
+                      </Typography>
+                    </Box>
+                    
+                    <Box>
+                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                        Course
+                      </Typography>
+                      <Typography variant="body1">
+                        {event.courses?.name}
+                      </Typography>
+                      {event.courses?.city && event.courses?.state && (
+                        <Typography variant="body2" color="text.secondary">
+                          {event.courses.city}, {event.courses.state}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                </Grid>
+                
+                <Grid item xs={12} sm={6}>
+                  <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                    <Box>
+                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                        Format
+                      </Typography>
+                      <Typography variant="body1" sx={{ textTransform: 'capitalize' }}>
+                        {event.event_format.replace('_', ' ')}
+                      </Typography>
+                    </Box>
+                    
+                    <Box>
+                      <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                        Status
+                      </Typography>
+                      <Chip
+                        label={event.status.charAt(0).toUpperCase() + event.status.slice(1).replace('_', ' ')}
+                        color={getStatusColor(event.status) as any}
+                        size="small"
+                      />
+                    </Box>
+                  </Box>
+                </Grid>
+              </Grid>
+
+              {event.description && (
+                <>
+                  <Divider sx={{ my: 3 }} />
+                  <Typography variant="body1">
+                    {event.description}
                   </Typography>
-                </Box>
+                </>
               )}
             </Box>
-          </Box>
-        </Box>
-      </Paper>
+          </Paper>
 
-      {/* Stats Cards */}
-      {stats?.stats && (
-        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mb: 3 }}>
-          {stats.stats.putting && (
-            <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)', md: '1 1 calc(25% - 12px)' } }}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>Putting</Typography>
-                  <Typography variant="h4">{stats.stats.putting.total}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {stats.stats.putting.average} putts per hole
-                  </Typography>
-                </CardContent>
-              </Card>
+          {/* Rounds Section */}
+          <Paper elevation={2}>
+            <Box sx={{ p: { xs: 2, sm: 3 } }}>
+              <Box sx={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                mb: 3
+              }}>
+                <Typography variant="h5" component="h2">
+                  Rounds
+                </Typography>
+                <Button
+                  variant="contained"
+                  color="primary"
+                  startIcon={<PlayCircleOutlineIcon />}
+                  component={Link}
+                  href={`/rounds/new?eventId=${eventId}`}
+                >
+                  Start Round
+                </Button>
+              </Box>
+
+              {error && (
+                <Alert severity="error" sx={{ mb: 3 }}>
+                  {error}
+                </Alert>
+              )}
+
+              {rounds?.rounds.length === 0 ? (
+                <Alert severity="info">
+                  No rounds have been played yet. Be the first to start a round!
+                </Alert>
+              ) : (
+                <TableContainer>
+                  <Table>
+                    <TableHead>
+                      <TableRow>
+                        <TableCell>Player</TableCell>
+                        <TableCell align="right">Score</TableCell>
+                        <TableCell align="right">Putts</TableCell>
+                        <TableCell align="right">FIR</TableCell>
+                        <TableCell align="right">GIR</TableCell>
+                        <TableCell align="right">Actions</TableCell>
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {rounds?.rounds.map((round) => (
+                        <TableRow key={round.round_id}>
+                          <TableCell>{round.user_name}</TableCell>
+                          <TableCell align="right">{round.total_score}</TableCell>
+                          <TableCell align="right">{round.total_putts}</TableCell>
+                          <TableCell align="right">{round.fairways_hit}</TableCell>
+                          <TableCell align="right">{round.greens_in_regulation}</TableCell>
+                          <TableCell align="right">
+                            <Button
+                              size="small"
+                              startIcon={<ScoreboardIcon />}
+                              component={Link}
+                              href={`/rounds/${round.round_id}`}
+                            >
+                              View
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              )}
             </Box>
-          )}
-          {stats.stats.fairways && (
-            <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)', md: '1 1 calc(25% - 12px)' } }}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>Fairways</Typography>
-                  <Typography variant="h4">{stats.stats.fairways.hit}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {stats.stats.fairways.percentage}% hit
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Box>
-          )}
-          {stats.stats.greens && (
-            <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)', md: '1 1 calc(25% - 12px)' } }}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>GIR</Typography>
-                  <Typography variant="h4">{stats.stats.greens.hit}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {stats.stats.greens.percentage}% hit
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Box>
-          )}
-          {stats.stats.penalties && (
-            <Box sx={{ flex: { xs: '1 1 100%', sm: '1 1 calc(50% - 8px)', md: '1 1 calc(25% - 12px)' } }}>
-              <Card>
-                <CardContent>
-                  <Typography variant="h6" gutterBottom>Penalties</Typography>
-                  <Typography variant="h4">{stats.stats.penalties.total}</Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    Total penalty strokes
-                  </Typography>
-                </CardContent>
-              </Card>
-            </Box>
-          )}
-        </Box>
+          </Paper>
+        </>
       )}
-    </>
+    </Box>
+  );
+
+  return (
+    <EventAuthGuard eventId={eventId}>
+      {content}
+    </EventAuthGuard>
   );
 } 

@@ -1,11 +1,11 @@
 import React from 'react';
 import { Metadata } from 'next';
-import RoundForm from '@/components/rounds/RoundForm';
+import StartRound from '@/components/rounds/StartRound';
 import { AuthGuard } from '@/components/auth/AuthGuard';
 
 export const metadata: Metadata = {
-  title: 'New Round | Golf Compete',
-  description: 'Enter a new golf round',
+  title: 'Start Round | Golf Compete',
+  description: 'Start a new simplified golf round',
 };
 
 interface NewRoundPageProps {
@@ -18,11 +18,9 @@ interface NewRoundPageProps {
 }
 
 export default function NewRoundPage({ searchParams }: NewRoundPageProps) {
-  console.log('NewRoundPage searchParams:', searchParams);
-  
   return (
     <AuthGuard>
-      <RoundForm 
+      <StartRound 
         eventId={searchParams.eventId}
         initialCourseId={searchParams.courseId}
         initialTeeSetId={searchParams.teeSetId}

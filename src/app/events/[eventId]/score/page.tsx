@@ -32,7 +32,7 @@ import { supabaseClient } from '@/lib/auth';
 
 interface EventScoringPageProps {
   params: {
-    id: string;
+    eventId: string;
   };
 }
 
@@ -43,7 +43,7 @@ interface EventWithDetails extends Event {
 export default function EventScoringPage({ params }: EventScoringPageProps) {
   const router = useRouter();
   const { user } = useAuth();
-  const eventId = params.id;
+  const eventId = params.eventId;
 
   const [event, setEvent] = useState<EventWithDetails | null>(null);
   const [roundSummary, setRoundSummary] = useState<EventRoundSummary | null>(null);

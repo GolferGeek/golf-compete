@@ -30,7 +30,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import ProtectedRoute from '@/components/auth/ProtectedRoute';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 import { SelectChangeEvent } from '@mui/material/Select';
 
 // Club types
@@ -121,6 +121,7 @@ export default function ClubsPage() {
       if (!user) return;
 
       try {
+        const supabase = createClient();
         const { data: clubsData, error: clubsError } = await supabase
           .from('clubs')
           .select('*')
@@ -188,6 +189,7 @@ export default function ClubsPage() {
         return;
       }
 
+      const supabase = createClient();
       const clubData = {
         name: formData.name,
         brand: formData.brand,
@@ -271,6 +273,7 @@ export default function ClubsPage() {
 
   const handleDelete = async (clubId: string) => {
     try {
+      const supabase = createClient();
       const { error } = await supabase
         .from('clubs')
         .delete()

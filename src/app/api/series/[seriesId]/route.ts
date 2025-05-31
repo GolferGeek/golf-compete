@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
-import SeriesDbService from '@/api/internal/database/SeriesDbService';
+import { SeriesDbService } from '@/api/internal/database/SeriesDbService';
 import { 
     validateRequestBody,
     createSuccessApiResponse, 
@@ -9,8 +9,8 @@ import {
 } from '@/lib/api/utils';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
 import { ServiceError, ErrorCodes } from '@/api/base';
-import { type Series } from '@/types/database';
-import AuthService from '@/api/internal/database/AuthService';
+import { Series } from '@/types/competition/series/types';
+import AuthService from '@/api/internal/auth/AuthService';
 
 // Schema for updating a series (similar to create but all optional)
 const updateSeriesSchema = z.object({

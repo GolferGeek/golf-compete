@@ -1,69 +1,48 @@
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
-import { getSeriesById } from '@/lib/series';
-import { Series, SeriesStatus } from '@/types/series';
-import { Box, Typography, Button, Paper, Chip, Alert } from '@mui/material';
+'use client';
+
+import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  Box,
+  Typography,
+  Button,
+  Paper,
+  Chip,
+  CircularProgress,
+  Alert,
+  Grid,
+  useMediaQuery,
+  useTheme,
+  Card,
+  CardContent,
+  CardActions,
+  Breadcrumbs,
+  Link as MuiLink,
+} from '@mui/material';
 import Link from 'next/link';
 import EditIcon from '@mui/icons-material/Edit';
 import EventIcon from '@mui/icons-material/Event';
 import PeopleIcon from '@mui/icons-material/People';
 import { format } from 'date-fns';
+import { getSeriesById } from '@/lib/series';
+import { Series, SeriesStatus } from '@/types/series';
+import { useAuth } from '@/contexts/AuthContext';
+import { SeriesAuthGuard } from '@/components/auth/SeriesAuthGuard';
 
-export default async function SeriesPage({
-  params,
-}: {
-  params: { seriesId: string };
-}) {
-  const cookieStore = await cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll: () => {
-          try {
-            return cookieStore.getAll().map(cookie => ({
-              name: cookie.name,
-              value: cookie.value,
-            }));
-          } catch (error) {
-            console.error('Error getting cookies:', error);
-            return [];
-          }
-        },
-        setAll: (cookies) => {
-          try {
-            cookies.forEach((cookie) => {
-              cookieStore.set({
-                name: cookie.name,
-                value: cookie.value,
-                ...cookie.options
-              });
-            });
-          } catch (error) {
-            console.error('Error setting cookies:', error);
-          }
-        },
-      },
-    }
-  );
+interface SeriesDetailPageProps {
+  params: {
+    seriesId: string;
+  };
+}
 
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  if (!session) {
-    return <div>Please sign in to view this series.</div>;
-  }
-
-  const series = await getSeriesById(params.seriesId);
-  if (!series) {
-    return (
-      <Alert severity="error" sx={{ m: 3 }}>
-        Series not found
-      </Alert>
-    );
-  }
+function SeriesDetailContent({ seriesId }: { seriesId: string }) {
+  const router = useRouter();
+  const { user } = useAuth();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const [series, setSeries] = useState<Series | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const getStatusChipColor = (status: SeriesStatus) => {
     switch (status) {
@@ -78,15 +57,81 @@ export default async function SeriesPage({
     }
   };
 
+  useEffect(() => {
+    async function loadSeries() {
+      try {
+        setLoading(true);
+        const seriesData = await getSeriesById(seriesId);
+        setSeries(seriesData);
+      } catch (err) {
+        console.error('Error loading series:', err);
+        setError('Failed to load series. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadSeries();
+  }, [seriesId]);
+
+  const handleEditSeries = () => {
+    router.push(`/series/${seriesId}/edit`);
+  };
+
+  const handleManageEvents = () => {
+    router.push(`/series/${seriesId}/events`);
+  };
+
+  const handleManageParticipants = () => {
+    try {
+      console.log('Navigating to participants page for series:', seriesId);
+      if (!seriesId) {
+        console.error('Series ID is missing');
+        setError('Cannot access participants page: Series ID is missing');
+        return;
+      }
+      router.push(`/series/${seriesId}/participants`);
+    } catch (error) {
+      console.error('Error navigating to participants page:', error);
+      setError('Failed to navigate to participants page. Please try again.');
+    }
+  };
+
+  if (loading) {
+    return (
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (!series) {
+    return (
+      <Alert severity="error" sx={{ m: 3 }}>
+        Series not found
+      </Alert>
+    );
+  }
+
   return (
     <Box sx={{ p: { xs: 2, sm: 3 } }}>
       <Box sx={{ mb: 3 }}>
-        <Link href="/series">Series</Link>
-        <Typography color="text.primary">{series.name}</Typography>
+        <Breadcrumbs>
+          <MuiLink component={Link} href="/series" color="inherit">
+            Series
+          </MuiLink>
+          <Typography color="text.primary">{series.name}</Typography>
+        </Breadcrumbs>
       </Box>
 
-      <Paper>
-        <Box sx={{ p: 3 }}>
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>
+          {error}
+        </Alert>
+      )}
+
+      <Card>
+        <CardContent>
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 2, mb: 3 }}>
             <Box>
               <Typography variant="h4" component="h1" gutterBottom>
@@ -95,7 +140,7 @@ export default async function SeriesPage({
               <Box sx={{ mb: 2 }}>
                 <Chip
                   label={series.status.charAt(0).toUpperCase() + series.status.slice(1)}
-                  color={getStatusChipColor(series.status)}
+                  color={getStatusChipColor(series.status) as any}
                   size="small"
                   sx={{ mr: 1 }}
                 />
@@ -120,8 +165,8 @@ export default async function SeriesPage({
             </Box>
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-            <Box sx={{ flex: '1 1 auto', minWidth: { xs: '100%', sm: 'calc(33.33% - 16px)' } }}>
+          <Grid container spacing={2}>
+            <Grid item xs={12} sm={4}>
               <Button
                 fullWidth
                 variant="outlined"
@@ -131,8 +176,8 @@ export default async function SeriesPage({
               >
                 Manage Events
               </Button>
-            </Box>
-            <Box sx={{ flex: '1 1 auto', minWidth: { xs: '100%', sm: 'calc(33.33% - 16px)' } }}>
+            </Grid>
+            <Grid item xs={12} sm={4}>
               <Button
                 fullWidth
                 variant="outlined"
@@ -142,9 +187,9 @@ export default async function SeriesPage({
               >
                 Manage Participants
               </Button>
-            </Box>
-            {series.created_by === session.user.id && (
-              <Box sx={{ flex: '1 1 auto', minWidth: { xs: '100%', sm: 'calc(33.33% - 16px)' } }}>
+            </Grid>
+            {series.created_by === user?.id && (
+              <Grid item xs={12} sm={4}>
                 <Button
                   fullWidth
                   variant="outlined"
@@ -154,11 +199,20 @@ export default async function SeriesPage({
                 >
                   Edit Series
                 </Button>
-              </Box>
+              </Grid>
             )}
-          </Box>
-        </Box>
-      </Paper>
+          </Grid>
+        </CardContent>
+      </Card>
     </Box>
+  );
+}
+
+export default function SeriesDetailPage({ params }: SeriesDetailPageProps) {
+  const { seriesId } = params;
+  return (
+    <SeriesAuthGuard seriesId={seriesId}>
+      <SeriesDetailContent seriesId={seriesId} />
+    </SeriesAuthGuard>
   );
 } 
