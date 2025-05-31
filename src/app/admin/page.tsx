@@ -19,7 +19,7 @@ import {
 import PeopleIcon from '@mui/icons-material/People';
 import GolfCourseIcon from '@mui/icons-material/GolfCourse';
 import { getAllProfiles } from '@/lib/apiClient/profiles';
-import { type AuthProfile } from '@/api/internal/database/AuthService';
+import { type AuthProfile } from '@/api/internal/auth/AuthService';
 import { AdminAuthGuard } from '@/components/auth/AdminAuthGuard';
 import { useRouter } from 'next/navigation';
 

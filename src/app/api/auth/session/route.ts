@@ -1,10 +1,6 @@
 import { type NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import AuthService, { 
-  type AuthProfile,
-  type SessionResponse,
-  type ProfileResponse
-} from '@/api/internal/auth/AuthService';
+import AuthService, { type AuthProfile } from '@/api/internal/auth/AuthService';
 import { createSuccessApiResponse, createErrorApiResponse } from '@/lib/api/utils';
 import { ServiceError, type ServiceResponse } from '@/api/base';
 import { type User, type Session } from '@supabase/supabase-js';

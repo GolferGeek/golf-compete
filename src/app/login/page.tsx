@@ -12,7 +12,7 @@ import {
   CircularProgress
 } from '@mui/material';
 import { useRouter, useSearchParams } from 'next/navigation';
-import AuthService from '@/api/internal/database/AuthService';
+import AuthService from '@/api/internal/auth/AuthService';
 import { supabaseClient } from '@/lib/auth';
 
 // Create an instance of AuthService

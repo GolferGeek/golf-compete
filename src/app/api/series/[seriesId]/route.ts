@@ -9,7 +9,7 @@ import {
 } from '@/lib/api/utils';
 import { withAuth, type AuthenticatedContext } from '@/lib/api/withAuth';
 import { ServiceError, ErrorCodes } from '@/api/base';
-import { Series } from '@/types/competition/series/types';
+import { Series } from '@/types/competition/series';
 import AuthService from '@/api/internal/auth/AuthService';
 
 // Schema for updating a series (similar to create but all optional)
@@ -18,7 +18,7 @@ const updateSeriesSchema = z.object({
   description: z.string().optional().nullable(),
   start_date: z.string().datetime().optional(),
   end_date: z.string().datetime().optional(),
-  status: z.enum(['draft', 'active', 'completed']).optional(),
+  status: z.enum(['upcoming', 'active', 'completed', 'cancelled']).optional(),
 }).partial(); // Makes all fields optional
 
 /**
@@ -56,7 +56,19 @@ export async function GET(request: NextRequest, { params }: { params: { seriesId
     try {
         let response;
         if (includeParticipants) {
-            response = await seriesDbService.getSeriesWithParticipants(seriesId);
+            // Get series and participants separately since getSeriesWithParticipants doesn't exist
+            const seriesResponse = await seriesDbService.getSeriesById(seriesId);
+            if (seriesResponse.error) throw seriesResponse.error;
+            
+            const participantsResponse = await seriesDbService.getSeriesParticipants(seriesId);
+            if (participantsResponse.error) throw participantsResponse.error;
+            
+            response = {
+                data: {
+                    ...seriesResponse.data,
+                    participants: participantsResponse.data
+                }
+            };
         } else {
             response = await seriesDbService.getSeriesById(seriesId);
         }
@@ -129,11 +141,12 @@ const updateSeriesHandler = async (
 
         let isSeriesAdmin = false;
         if (!isSiteAdmin) {
-            const roleResponse = await seriesDbService.getUserSeriesRole(userId, seriesId);
+            // Use getUserRole instead of getUserSeriesRole
+            const roleResponse = await seriesDbService.getUserRole(seriesId, userId);
             if (roleResponse.error) {
                 console.error(`Error checking series role for user ${userId} on series ${seriesId}:`, roleResponse.error);
             } else {
-                isSeriesAdmin = roleResponse.data?.role === 'admin';
+                isSeriesAdmin = roleResponse.data === 'admin';
             }
         }
 
@@ -214,11 +227,12 @@ const deleteSeriesHandler = async (
 
         let isSeriesAdmin = false;
         if (!isSiteAdmin) {
-            const roleResponse = await seriesDbService.getUserSeriesRole(userId, seriesId);
+            // Use getUserRole instead of getUserSeriesRole
+            const roleResponse = await seriesDbService.getUserRole(seriesId, userId);
             if (roleResponse.error) {
                 console.error(`Error checking series role for user ${userId} on series ${seriesId}:`, roleResponse.error);
             } else {
-                isSeriesAdmin = roleResponse.data?.role === 'admin';
+                isSeriesAdmin = roleResponse.data === 'admin';
             }
         }
 
@@ -226,16 +240,16 @@ const deleteSeriesHandler = async (
              return createErrorApiResponse('Forbidden: You must be a site admin or series admin to delete this series', 'FORBIDDEN', 403);
         }
 
-        // Perform delete
+        // Perform the deletion
         const deleteResponse = await seriesDbService.deleteSeries(seriesId);
         if (deleteResponse.error) throw deleteResponse.error;
 
-        return new NextResponse(null, { status: 204 }); // No Content success response
+        return new NextResponse(null, { status: 204 });
 
     } catch (error: any) {
         console.error(`[API /series/${seriesId} DELETE] Error:`, error);
         if (error instanceof ServiceError) {
-             let status = error.code === ErrorCodes.DB_NOT_FOUND ? 404 : 500;
+            let status = error.code === ErrorCodes.DB_NOT_FOUND ? 404 : 400;
             return createErrorApiResponse(error.message, error.code, status);
         }
         return createErrorApiResponse('Failed to delete series', 'DELETE_SERIES_ERROR', 500);

@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { createClient } from '@/lib/supabase/server';
 import EventDbService from '@/api/internal/database/EventDbService';
 import SeriesDbService from '@/api/internal/database/SeriesDbService';
-import AuthService from '@/api/internal/database/AuthService';
+import AuthService from '@/api/internal/auth/AuthService';
 import { 
     validateRequestBody,
     createSuccessApiResponse, 
